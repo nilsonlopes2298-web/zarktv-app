@@ -255,6 +255,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var vodDeInicio by remember { mutableStateOf(false) }
     /** Link do filme/episódio tocando agora (para abrir no player externo). */
     var vodUrlAtual by remember { mutableStateOf<String?>(null) }
+    /** ZarkTV: lembrete de jogo que acabou de começar (aviso na tela). */
+    var lembreteAviso by remember { mutableStateOf<io.github.axon07.channelbox.data.ZarkLembretes.Lembrete?>(null) }
     var vodPosterAtual by remember { mutableStateOf<String?>(null) }
     /** ZarkTV: na tela cheia, ◀ na lista de canais abre os grupos ao lado (sem sair da TV). */
     var gruposAbertos by remember { mutableStateOf(false) }
@@ -2119,6 +2121,33 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
                 Text("Quando terminar, confirme a instalação.", color = Color(0xAAFFFFFF), fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
             }
+        }
+        // ZarkTV: confere os lembretes de jogos a cada 30 s e avisa quando o jogo começa.
+        LaunchedEffect(Unit) {
+            while (true) {
+                val agoraL = System.currentTimeMillis()
+                io.github.axon07.channelbox.data.ZarkLembretes.lista(zarkCtx)
+                    .firstOrNull { it.inicio in (agoraL - 3 * 3600_000L)..agoraL }
+                    ?.let { l ->
+                        io.github.axon07.channelbox.data.ZarkLembretes.remover(zarkCtx, l.id)
+                        if (lembreteAviso == null) lembreteAviso = l
+                    }
+                delay(30_000)
+            }
+        }
+        lembreteAviso?.let { l ->
+            if (!inPip) ActionDialog(
+                title = "O jogo começou!",
+                subtitle = l.titulo.ifBlank { "Seu jogo marcado já está rolando." },
+                actions = listOf(
+                    DialogAction("Assistir agora") {
+                        lembreteAviso = null
+                        homeTab = Aba.JOGOS
+                        mode = Mode.HOME
+                    },
+                    DialogAction("Fechar") { lembreteAviso = null },
+                ),
+            )
         }
         if (!inPip) {
             popup?.let { p -> ActionDialog(p.title, p.subtitle, p.actions) }

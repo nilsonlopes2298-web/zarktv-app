@@ -1170,13 +1170,17 @@ private fun AbaExplorar(
     onAdulto: () -> Unit,
 ) {
     val itens by remember { vm.vodTop(VodKind.MOVIE, null, 3) }.collectAsState(initial = emptyList())
+    val catsSeries by remember { vm.vodCategories(VodKind.SERIES) }.collectAsState(initial = emptyList())
+    val rxCurtas = Regex("curt|mini|novelinha|dorama", RegexOption.IGNORE_CASE)
+    // Sem categoria de séries curtas no servidor: abre todas as séries.
+    val filtroCurtas = if (catsSeries.any { rxCurtas.containsMatchIn(it.name) }) rxCurtas else Regex(".*")
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val altura = if (compacto) 300.dp else maxHeight - 8.dp
         Row(Modifier.fillMaxWidth().height(altura), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             itens.take(3).forEach { a -> TileImagem(a.poster, a.title, Modifier.weight(1f).fillMaxHeight()) { onOpen(a) } }
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 TileImagem(null, "Séries Curtas", Modifier.fillMaxWidth().weight(1f), cor = Color(0xFF43A047), rotulo = true) {
-                    onFiltrado(VodKind.SERIES, Regex("curt|mini|novelinha|dorama", RegexOption.IGNORE_CASE))
+                    onFiltrado(VodKind.SERIES, filtroCurtas)
                 }
                 TileImagem(null, if (adultoLiberado) "Adulto" else "Adulto (senha)", Modifier.fillMaxWidth().weight(1f), cor = Color(0xFFE57373), rotulo = true) {
                     if (adultoLiberado) onFiltrado(VodKind.MOVIE, io.github.axon07.channelbox.data.ZarkPrefs.ADULTO) else onAdulto()
