@@ -1492,7 +1492,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
 
         // In picture-in-picture only the video is shown.
         if (!inPip) when (mode) {
-            Mode.GUIDE, Mode.GROUPS, Mode.PROGRAM_MENU -> {
+            Mode.GUIDE, Mode.GROUPS, Mode.PROGRAM_MENU -> Bloco {
                 // Timelines and remote directions stay left-to-right in every language.
                 LtrBox {
                     GuideScreen(
@@ -1585,7 +1585,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     )
                 }
             }
-            Mode.RECORDINGS, Mode.RECORDING_MENU -> {
+            Mode.RECORDINGS, Mode.RECORDING_MENU -> Bloco {
                 RecordingsScreen(
                     recordings = recordings,
                     selected = recIndex.coerceAtMost((recordings.size - 1).coerceAtLeast(0)),
@@ -1618,7 +1618,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     mode = Mode.RECORDINGS // the recording was deleted meanwhile
                 }
             }
-            Mode.PLAYBACK -> {
+            Mode.PLAYBACK -> Bloco {
                 (playerStatus as? PlayerStatus.Error)?.let { StatusMessage(it, null, it.message) }
                 // ZarkTV: vídeo num formato que o aparelho não abre (só toca o som) → oferece o player externo.
                 val semVideo by vm.player.videoSemSuporte.collectAsStateWithLifecycle()
@@ -1704,7 +1704,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     }
                 },
             )
-            Mode.VOD -> {
+            Mode.VOD -> Bloco {
                 vodBrowser.acaoPreview = { item, show -> previewVod(item, show) }
                 vodBrowser.acaoTelaCheia = { previewTelaCheia() }
                 // Saiu da ficha: para a miniatura.
@@ -1730,7 +1730,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     )
                 }
             }
-            Mode.HOME, Mode.PROFILE -> {
+            Mode.HOME, Mode.PROFILE -> Bloco {
                 LaunchedEffect(Unit) {
                     vm.zarkConferir()
                     vm.zarkConferirNovidades()
@@ -1948,7 +1948,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     }
                 }
             }
-            Mode.LIVE -> {
+            Mode.LIVE -> Bloco {
                 val filtros by vm.filters.collectAsStateWithLifecycle()
                 val contagemGrupos = remember(allChannels) { allChannels.groupingBy { it.groupTitle }.eachCount() }
                 LiveScreen(
@@ -1997,7 +1997,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 },
                 onExit = { exitApp() },
             )
-            Mode.SETUP -> {
+            Mode.SETUP -> Bloco {
                 // Decided once on entry: saving the first playlist mustn't restart this screen.
                 val firstRun = remember(setupPlaylistId) { !settings.hasSource || zarkTrocarConta }
                 var manualSetup by remember { mutableStateOf(false) }
@@ -2025,7 +2025,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     )
                 }
             }
-            Mode.UPDATE -> {
+            Mode.UPDATE -> Bloco {
                 when (val u = update) {
                     is TvViewModel.UpdateState.Available -> NovaVersaoDialog(
                         versao = u.release.version,
@@ -2048,7 +2048,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     else -> Unit
                 }
             }
-            Mode.OPTIONS -> {
+            Mode.OPTIONS -> Bloco {
                 // Re-read the tracks each time the panel opens or a choice is made.
                 val audio = remember(optionsToken, tracksVersion) { vm.player.audioTracks() }
                 val subtitles = remember(optionsToken, tracksVersion) { vm.player.subtitleTracks() }
@@ -2084,7 +2084,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onScale = { vm.setVideoScale(it) },
                 )
             }
-            Mode.MULTIVIEW -> {
+            Mode.MULTIVIEW -> Bloco {
                 // Timelines and remote directions stay left-to-right in every language.
                 LtrBox {
                     MultiViewScreen(
@@ -2126,7 +2126,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     DialogAction("Cancel") { mode = exitReturn },
                 ),
             )
-            Mode.PLAYER, Mode.CHANNEL_LIST -> {
+            Mode.PLAYER, Mode.CHANNEL_LIST -> Bloco {
                 // ZarkTV: no celular/tablet, ao tocar na tela aparece o botão de voltar.
                 if (mode == Mode.PLAYER && touchBar) {
                     Box(Modifier.fillMaxSize()) {
@@ -2322,3 +2322,11 @@ internal fun legendaEpisodio(item: VodEntity, show: VodEntity): String {
         .trim(' ', '-', '·', '|', ':', '.')
     return listOf(base, resto).filter { it.isNotBlank() }.joinToString(" · ").ifEmpty { item.title }
 }
+
+
+/**
+ * ZarkTV: cada tela vira um pedaço separado. Sem isso a função TvAppContent passa do limite que o
+ * Android consegue compilar e roda "interpretada" (bem mais lenta em TV Box).
+ */
+@Composable
+internal fun Bloco(conteudo: @Composable () -> Unit) = conteudo()
