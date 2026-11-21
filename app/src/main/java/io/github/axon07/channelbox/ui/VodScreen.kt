@@ -704,7 +704,7 @@ private fun MovieDetail(
             }
             // Você também pode gostar (mesma categoria).
             val parecidos by remember(movie.id) {
-                vm.vodItems(VodKind.MOVIE, movie.category, "").let { f ->
+                vm.vodTop(VodKind.MOVIE, movie.category, 16).let { f ->
                     kotlinx.coroutines.flow.flow { f.collect { l -> emit(l.filter { it.id != movie.id }.take(15)) } }
                 }
             }.collectAsState(initial = emptyList())

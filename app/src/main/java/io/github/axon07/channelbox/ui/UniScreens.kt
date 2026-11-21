@@ -397,8 +397,8 @@ fun ListaDeCanais(
 
 @Composable
 private fun AbaDestaques(vm: TvViewModel, compacto: Boolean, banners: List<io.github.axon07.channelbox.data.ZarkBanner>, onOpen: (VodEntity) -> Unit) {
-    val filmes by remember { vm.vodItems(VodKind.MOVIE, null, "").map { it.take(12) } }.collectAsState(initial = emptyList())
-    val series by remember { vm.vodItems(VodKind.SERIES, null, "").map { it.take(12) } }.collectAsState(initial = emptyList())
+    val filmes by remember { vm.vodTop(VodKind.MOVIE, null, 12) }.collectAsState(initial = emptyList())
+    val series by remember { vm.vodTop(VodKind.SERIES, null, 12) }.collectAsState(initial = emptyList())
     val todos = remember(filmes, series) { (filmes.zip(series).flatMap { listOf(it.first, it.second) } + filmes.drop(series.size) + series.drop(filmes.size)).take(16) }
     val uri = androidx.compose.ui.platform.LocalUriHandler.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -529,7 +529,7 @@ private fun Fileira(
     onOpen: (VodEntity) -> Unit,
     onMais: () -> Unit,
 ) {
-    val itens by remember(kind, category) { vm.vodItems(kind, category, "").map { it.take(20) } }.collectAsState(initial = null)
+    val itens by remember(kind, category) { vm.vodTop(kind, category, 20) }.collectAsState(initial = null)
     val lista = itens
     if (lista != null && lista.isEmpty()) return
     Column {

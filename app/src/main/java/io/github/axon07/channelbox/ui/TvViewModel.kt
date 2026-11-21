@@ -961,6 +961,16 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun vodContinueCount(kind: String): Flow<Int> = library { repo.vod.continueCount(kind) }
 
+    /** ZarkTV: só os [n] primeiros títulos (fileiras da tela principal) – leve para TV box fraca. */
+    fun vodTop(kind: String, category: String?, n: Int): Flow<List<VodEntity>> = library {
+        if (category == null) repo.vod.allItems(kind, n * 3) else repo.vod.categoryItems(kind, category, n * 3)
+    }.map { list ->
+        list.filter { e ->
+            val ov = overrides.value[vodKey(kind, e.category)]
+            ov?.hidden != true && (unlocked || ov?.locked != true)
+        }.take(n)
+    }
+
     /** [category]: null = all, [VOD_CONTINUE] = started but not finished. */
     fun vodItems(kind: String, category: String?, query: String): Flow<List<VodEntity>> = libraryRaw(kind, category, query)
         .map { list ->
