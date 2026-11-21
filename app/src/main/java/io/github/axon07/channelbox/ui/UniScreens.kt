@@ -68,12 +68,16 @@ val FundoZark: Brush get() = ZarkTema.atual.fundo
 /** Abas da tela principal. */
 object Aba {
     const val TV = 0
-    const val DESTAQUES = 1
-    const val FILMES = 2
-    const val SERIES = 3
-    const val KIDS = 4
-    const val ANIME = 5
-    val nomes = listOf("TV", "DESTAQUES", "FILMES", "SÉRIES", "KIDS", "ANIME")
+    const val FAVORITOS = 1
+    const val DESTAQUES = 2
+    const val FILMES = 3
+    const val SERIES = 4
+    const val KIDS = 5
+    const val ANIME = 6
+    val nomes = listOf("TV", "★ FAVORITOS", "DESTAQUES", "FILMES", "SÉRIES", "KIDS", "ANIME")
+
+    /** Abas com a prévia do canal (o vídeo fica ligado). */
+    fun temPrevia(tab: Int) = tab == TV || tab == FAVORITOS
 }
 
 private val REGEX_KIDS = Regex("infantil|kids|desenho|crian|anima[cç][aã]o|disney|cartoon|pixar", RegexOption.IGNORE_CASE)
@@ -92,6 +96,7 @@ fun UniShell(
     conta: ZarkConfig.Login.Ok?,
     // TV
     channels: List<ChannelEntity>,
+    favChannels: List<ChannelEntity>,
     groupLabel: String,
     current: ChannelEntity?,
     favorites: Set<String>,
@@ -130,7 +135,7 @@ fun UniShell(
         delay(150)
         runCatching { tabFocus[tab].requestFocus() }
     }
-    if (tab != Aba.TV) LaunchedEffect(Unit) { onPreviewRect(null) }
+    if (!Aba.temPrevia(tab)) LaunchedEffect(Unit) { onPreviewRect(null) }
 
     // O fundo é desenhado atrás do vídeo (TvApp), para a prévia do canal aparecer.
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -176,6 +181,10 @@ fun UniShell(
                     Aba.TV -> AbaTv(
                         compacto, channels, groupLabel, current, favorites, upcoming, now, timeFormat,
                         onPrevGroup, onNextGroup, onPickChannel, onFull, onFavorite, onPreviewRect,
+                    )
+                    Aba.FAVORITOS -> AbaTv(
+                        compacto, favChannels, "★ Meus favoritos", current, favorites, upcoming, now, timeFormat,
+                        {}, {}, onPickChannel, onFull, onFavorite, onPreviewRect,
                     )
                     Aba.DESTAQUES -> AbaDestaques(vm, compacto, extras.banners, onOpenItem)
                     Aba.FILMES -> AbaCatalogo(vm, VodKind.MOVIE, compacto, null, onOpenItem, onOpenLibrary)

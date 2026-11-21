@@ -325,6 +325,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     }
 
     fun openList() {
+        grupoIndex = filtrosLista.indexOf(filter).coerceAtLeast(0)
+        gruposAbertos = false
         listIndex = visible.indexOfFirst { it.id == current?.id }.coerceAtLeast(0)
         mode = Mode.CHANNEL_LIST
     }
@@ -1113,7 +1115,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     LaunchedEffect(mode, homeTab) {
         when (mode) {
             Mode.VOD, Mode.PROFILE -> vm.enterLibrary()
-            Mode.HOME -> if (homeTab == Aba.TV) vm.leaveLibrary() else vm.enterLibrary()
+            Mode.HOME -> if (Aba.temPrevia(homeTab)) vm.leaveLibrary() else vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
             // Audio & subtitles opened from a movie, episode or recording is still part of playback.
             Mode.OPTIONS -> if (optionsReturn != Mode.PLAYBACK) vm.leaveLibrary()
@@ -1352,7 +1354,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 Modifier.size(0.dp)
             } else if (mode == Mode.HOME) {
                 val r = homePreview
-                if (homeTab == Aba.TV && r != null) {
+                if (Aba.temPrevia(homeTab) && r != null) {
                     val d = LocalDensity.current
                     with(d) {
                         Modifier.align(Alignment.TopStart)
@@ -1651,6 +1653,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     userName = pl?.xtUser.orEmpty(),
                     conta = conta,
                     channels = visible,
+                    favChannels = remember(allChannels, favorites) { allChannels.filter { it.id in favorites } },
                     groupLabel = vm.filterTitle(filter, menuSections),
                     current = current,
                     favorites = favorites,
@@ -1964,8 +1967,9 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     }
                 }
                 if (mode == Mode.CHANNEL_LIST) Row(Modifier.fillMaxHeight()) {
-                    if (gruposAbertos) {
+                    run {
                         GruposPanel(
+                            foco = gruposAbertos,
                             grupos = filtrosLista.map { f -> vm.filterTitle(f, menuSections) + (filterCounts[f]?.let { "  ($it)" } ?: "") },
                             selecionado = grupoIndex,
                             atual = filtrosLista.indexOf(filter),
@@ -1992,15 +1996,9 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                             listIndex = 0
                         },
                     )
-                    if (!gruposAbertos) {
-                        // Toque: botão para abrir os grupos e para voltar.
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            PillButton("☰ Grupos") {
-                                grupoIndex = filtrosLista.indexOf(filter).coerceAtLeast(0)
-                                gruposAbertos = true
-                            }
-                            PillButton("‹ Voltar") { homeTab = Aba.TV; mode = Mode.HOME }
-                        }
+                    // Toque: botão para voltar ao início.
+                    Column(Modifier.padding(12.dp)) {
+                        PillButton("‹ Voltar") { homeTab = Aba.TV; mode = Mode.HOME }
                     }
                 }
             }

@@ -193,7 +193,8 @@ private fun LibraryScreen(
         if (b.query.isNotBlank()) delay(300) // wait for typing to pause
         // Search needs 2+ letters; Room re-runs the query as new titles are saved during a reload.
         val q = b.query.trim().takeIf { it.length >= 2 }.orEmpty()
-        vm.vodItems(b.kind, b.category, q)
+        // ZarkTV: sem busca, lê só os primeiros 400 títulos (rápido em TV box e tablet).
+        (if (q.isNotEmpty()) vm.vodItems(b.kind, b.category, q) else vm.vodTop(b.kind, b.category, 400))
             .conflate()
             .collect { b.items = it }
     }
@@ -274,6 +275,25 @@ private fun LibraryScreen(
                         if (more) "  newest ${items.size} – search to find more" else "  ${items.size}",
                         fontSize = 13.sp, color = Palette.TextDim,
                     )
+                }
+            }
+            // ZarkTV: atalhos das plataformas (Netflix, Prime Video…) e Lançamentos.
+            val plataformas = remember(categories) {
+                listOf("Lançamentos", "Netflix", "Prime Video", "Disney", "HBO", "Max", "Globoplay", "Apple", "Paramount", "Star", "Legendados", "4K")
+                    .mapNotNull { p ->
+                        val rx = Regex(if (p == "Lançamentos") "lan[cç]amento" else Regex.escape(p), RegexOption.IGNORE_CASE)
+                        categories.firstOrNull { rx.containsMatchIn(it.name) }?.let { p to it.name }
+                    }.distinctBy { it.second }
+            }
+            if (plataformas.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(plataformas) { (nome, cat) ->
+                        PillButton(nome, primary = b.category == cat) {
+                            b.query = ""
+                            b.category = cat
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(12.dp))
