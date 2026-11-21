@@ -120,6 +120,9 @@ class TvPlayer(
     val isLive: Boolean get() = !onDemand
 
     // Assume a fast connection at the start, so streams don't open at their lowest quality.
+    /** Velocidade de download estimada agora, em MB/s (para o "2MB/S" do carregamento). */
+    fun velocidadeMBs(): Double = bandwidthMeter.bitrateEstimate / 8_000_000.0
+
     private val bandwidthMeter = DefaultBandwidthMeter.Builder(context)
         .setInitialBitrateEstimate(20_000_000L)
         .build()

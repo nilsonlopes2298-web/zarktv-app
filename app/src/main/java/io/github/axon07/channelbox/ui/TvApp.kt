@@ -241,7 +241,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var candidatosJogo by remember { mutableStateOf<List<ChannelEntity>>(emptyList()) }
     var jogoCanalIdx by remember { mutableIntStateOf(0) }
     fun jogoEsperando(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo) =
-        j.estado == "pre" && j.inicio - System.currentTimeMillis() > 10 * 60_000L
+        j.estado == "pre" && j.inicio - System.currentTimeMillis() > 60_000L
     // Chegou a hora do jogo aberto que estava esperando: liga o canal sozinho.
     LaunchedEffect(jogoAberto) {
         val j = jogoAberto ?: return@LaunchedEffect
@@ -1749,24 +1749,21 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
                 VodScreen(vodBrowser, vm, onPlay = { item, show -> playVod(item, show) })
                 previewPergunta?.let { (item, show, at) ->
-                    val ep = if (show != null && item.season > 0) "T${item.season} E${item.episode}, " else ""
-                    ActionDialog(
-                        title = show?.title ?: item.title,
-                        subtitle = "Você parou em ${ep}${formatClock(at)}. Quer continuar de onde parou ou começar do início?",
-                        actions = listOf(
-                            DialogAction("Continuar de ${formatClock(at)}") { previewVod(item, show, at) },
-                            DialogAction("Começar do início") { previewVod(item, show, 0L) },
-                        ),
+                    DialogoContinuar(
+                        titulo = show?.title ?: item.title,
+                        detalhe = if (show != null && item.season > 0) "Temporada ${item.season} · Episódio ${item.episode}" else null,
+                        posicao = at,
+                        onContinuar = { previewVod(item, show, at) },
+                        onInicio = { previewVod(item, show, 0L) },
                     )
                 }
                 vodResume?.let { (item, show, at) ->
-                    ActionDialog(
-                        title = item.title,
-                        subtitle = "Você parou em ${formatClock(at)}. Quer continuar de onde parou?",
-                        actions = listOf(
-                            DialogAction("Continuar de ${formatClock(at)}") { startVod(item, show, at) },
-                            DialogAction("Recomeçar do início") { startVod(item, show, 0) },
-                        ),
+                    DialogoContinuar(
+                        titulo = show?.title ?: item.title,
+                        detalhe = if (show != null && item.season > 0) "Temporada ${item.season} · Episódio ${item.episode}" else null,
+                        posicao = at,
+                        onContinuar = { startVod(item, show, at) },
+                        onInicio = { startVod(item, show, 0) },
                     )
                 }
             }
@@ -1872,7 +1869,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         jogoAberto = j
                         candidatosJogo = canaisDoJogo(j)
                         jogoCanalIdx = 0
-                        // Jogo que ainda não começou (mais de 10 min): não abre canal, mostra a contagem.
+                        // Jogo que ainda não começou: não abre canal, mostra a contagem (abre sozinho na hora).
                         if (!jogoEsperando(j)) candidatosJogo.firstOrNull()?.let { ch -> vm.withChannelAccess(ch) { vm.tune(ch) } }
                     },
                     onFecharJogo = { jogoAberto = null },
@@ -2186,7 +2183,9 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     is RefreshState.Failed -> if (allChannels.isNotEmpty()) null else "Couldn't load channels: ${r.message}\nPress OK for settings"
                     else -> if (allChannels.isEmpty() && channelsLoaded) "No channels yet – press OK for settings" else null
                 }
-                StatusMessage(playerStatus, current, fallback)
+                var velocidade by remember { mutableStateOf(0.0) }
+                LaunchedEffect(playerStatus) { while (playerStatus is PlayerStatus.Buffering) { velocidade = vm.player.velocidadeMBs(); delay(500) } }
+                StatusMessage(playerStatus, current, fallback, velocidade)
                 val cur = current
                 // REC and the pause badge show with the banner / controls, then hide with them.
                 val overlays = bannerVisible || touchBar

@@ -139,7 +139,7 @@ fun BoxScope.NumberEntry(digits: String, match: ChannelEntity?) {
 }
 
 @Composable
-fun BoxScope.StatusMessage(status: PlayerStatus, channel: ChannelEntity?, fallback: String?) {
+fun BoxScope.StatusMessage(status: PlayerStatus, channel: ChannelEntity?, fallback: String?, velocidade: Double = 0.0) {
     // ZarkTV: abrindo o canal = logo + nome do canal, anel girando em volta e barrinha passando.
     if (channel != null && status is PlayerStatus.Buffering) {
         val giro = androidx.compose.animation.core.rememberInfiniteTransition(label = "carregando")
@@ -161,29 +161,22 @@ fun BoxScope.StatusMessage(status: PlayerStatus, channel: ChannelEntity?, fallba
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
-                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                    drawCircle(Color(0x26FFFFFF), style = androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
-                    drawArc(
-                        androidx.compose.ui.graphics.Brush.sweepGradient(listOf(Color(0x002F8CFF), Color(0xFF2F8CFF), Color(0xFF7FB8FF))),
-                        ang, 120f, false,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
-                    )
-                }
+                BolinhasCarregando(Modifier.fillMaxSize())
                 Box(
-                    Modifier.size(58.dp).graphicsLayer { scaleX = pulso; scaleY = pulso }
-                        .clip(androidx.compose.foundation.shape.CircleShape).background(Color(0x33FFFFFF)),
+                    Modifier.size(46.dp).graphicsLayer { scaleX = pulso; scaleY = pulso }
+                        .clip(androidx.compose.foundation.shape.CircleShape).background(Color(0x26FFFFFF)),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (!channel.logoUrl.isNullOrBlank()) {
-                        coil.compose.AsyncImage(channel.logoUrl, null, contentScale = androidx.compose.ui.layout.ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(8.dp))
-                    } else Text(channel.name.take(2).uppercase(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        coil.compose.AsyncImage(channel.logoUrl, null, contentScale = androidx.compose.ui.layout.ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(6.dp))
+                    } else Text(channel.name.take(2).uppercase(), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
             androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
             Text(channel.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1)
-            Text("Abrindo o canal…", fontSize = 12.sp, color = Color(0xB3FFFFFF))
-            androidx.compose.foundation.layout.Spacer(Modifier.size(10.dp))
-            BarrinhaCarregando(Modifier.width(160.dp))
+            Text(if (velocidade > 0.05) "Abrindo o canal… %.1f MB/s".format(velocidade) else "Abrindo o canal…", fontSize = 12.sp, color = Color(0xB3FFFFFF))
+            androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
+            MarcaPequena(11)
         }
         return
     }

@@ -914,7 +914,7 @@ private fun JogoAberto(
                     LaunchedEffect(j.id) { while (true) { delay(1000); agoraSeg = System.currentTimeMillis() } }
                     val rest = ((j.inicio - agoraSeg) / 1000).coerceAtLeast(0)
                     val relogio = "%02d:%02d:%02d".format(rest / 3600, (rest % 3600) / 60, rest % 60)
-                    val esperando = j.inicio - agoraSeg > 10 * 60_000L
+                    val esperando = j.inicio - agoraSeg > 60_000L
                     Box(Modifier.fillMaxSize().background(if (esperando) Brush.verticalGradient(listOf(Color(0xFF14161C), Color(0xFF0A0A0A))) else Brush.verticalGradient(listOf(Color(0x99000000), Color(0x99000000))))) {
                         Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("O jogo começa às $hora", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
