@@ -3,6 +3,7 @@ package io.github.axon07.channelbox.data
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -150,15 +151,25 @@ object ZarkConfig {
      */
     suspend fun loginAuto(http: OkHttpClient, servers: List<Server>, user: String, pass: String): Pair<Server, Login> =
         kotlinx.coroutines.coroutineScope {
-            val tentativas = servers.map { s -> s to async { login(http, s, user, pass) } }
+            // Testa todos ao mesmo tempo e fica com o PRIMEIRO que aceitar (o mais rápido), não com o primeiro da lista.
+            val canal = kotlinx.coroutines.channels.Channel<Pair<Server, Login>>(servers.size)
+            val jobs = servers.map { s -> launch { canal.send(s to runCatching { login(http, s, user, pass) }.getOrDefault(Login.SemResposta)) } }
             var resposta: Login = Login.SemResposta
-            for ((s, t) in tentativas) {
-                val r = t.await()
+            repeat(servers.size) {
+                val (s, r) = canal.receive()
                 if (r is Login.Ok) {
-                    tentativas.forEach { it.second.cancel() }
+                    jobs.forEach { it.cancel() }
                     return@coroutineScope s to r
                 }
                 if (r == Login.SenhaErrada) resposta = r
+            }
+            // Ninguém respondeu a tempo: tenta mais uma vez, um por um (servidor lento ou ocupado).
+            if (resposta == Login.SemResposta) {
+                for (s in servers) {
+                    val r = login(http, s, user, pass)
+                    if (r is Login.Ok) return@coroutineScope s to r
+                    if (r == Login.SenhaErrada) resposta = r
+                }
             }
             (servers.firstOrNull() ?: PADRAO.first()) to resposta
         }

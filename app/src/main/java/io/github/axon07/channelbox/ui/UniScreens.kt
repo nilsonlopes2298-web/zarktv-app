@@ -909,15 +909,20 @@ private fun JogoAberto(
                     .tap(onClick = { if (canal != null) onFull() })
             ) {
                 if (naoComecou) {
-                    Column(
-                        Modifier.align(Alignment.Center).background(Color(0xCC000000), RoundedCornerShape(8.dp)).padding(14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text("A transmissão ainda não começou", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                        Text(
-                            if (falta >= 60) "Faltam ${falta / 60}h${(falta % 60).toString().padStart(2, '0')}" else "Faltam $falta min",
-                            color = Color(0xFFFFD54F), fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp),
-                        )
+                    // Contagem regressiva (relógio andando) no lugar do vídeo, até o jogo começar.
+                    var agoraSeg by remember { mutableStateOf(System.currentTimeMillis()) }
+                    LaunchedEffect(j.id) { while (true) { delay(1000); agoraSeg = System.currentTimeMillis() } }
+                    val rest = ((j.inicio - agoraSeg) / 1000).coerceAtLeast(0)
+                    val relogio = "%02d:%02d:%02d".format(rest / 3600, (rest % 3600) / 60, rest % 60)
+                    val esperando = j.inicio - agoraSeg > 10 * 60_000L
+                    Box(Modifier.fillMaxSize().background(if (esperando) Brush.verticalGradient(listOf(Color(0xFF14161C), Color(0xFF0A0A0A))) else Brush.verticalGradient(listOf(Color(0x99000000), Color(0x99000000))))) {
+                        Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("O jogo começa às $hora", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Text(relogio, color = Color(0xFFFFD54F), fontSize = if (compacto) 30.sp else 40.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
+                            Text("O canal abre sozinho na hora do jogo", color = Color(0x99FFFFFF), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                            Spacer(Modifier.height(10.dp))
+                            BarrinhaCarregando(Modifier.width(140.dp))
+                        }
                     }
                 } else if (canal == null) {
                     Text("Nenhum canal encontrado.\nUse \"Mudar de canal\".", color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center))

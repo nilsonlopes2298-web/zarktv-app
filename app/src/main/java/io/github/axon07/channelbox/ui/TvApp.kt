@@ -240,6 +240,18 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var jogoAberto by remember { mutableStateOf<io.github.axon07.channelbox.data.ZarkJogos.Jogo?>(null) }
     var candidatosJogo by remember { mutableStateOf<List<ChannelEntity>>(emptyList()) }
     var jogoCanalIdx by remember { mutableIntStateOf(0) }
+    fun jogoEsperando(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo) =
+        j.estado == "pre" && j.inicio - System.currentTimeMillis() > 10 * 60_000L
+    // Chegou a hora do jogo aberto que estava esperando: liga o canal sozinho.
+    LaunchedEffect(jogoAberto) {
+        val j = jogoAberto ?: return@LaunchedEffect
+        if (!jogoEsperando(j)) return@LaunchedEffect
+        while (jogoEsperando(j)) kotlinx.coroutines.delay(20_000)
+        if (jogoAberto?.id == j.id) {
+            vm.leaveLibrary()
+            candidatosJogo.firstOrNull()?.let { ch -> vm.withChannelAccess(ch) { vm.tune(ch) } }
+        }
+    }
     fun canaisDoJogo(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo): List<ChannelEntity> {
         // Canais de filme nunca entram (ex.: transmissão "Max" não pode abrir o Cinemax / HBO Max).
         val filme = Regex("""cinemax|hbo|telecine|megapix|warner|tnt series|space|universal|sony|axn|amc|tcm|cine|filmes|series|séries|novela""", RegexOption.IGNORE_CASE)
@@ -1214,7 +1226,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     LaunchedEffect(mode, homeTab, jogoAberto != null, ZarkLayout.leve.value) {
         when (mode) {
             Mode.VOD, Mode.PROFILE -> vm.enterLibrary()
-            Mode.HOME -> if (!ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null))) vm.leaveLibrary() else vm.enterLibrary()
+            Mode.HOME -> if (!ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
             // Audio & subtitles opened from a movie, episode or recording is still part of playback.
             Mode.OPTIONS -> if (optionsReturn != Mode.PLAYBACK) vm.leaveLibrary()
@@ -1844,7 +1856,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 else if (mode == Mode.HOME) UniShell(
                     vm = vm,
                     tab = homeTab,
-                    onTab = { homeTab = it },
+                    onTab = { if (it != Aba.JOGOS) jogoAberto = null; homeTab = it },
                     userName = pl?.xtUser.orEmpty(),
                     conta = conta,
                     channels = visible,
@@ -1860,7 +1872,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         jogoAberto = j
                         candidatosJogo = canaisDoJogo(j)
                         jogoCanalIdx = 0
-                        candidatosJogo.firstOrNull()?.let { ch -> vm.withChannelAccess(ch) { vm.tune(ch) } }
+                        // Jogo que ainda não começou (mais de 10 min): não abre canal, mostra a contagem.
+                        if (!jogoEsperando(j)) candidatosJogo.firstOrNull()?.let { ch -> vm.withChannelAccess(ch) { vm.tune(ch) } }
                     },
                     onFecharJogo = { jogoAberto = null },
                     onMudarCanalJogo = {
