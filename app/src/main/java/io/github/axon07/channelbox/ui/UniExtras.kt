@@ -388,3 +388,77 @@ fun ZarkTutorial(onFim: () -> Unit) {
         }
     }
 }
+
+
+// ---- Atualização: janela "Nova versão" (como na UniTV) ------------------------------------------
+
+@Composable
+fun NovaVersaoDialog(
+    versao: String,
+    atual: String,
+    conta: String,
+    notas: String,
+    obrigatoria: Boolean,
+    onAtualizar: () -> Unit,
+    onCancelar: () -> Unit,
+) {
+    val foco = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        delay(120)
+        runCatching { foco.requestFocus() }
+    }
+    val itens = buildList {
+        add("Antes de atualizar, verifique se há espaço de memória suficiente.")
+        notas.lineSequence().map { it.trim().removePrefix("-").removePrefix("#").trim() }
+            .filter { it.isNotEmpty() && !it.contains("http") && !it.startsWith("APK") && !it.startsWith("Link") }
+            .take(2).forEach { add(it) }
+        add("Melhorias na experiência e correções de problemas.")
+    }
+    Box(Modifier.fillMaxSize().background(Color(0x99000000)).tap { }, contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.width(560.dp).background(Color(0xFF34343A), RoundedCornerShape(6.dp)).padding(bottom = 14.dp),
+        ) {
+            Box(
+                Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color(0xFF45454C), Color(0xFF34343A))), RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp)).padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text("Nova versão", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Medium) }
+            Column(Modifier.padding(horizontal = 28.dp, vertical = 12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Novas funções", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                    Text("Versão: $versao", color = Color(0xFFFFB300), fontSize = 13.sp)
+                }
+                Spacer(Modifier.height(8.dp))
+                itens.forEachIndexed { i, t ->
+                    Text("${i + 1}. $t", color = Color(0xDDFFFFFF), fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(vertical = 2.dp))
+                }
+                if (obrigatoria) Text("Esta atualização é obrigatória.", color = Color(0xFFFF8A80), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                Spacer(Modifier.height(18.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(28.dp), modifier = Modifier.fillMaxWidth()) {
+                    if (!obrigatoria) Box(Modifier.weight(1f)) { BotaoPilula("Cancelar", onCancelar) }
+                    Box(Modifier.weight(1f).focusRequester(foco)) { BotaoPilula("Atualizar", onAtualizar) }
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "Versão atual: V $atual" + if (conta.isNotBlank()) "      Conta: $conta" else "",
+                    color = Color(0x99FFFFFF), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BotaoPilula(label: String, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(48.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
+        colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF55555C), focusedContainerColor = Color(0xFFE53935)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(label, color = Color.White, fontSize = 17.sp)
+        }
+    }
+}

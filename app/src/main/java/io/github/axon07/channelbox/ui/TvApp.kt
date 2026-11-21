@@ -1820,24 +1820,16 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             }
             Mode.UPDATE -> {
                 when (val u = update) {
-                    is TvViewModel.UpdateState.Available -> ActionDialog(
-                        title = if (u.release.forced) "Nova versão do ZarkTV (${u.release.version})" else "Atualização disponível: ZarkTV ${u.release.version}",
-                        subtitle = (if (u.release.forced) "Esta atualização é obrigatória para continuar usando o app." else "Você está na versão ${vm.appVersion}.") +
-                            (u.release.notes.lineSequence().firstOrNull { it.isNotBlank() }
-                                ?.let { "\n" + it.trim().removePrefix("#").removePrefix("-").trim() } ?: ""),
-                        actions = if (u.release.forced) listOf(
-                            DialogAction("Atualizar agora") { vm.startUpdate() },
-                        ) else listOf(
-                            DialogAction("Atualizar agora") { vm.startUpdate() },
-                            DialogAction("Depois") { vm.dismissUpdate(skipThisVersion = false) },
-                            DialogAction("Pular esta versão") { vm.dismissUpdate(skipThisVersion = true) },
-                        ),
+                    is TvViewModel.UpdateState.Available -> NovaVersaoDialog(
+                        versao = u.release.version,
+                        atual = vm.appVersion,
+                        conta = settings.playlists.firstOrNull()?.xtUser.orEmpty(),
+                        notas = u.release.notes,
+                        obrigatoria = u.release.forced,
+                        onAtualizar = { vm.startUpdate() },
+                        onCancelar = { vm.dismissUpdate(skipThisVersion = false) },
                     )
-                    is TvViewModel.UpdateState.Downloading -> ActionDialog(
-                        title = "Baixando ZarkTV ${u.release.version}… ${u.percent}%",
-                        subtitle = "Quando terminar, o Android vai pedir para confirmar a atualização.",
-                        actions = if (u.release.forced) emptyList() else listOf(DialogAction("Esconder") { vm.dismissUpdate(skipThisVersion = false) }),
-                    )
+                    is TvViewModel.UpdateState.Downloading -> Unit // progresso no canto inferior direito
                     is TvViewModel.UpdateState.Failed -> ActionDialog(
                         title = "A atualização falhou",
                         subtitle = u.message,
@@ -2035,7 +2027,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     .background(Color(0xF0141414), androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
                     .padding(14.dp)
             ) {
-                Text("Baixando atualização ${u.release.version}… ${u.percent}%", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Row {
+                    Text("O progresso do download é: ", color = Color.White, fontSize = 14.sp)
+                    Text("${u.percent}%", color = Color(0xFFFF5252), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
                 Spacer(Modifier.height(8.dp))
                 Box(Modifier.fillMaxWidth().height(6.dp).background(Color(0x33FFFFFF), androidx.compose.foundation.shape.RoundedCornerShape(3.dp))) {
                     Box(Modifier.fillMaxWidth(u.percent / 100f).height(6.dp).background(Palette.Accent, androidx.compose.foundation.shape.RoundedCornerShape(3.dp)))

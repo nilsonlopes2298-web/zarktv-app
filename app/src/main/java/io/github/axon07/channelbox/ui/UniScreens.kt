@@ -218,46 +218,53 @@ fun UniShell(
                 )
             }
         }
-        // Sino: informativos (atualização do app, vencimento e recado do painel).
+        // Sino: "Caixa de mensagens" deslizando da esquerda (como na UniTV).
         if (sinoAberto) {
             androidx.activity.compose.BackHandler { sinoAberto = false }
+            val msgs = buildList {
+                versaoNova?.let { add(Triple("Mensagem de atualização", "Nova versão encontrada: atualize para V$it.", "Atualizar" to { sinoAberto = false; onAtualizar() })) }
+                if (dias != null && dias <= 5) add(
+                    Triple(
+                        "Aviso de vencimento",
+                        when {
+                            dias < 0 -> "Seu acesso venceu. Renove para continuar assistindo."
+                            dias == 0 -> "Seu acesso vence hoje. Renove a tempo para não perder o acesso."
+                            else -> "Seu acesso é válido por mais $dias dia(s). Renove a tempo."
+                        },
+                        "Renovar" to { sinoAberto = false; onRenew() },
+                    )
+                )
+                extras.aviso?.let { add(Triple("Aviso", it, null)) }
+            }
+            Box(Modifier.fillMaxSize().background(Color(0x66000000)).tap(onClick = { sinoAberto = false }))
             Column(
-                Modifier.align(Alignment.TopEnd).padding(top = 64.dp, end = 20.dp).width(360.dp)
-                    .background(Color(0xF5141414), RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(12.dp))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                Modifier.fillMaxHeight().width(340.dp).background(Color(0xF22A2A2E)).tap { }.padding(20.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("🔔 Informativos", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Text("✕", color = Color.White, fontSize = 16.sp, modifier = Modifier.tap(onClick = { sinoAberto = false }).padding(4.dp))
+                    Box(Modifier.size(width = 4.dp, height = 22.dp).background(Palette.Accent))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Caixa de mensagens", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Medium)
                 }
-                var algum = false
-                if (versaoNova != null) {
-                    algum = true
-                    Column {
-                        Text("Nova versão do ZarkTV disponível: $versaoNova", color = Color(0xFF81C784), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(6.dp))
-                        PillButton("Atualizar agora", primary = true) { sinoAberto = false; onAtualizar() }
+                Text(
+                    "Você tem ${msgs.size.toString().padStart(2, '0')} mensagem(ns)",
+                    color = Color(0xAAFFFFFF), fontSize = 12.sp, modifier = Modifier.padding(start = 12.dp, top = 4.dp, bottom = 14.dp),
+                )
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (msgs.isEmpty()) item { Text("Nenhuma mensagem no momento.", color = Color(0xAAFFFFFF), fontSize = 14.sp) }
+                    items(msgs) { (titulo, texto, acao) ->
+                        LinhaFocavel(onClick = { acao?.second?.invoke() }) {
+                            Column(Modifier.fillMaxWidth().background(Color(0x22FFFFFF), RoundedCornerShape(4.dp)).padding(12.dp)) {
+                                Text(titulo, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Spacer(Modifier.height(6.dp))
+                                Text(texto, color = Color(0xDDFFFFFF), fontSize = 13.sp, lineHeight = 18.sp)
+                                acao?.let {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text("[OK] ${it.first} ›", color = Color(0xFFFFB74D), fontSize = 12.sp, modifier = Modifier.align(Alignment.End))
+                                }
+                            }
+                        }
                     }
                 }
-                if (dias != null && dias <= 5) {
-                    algum = true
-                    Column {
-                        Text(
-                            when {
-                                dias < 0 -> "Seu acesso venceu."
-                                dias == 0 -> "Seu acesso vence hoje."
-                                else -> "Faltam $dias dia(s) para o seu acesso vencer."
-                            },
-                            color = Color(0xFFFFD54F), fontSize = 14.sp,
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        PillButton("Renovar agora", primary = true) { sinoAberto = false; onRenew() }
-                    }
-                }
-                extras.aviso?.let { algum = true; Text(it, color = Color(0xFFDDDDDD), fontSize = 14.sp) }
-                if (!algum) Text("Nenhum aviso no momento. Seu app está atualizado. ✅", color = Color(0xFFBBBBBB), fontSize = 14.sp)
             }
         }
         // Aviso no cantinho: vencimento (5, 3, 1 dia, hoje, vencido) e recado do painel.
@@ -276,7 +283,7 @@ fun UniShell(
                     .padding(14.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (textoVenc != null) "⏰ Aviso de vencimento" else "📢 Aviso", color = Color(0xFFFFD54F), fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Text(if (textoVenc != null) "Aviso de vencimento" else "Aviso", color = Color(0xFFFFD54F), fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     Text("✕", color = Color.White, fontSize = 16.sp, modifier = Modifier.tap(onClick = { avisoFechado = true }).padding(4.dp))
                 }
                 textoVenc?.let { Text(it, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp)) }
@@ -301,17 +308,17 @@ private fun AbaItem(nome: String, selecionada: Boolean, modifier: Modifier, comp
                 if (it.isFocused && !selecionada) onClick() // no controle, passar pela aba já abre
             }
             .tap(onClick = onClick),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
-            focusedContainerColor = Color(0x33FFFFFF),
+            focusedContainerColor = Color(0x22FFFFFF),
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
     ) {
         Box(
             Modifier
-                .border(if (selecionada) 2.dp else 0.dp, if (selecionada) Color(0xFFFFB74D) else Color.Transparent, RoundedCornerShape(14.dp))
-                .padding(horizontal = if (compacto) 12.dp else 22.dp, vertical = if (compacto) 6.dp else 9.dp)
+                .border(if (focused) 2.dp else 0.dp, if (focused) Color(0xFFFFCC80) else Color.Transparent, RoundedCornerShape(12.dp))
+                .padding(horizontal = if (compacto) 12.dp else 20.dp, vertical = if (compacto) 6.dp else 8.dp)
         ) {
             if (nome == "KIDS") {
                 Row {
@@ -320,8 +327,8 @@ private fun AbaItem(nome: String, selecionada: Boolean, modifier: Modifier, comp
                 }
             } else {
                 Text(
-                    nome, color = Color.White, fontSize = if (compacto) 15.sp else 21.sp,
-                    fontWeight = if (selecionada || focused) FontWeight.Bold else FontWeight.Normal,
+                    nome, color = if (selecionada) Color(0xFFFF4D57) else Color(0xE6FFFFFF), fontSize = if (compacto) 15.sp else 21.sp,
+                    fontWeight = FontWeight.Medium,
                 )
             }
         }

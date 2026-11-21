@@ -177,20 +177,20 @@ fun ZarkLoginScreen(
             Text("Login na sua conta", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
             Box(Modifier.focusRequester(first)) {
-                TvTextField("👤  Usuário", user, { user = it; erro = null })
+                TvTextField("Usuário", user, { user = it; erro = null })
             }
             Row(verticalAlignment = Alignment.Bottom) {
                 Box(Modifier.weight(1f)) {
-                    TvTextField("🔒  Senha", pass, { pass = it; erro = null }, password = !verSenha)
+                    TvTextField("Senha", pass, { pass = it; erro = null }, password = !verSenha)
                 }
                 Spacer(Modifier.width(8.dp))
-                PillButton(if (verSenha) "Ocultar" else "👁 Ver") { verSenha = !verSenha }
+                PillButton(if (verSenha) "Ocultar" else "Mostrar") { verSenha = !verSenha }
             }
 
             Caixinha("Lembrar de mim", lembrar) { lembrar = !lembrar }
 
             BotaoContorno(
-                if (manual) "🌐  Servidor: ${servers.getOrNull(sel)?.name ?: "—"} (toque para automático)" else "🌐  Escolher o servidor manualmente",
+                if (manual) "Servidor: ${servers.getOrNull(sel)?.name ?: "—"} (toque para automático)" else "Escolher o servidor manualmente",
                 cor = Color(0x33FFFFFF),
             ) { manual = !manual }
             if (manual) {
@@ -209,7 +209,7 @@ fun ZarkLoginScreen(
             }
 
             BotaoCheio(if (testing) "Conferindo…" else "Entrar", Palette.Accent, enabled = canEnter, onClick = entrar)
-            BotaoContorno("💎  Ver planos", cor = Color(0xFFD4A017), texto = Color(0xFFFFD34D), fundo = Color(0x33D4A017)) {
+            BotaoContorno("Ver planos", cor = Color(0xFFD4A017), texto = Color(0xFFFFD34D), fundo = Color(0x33D4A017)) {
                 runCatching { uri.openUri(ZarkConfig.checkoutUrl(context, user.trim(), servers.getOrNull(sel)?.name.orEmpty())) }
             }
             Text(
