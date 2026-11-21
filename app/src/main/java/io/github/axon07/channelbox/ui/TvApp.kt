@@ -221,6 +221,20 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var zarkTrocarConta by remember { mutableStateOf(false) }
     /** ZarkTV: aba aberta na tela principal (TV, Destaques, Filmes…) e onde fica a prévia do canal. */
     var homeTab by remember { mutableIntStateOf(Aba.TV) }
+    /** ZarkTV: jogo aberto dentro da aba Jogos, os canais que podem passar ele e qual está tocando. */
+    var jogoAberto by remember { mutableStateOf<io.github.axon07.channelbox.data.ZarkJogos.Jogo?>(null) }
+    var candidatosJogo by remember { mutableStateOf<List<ChannelEntity>>(emptyList()) }
+    var jogoCanalIdx by remember { mutableIntStateOf(0) }
+    fun canaisDoJogo(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo): List<ChannelEntity> {
+        fun limpa(t: String) = t.lowercase().replace(Regex("[^a-z0-9]"), "")
+        val transmissao = j.canais.map(::limpa).filter { it.length >= 3 }
+        val porTransmissao = allChannels.filter { ch -> transmissao.any { limpa(ch.name).contains(it) } }
+        val times = listOf(j.casa.nome, j.fora.nome).map(::limpa).filter { it.length >= 4 }
+        val porTime = allChannels.filter { ch -> times.any { limpa(ch.name).contains(it) } }
+        val esporte = Regex("premiere|espn|sportv|tnt ?sports|band ?sports|combate|caz[eé]|disney|star|max|paramount|goat|nosso futebol|futebol|sport", RegexOption.IGNORE_CASE)
+        val esportes = allChannels.filter { esporte.containsMatchIn(it.name) || esporte.containsMatchIn(it.groupTitle) }
+        return (porTime + porTransmissao + esportes).distinctBy { it.id }.take(60)
+    }
     var homePreview by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     /** Filme/série aberto direto da tela principal: Voltar retorna para ela. */
     var vodDeInicio by remember { mutableStateOf(false) }
@@ -1119,10 +1133,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     LaunchedEffect(mode) { if (mode != Mode.SETTINGS) settingsFromSetup = false }
     LaunchedEffect(mode) { if (mode != Mode.CHANNEL_LIST) gruposAbertos = false }
     // Live TV doesn't play behind Movies & TV Shows; it comes back when you leave them.
-    LaunchedEffect(mode, homeTab) {
+    LaunchedEffect(mode, homeTab, jogoAberto != null) {
         when (mode) {
             Mode.VOD, Mode.PROFILE -> vm.enterLibrary()
-            Mode.HOME -> if (Aba.temPrevia(homeTab)) vm.leaveLibrary() else vm.enterLibrary()
+            Mode.HOME -> if (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null)) vm.leaveLibrary() else vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
             // Audio & subtitles opened from a movie, episode or recording is still part of playback.
             Mode.OPTIONS -> if (optionsReturn != Mode.PLAYBACK) vm.leaveLibrary()
@@ -1213,7 +1227,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 digits.isNotEmpty() -> digits = ""
                 touchBar -> touchBar = false
                 bannerVisible -> bannerVisible = false
-                else -> { homeTab = Aba.TV; mode = Mode.HOME } // ZarkTV: da tela cheia volta para a lista de canais
+                else -> { if (jogoAberto == null) homeTab = Aba.TV; mode = Mode.HOME } // ZarkTV: volta para a lista de canais (ou para o jogo)
             }
             Mode.CHANNEL_LIST -> if (gruposAbertos) gruposAbertos = false else mode = Mode.PLAYER
             Mode.GUIDE -> openGroups()
@@ -1232,7 +1246,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             }
             Mode.MULTIVIEW -> if (multiPicking && multi.count > 0) multiPicking = false else closeMultiView()
             Mode.SETTINGS -> if (!settings.hasSource) mode = Mode.SETUP else mode = if (settingsSection != null) Mode.PROFILE else Mode.HOME
-            Mode.HOME -> askExit(Mode.HOME)
+            Mode.HOME -> if (jogoAberto != null) jogoAberto = null else askExit(Mode.HOME)
             Mode.PROFILE -> mode = Mode.HOME
             Mode.LIVE -> mode = Mode.HOME
             Mode.SEARCH -> openGroups(tile = 5)
@@ -1361,7 +1375,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 Modifier.size(0.dp)
             } else if (mode == Mode.HOME) {
                 val r = homePreview
-                if (Aba.temPrevia(homeTab) && r != null) {
+                if ((Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null)) && r != null) {
                     val d = LocalDensity.current
                     with(d) {
                         Modifier.align(Alignment.TopStart)
@@ -1666,11 +1680,22 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     groups = filtrosLista.map { f -> f to (Aba.rotulo(f, vm.filterTitle(f, menuSections)) + (filterCounts[f]?.let { "  ($it)" } ?: "")) },
                     currentGroup = filter,
                     onGroup = { vm.setFilter(it) },
-                    onAssistirJogo = {
-                        // Abre a TV no grupo de jogos/esportes, se existir.
-                        filtrosLista.firstOrNull { f -> Regex("jogos|esporte|futebol|premiere", RegexOption.IGNORE_CASE).containsMatchIn(vm.filterTitle(f, menuSections)) }
-                            ?.let { vm.setFilter(it) }
-                        homeTab = Aba.TV
+                    jogoAberto = jogoAberto,
+                    canalJogo = current.takeIf { jogoAberto != null && candidatosJogo.isNotEmpty() },
+                    canalJogoInfo = if (candidatosJogo.isEmpty()) "" else "Canal ${jogoCanalIdx + 1} de ${candidatosJogo.size}",
+                    onAbrirJogo = { j ->
+                        jogoAberto = j
+                        candidatosJogo = canaisDoJogo(j)
+                        jogoCanalIdx = 0
+                        candidatosJogo.firstOrNull()?.let { ch -> vm.withChannelAccess(ch) { vm.tune(ch) } }
+                    },
+                    onFecharJogo = { jogoAberto = null },
+                    onMudarCanalJogo = {
+                        if (candidatosJogo.isNotEmpty()) {
+                            jogoCanalIdx = (jogoCanalIdx + 1) % candidatosJogo.size
+                            val ch = candidatosJogo[jogoCanalIdx]
+                            vm.withChannelAccess(ch) { vm.tune(ch) }
+                        }
                     },
                     current = current,
                     favorites = favorites,

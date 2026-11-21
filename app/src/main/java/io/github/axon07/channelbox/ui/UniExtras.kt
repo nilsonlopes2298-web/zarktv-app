@@ -210,8 +210,8 @@ fun HeroCatalogo(
             vm.zarkFicha(b)?.fundo?.let { url -> fundos.value = fundos.value + (b.id to url) }
         }
     }
-    Row(Modifier.fillMaxWidth().height(altura), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        Column(Modifier.weight(2.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(Modifier.fillMaxWidth().height(altura), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(2.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val atual = banner[i % banner.size]
             TileImagem(
                 imagem = fundos.value[atual.id] ?: atual.poster,
@@ -220,7 +220,7 @@ fun HeroCatalogo(
                 tituloGrande = true,
                 bolinhas = banner.size to (i % banner.size),
             ) { onOpen(atual) }
-            Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 blocos.forEach { b ->
                     TileImagem(b.imagem, b.nome, Modifier.weight(1f).fillMaxHeight(), cor = b.cor, rotulo = true) { b.acao() }
                 }
@@ -237,17 +237,17 @@ fun HeroCatalogo(
 fun Mosaico(itens: List<VodEntity>, altura: Dp, focoInicial: FocusRequester? = null, onOpen: (VodEntity) -> Unit) {
     if (itens.isEmpty()) return
     fun t(k: Int) = itens.getOrNull(k)
-    Column(Modifier.fillMaxWidth().height(altura), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(Modifier.fillMaxWidth().weight(1.9f), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(Modifier.fillMaxWidth().height(altura), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth().weight(1.9f), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             t(0)?.let { a -> TileImagem(a.poster, a.title, Modifier.weight(2f).fillMaxHeight().let { m -> focoInicial?.let { m.focusRequester(it) } ?: m }) { onOpen(a) } }
-            Column(Modifier.weight(1.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.weight(1.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 listOfNotNull(t(1), t(2)).forEach { a -> TileImagem(a.poster, a.title, Modifier.fillMaxWidth().weight(1f)) { onOpen(a) } }
             }
-            Column(Modifier.weight(1.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.weight(1.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 listOfNotNull(t(3), t(4)).forEach { a -> TileImagem(a.poster, a.title, Modifier.fillMaxWidth().weight(1f)) { onOpen(a) } }
             }
         }
-        Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             (5..9).mapNotNull { t(it) }.forEach { a -> TileImagem(a.poster, a.title, Modifier.weight(1f).fillMaxHeight()) { onOpen(a) } }
         }
     }
@@ -269,9 +269,9 @@ fun TileImagem(
     Surface(
         onClick = onClick,
         modifier = modifier.onFocusChanged { focused = it.isFocused }
-            .border(if (focused) 3.dp else 0.dp, if (focused) Color(0xFFFFE082) else Color.Transparent, RoundedCornerShape(4.dp))
+            .border(if (focused) 3.dp else 0.dp, if (focused) Color(0xFFFFE082) else Color.Transparent, RoundedCornerShape(8.dp))
             .tap(onClick = onClick),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(containerColor = cor ?: Color(0xFF2A0A0E), focusedContainerColor = cor ?: Color(0xFF2A0A0E)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
     ) {

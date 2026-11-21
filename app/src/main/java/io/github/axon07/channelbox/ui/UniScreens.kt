@@ -2,6 +2,7 @@ package io.github.axon07.channelbox.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -108,7 +109,12 @@ fun UniShell(
     groups: List<Pair<ChannelFilter, String>> = emptyList(),
     currentGroup: ChannelFilter = ChannelFilter.All,
     onGroup: (ChannelFilter) -> Unit = {},
-    onAssistirJogo: () -> Unit = {},
+    jogoAberto: io.github.axon07.channelbox.data.ZarkJogos.Jogo? = null,
+    canalJogo: ChannelEntity? = null,
+    canalJogoInfo: String = "",
+    onAbrirJogo: (io.github.axon07.channelbox.data.ZarkJogos.Jogo) -> Unit = {},
+    onFecharJogo: () -> Unit = {},
+    onMudarCanalJogo: () -> Unit = {},
     current: ChannelEntity?,
     favorites: Set<String>,
     upcoming: Map<String, List<ProgramEntity>>,
@@ -149,7 +155,7 @@ fun UniShell(
         delay(150)
         runCatching { tabFocus[tab].requestFocus() }
     }
-    if (!Aba.temPrevia(tab)) LaunchedEffect(Unit) { onPreviewRect(null) }
+    if (!Aba.temPrevia(tab) && !(tab == Aba.JOGOS && jogoAberto != null)) LaunchedEffect(Unit) { onPreviewRect(null) }
 
     // O fundo é desenhado atrás do vídeo (TvApp), para a prévia do canal aparecer.
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -203,7 +209,9 @@ fun UniShell(
                         onPrevGroup, onNextGroup, onPickChannel, onFull, onFavorite, onPreviewRect,
                         groups, currentGroup, onGroup,
                     )
-                    Aba.JOGOS -> AbaJogos(vm, compacto, onAssistirJogo)
+                    Aba.JOGOS -> if (jogoAberto != null) JogoAberto(
+                        jogoAberto, canalJogo, canalJogoInfo, compacto, onPreviewRect, onFull, onMudarCanalJogo, onFecharJogo,
+                    ) else AbaJogos(vm, compacto, onAbrirJogo)
                     Aba.DESTAQUES -> AbaDestaques(vm, compacto, extras.banners, onOpenItem)
                     Aba.FILMES -> AbaCatalogo(vm, VodKind.MOVIE, compacto, null, onOpenItem, onOpenLibrary)
                     Aba.SERIES -> AbaCatalogo(vm, VodKind.SERIES, compacto, null, onOpenItem, onOpenLibrary)
@@ -697,7 +705,7 @@ fun PosterTile(item: VodEntity, w: Dp, h: Dp, mostrarTitulo: Boolean = true, onC
 // ---- Jogos: guia de jogos do dia ----------------------------------------------------------------
 
 @Composable
-private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: () -> Unit) {
+private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: (io.github.axon07.channelbox.data.ZarkJogos.Jogo) -> Unit) {
     var jogos by remember { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkJogos.Jogo>?>(null) }
     var filtro by remember { mutableStateOf(0) } // 0 todos, 1 ao vivo, 2 encerrados
     LaunchedEffect(Unit) {
@@ -728,7 +736,7 @@ private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: () -> Unit)
             lista.isEmpty() -> Text("Nenhum jogo encontrado agora.", color = Color.White, fontSize = 16.sp)
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
                 items(lista) { j ->
-                    LinhaFocavel(onClick = onAssistir) {
+                    LinhaFocavel(onClick = { onAssistir(j) }) {
                         Row(
                             Modifier.fillMaxWidth().background(Color(0x55FFFFFF), RoundedCornerShape(6.dp)).height(if (compacto) 76.dp else 92.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -762,5 +770,114 @@ private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: () -> Unit)
                 }
             }
         }
+    }
+}
+
+
+/** Jogo aberto dentro da aba Jogos: telinha do canal, placar e botões (como na UniTV). */
+@Composable
+private fun JogoAberto(
+    j: io.github.axon07.channelbox.data.ZarkJogos.Jogo,
+    canal: ChannelEntity?,
+    canalInfo: String,
+    compacto: Boolean,
+    onPreviewRect: (Rect?) -> Unit,
+    onFull: () -> Unit,
+    onMudar: () -> Unit,
+    onVoltar: () -> Unit,
+) {
+    val foco = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        delay(150)
+        runCatching { foco.requestFocus() }
+    }
+    val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
+    val data = java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
+    val previa: @Composable (Modifier) -> Unit = { mod ->
+        Box(
+            mod.aspectRatio(16f / 9f)
+                .border(2.dp, Color(0x55FFFFFF), RoundedCornerShape(6.dp))
+                .onGloballyPositioned { onPreviewRect(it.boundsInRoot()) }
+                .tap(onClick = { if (canal != null) onFull() })
+        ) {
+            if (canal == null) Text(
+                "Nenhum canal encontrado para este jogo.\nUse \"Mudar de canal\".", color = Color.White, fontSize = 14.sp,
+                textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center).padding(12.dp),
+            )
+            else Text(
+                canal.name, color = Color.White, fontSize = 12.sp,
+                modifier = Modifier.align(Alignment.BottomEnd).background(Color(0x99000000), RoundedCornerShape(topStart = 6.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+        }
+    }
+    val info: @Composable (Modifier) -> Unit = { mod ->
+        Column(mod, horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(j.liga, color = Color.White, fontSize = if (compacto) 18.sp else 24.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Box(Modifier.padding(vertical = 10.dp).fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                TimeJogo(j.casa, Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (j.estado == "pre") hora else "${j.casa.placar ?: 0} - ${j.fora.placar ?: 0}",
+                        color = Color.White, fontSize = if (compacto) 26.sp else 34.sp, fontWeight = FontWeight.Bold,
+                    )
+                    Text(data, color = Color(0xCCFFFFFF), fontSize = 12.sp)
+                    Text(
+                        when (j.estado) { "in" -> "Em andamento"; "post" -> "Encerrado"; else -> "Não começou" },
+                        color = Color.White, fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp).border(1.dp, Color(0x66FFFFFF), RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 2.dp),
+                    )
+                }
+                TimeJogo(j.fora, Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                BotaoQuadrado(AppIcons.Grid, "Tela cheia", Color(0xFFD32F2F), Modifier.focusRequester(foco)) { if (canal != null) onFull() }
+                BotaoQuadrado(AppIcons.Refresh, "Mudar de canal", Color(0x55FFFFFF), Modifier, onMudar)
+                BotaoQuadrado(AppIcons.Close, "Voltar", Color(0x55FFFFFF), Modifier, onVoltar)
+            }
+            if (canalInfo.isNotBlank()) Text(canalInfo, color = Color(0xCCFFFFFF), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            if (j.canais.isNotEmpty()) Text("Transmissão: " + j.canais.take(3).joinToString(", "), color = Color(0xFFFFD54F), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+        }
+    }
+    if (compacto) {
+        Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+            previa(Modifier.fillMaxWidth())
+            Spacer(Modifier.height(12.dp))
+            info(Modifier.fillMaxWidth())
+        }
+    } else {
+        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.Top) {
+            previa(Modifier.weight(1f))
+            Spacer(Modifier.width(28.dp))
+            info(Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun TimeJogo(t: io.github.axon07.channelbox.data.ZarkJogos.Time, modifier: Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        if (t.logo != null) AsyncImage(t.logo, null, modifier = Modifier.size(56.dp))
+        Text(t.nome, color = Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+@Composable
+private fun BotaoQuadrado(icone: ImageVector, label: String, cor: Color, modifier: Modifier, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Surface(
+            onClick = onClick,
+            modifier = modifier.size(64.dp).onFocusChanged { f = it.isFocused }
+                .border(if (f) 3.dp else 0.dp, if (f) Color.White else Color.Transparent, RoundedCornerShape(6.dp))
+                .tap(onClick = onClick),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
+            colors = ClickableSurfaceDefaults.colors(containerColor = cor, focusedContainerColor = cor),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { AppIcon(icone, tint = Color.White, size = 28.dp) }
+        }
+        Text(label, color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
     }
 }
