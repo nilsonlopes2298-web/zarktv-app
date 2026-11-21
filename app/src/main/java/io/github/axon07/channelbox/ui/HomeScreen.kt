@@ -310,7 +310,7 @@ fun ProfileScreen(
                         }
                     }
                 }
-                LinhaPerfil(AppIcons.Shield, "Conteúdo adulto", if (adultoBloqueado) "Bloqueado com senha" else "Criar senha", onParental)
+                LinhaPerfil(AppIcons.Shield, "Conteúdo adulto", if (adultoBloqueado) "Bloqueado · toque para liberar" else "Liberado · toque para bloquear", onParental)
                 LinhaPerfil(AppIcons.Captions, "Áudio, legenda e player", null, onPlayer)
                 LinhaPerfil(AppIcons.Info, "Ajuda e suporte", "WhatsApp", onSupport)
                 LinhaPerfil(AppIcons.Grid, "Tema do app", temaNome, onTema)

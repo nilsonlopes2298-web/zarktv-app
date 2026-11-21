@@ -1773,7 +1773,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     serverName = pl?.name.orEmpty(),
                     userName = pl?.xtUser.orEmpty(),
                     conta = conta,
-                    adultoBloqueado = settings.pinHash != null,
+                    adultoBloqueado = !vm.zarkAdulto.collectAsStateWithLifecycle().value,
                     onPay = pagar,
                     onInvite = { compartilhar("Assista TV, filmes e séries no ZarkTV! Baixe o app: https://zark.zarktvqx.cfd/celular  — Assine: https://wa.me/558587890473") },
                     onFavorites = {
@@ -1783,7 +1783,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onLive = aoVivo,
                     onSwitchAccount = sairDaConta,
                     onLogout = sairDaConta,
-                    onParental = { settingsSection = "parental"; openSettings() },
+                    onParental = { vm.zarkAlternarAdulto() },
                     onPlayer = { settingsSection = "playback"; openSettings() },
                     onSupport = suporte,
                     onSettings = { settingsSection = null; openSettings() },

@@ -152,11 +152,18 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     fun originalGroup(shown: String): String = groupOriginals[shown] ?: shown
 
     /** The playlist's channels with your names, numbers and hidden items applied. */
-    val allChannels: StateFlow<List<ChannelEntity>> = combine(repo.channels, overrides, c.settings.flow) { saved, ov, s ->
+    /** ZarkTV: conteúdo adulto liberado com a senha no Perfil (escondido por padrão). */
+    val zarkAdulto = MutableStateFlow(ZarkPrefs.adulto(app))
+
+    private fun adultoBloq(vararg textos: String?) =
+        !zarkAdulto.value && textos.any { it != null && ZarkPrefs.ADULTO.containsMatchIn(it) }
+
+    val allChannels: StateFlow<List<ChannelEntity>> = combine(repo.channels, overrides, c.settings.flow, zarkAdulto) { saved, ov, s, adulto ->
         // Only channels of playlists that exist and are on: a removed playlist disappears at once,
         // without waiting for the reload that deletes its rows.
         val live = s.playlists.filter { it.enabled }.mapTo(HashSet()) { it.id }
         val list = saved.filter { playlistOf(it) in live }
+            .filter { adulto || (!ZarkPrefs.ADULTO.containsMatchIn(it.groupTitle) && !ZarkPrefs.ADULTO.containsMatchIn(it.name)) }
         if (ov.isEmpty()) {
             groupOriginals = emptyMap()
             return@combine list
@@ -950,8 +957,8 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Categories shown in Movies / TV Shows (hidden ones left out). */
     fun vodCategories(kind: String): Flow<List<VodCategory>> =
-        combine(library { repo.vod.categories(kind) }, overrides) { list, ov ->
-            list.filter { ov[vodKey(kind, it.name)]?.hidden != true }
+        combine(library { repo.vod.categories(kind) }, overrides, zarkAdulto) { list, ov, _ ->
+            list.filter { ov[vodKey(kind, it.name)]?.hidden != true && !adultoBloq(it.name) }
         }
 
     /** Every category, for choosing which ones show (Settings). */
@@ -979,7 +986,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         list.filter { e ->
             val ov = overrides.value[vodKey(kind, e.category)]
             ov?.hidden != true && (unlocked || ov?.locked != true)
-        }.take(n)
+        }.filter { !adultoBloq(it.category, it.title) }.take(n)
     }
 
     /** [category]: null = all, [VOD_CONTINUE] = started but not finished. */
@@ -989,8 +996,9 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             val browsingOneCategory = query.isBlank() && category != null && category != VOD_CONTINUE
             // Titles from hidden categories stay out of "All", search and "Continue watching".
             val shown = if (browsingOneCategory) list else list.filter { overrides.value[vodKey(kind, it.category)]?.hidden != true }
-            if (unlocked || browsingOneCategory) shown
-            else shown.filter { overrides.value[vodKey(kind, it.category)]?.locked != true }
+            (if (unlocked || browsingOneCategory) shown
+            else shown.filter { overrides.value[vodKey(kind, it.category)]?.locked != true })
+                .filter { !adultoBloq(it.category, it.title) }
         }
 
     private fun libraryRaw(kind: String, category: String?, query: String): Flow<List<VodEntity>> = library {
@@ -1610,6 +1618,26 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             }
             zarkNovidades.value = novas
         }
+    }
+
+    /** Liberar/bloquear o conteúdo adulto: sempre pede a senha (cria uma na primeira vez). */
+    fun zarkAlternarAdulto() {
+        val ctx = getApplication<Application>()
+        if (zarkAdulto.value) {
+            ZarkPrefs.setAdulto(ctx, false)
+            zarkAdulto.value = false
+            repo.vodChanged()
+            showToast("Conteúdo adulto bloqueado")
+            return
+        }
+        val liberar = {
+            ZarkPrefs.setAdulto(ctx, true)
+            zarkAdulto.value = true
+            repo.vodChanged()
+            showToast("Conteúdo adulto liberado")
+        }
+        _pinRequest.value = if (hasPin) PinRequest("Digite a senha do conteúdo adulto", onSuccess = liberar)
+        else PinRequest("Crie uma senha de 4 números para o conteúdo adulto", setup = true, onSuccess = liberar)
     }
 
     fun zarkLimparConta() {

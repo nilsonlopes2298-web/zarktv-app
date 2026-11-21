@@ -283,6 +283,11 @@ object ZarkPainel {
 object ZarkPrefs {
     private fun p(c: Context) = c.getSharedPreferences("zarktv", Context.MODE_PRIVATE)
 
+    /** Conteúdo adulto: escondido até o cliente liberar com a senha no Perfil. */
+    val ADULTO = Regex("""adult|\bxxx\b|\+ ?18|18 ?\+|er[oó]tic|playboy|sexy|\bhot\b|porn|sexo|privê|prive""", RegexOption.IGNORE_CASE)
+    fun adulto(c: Context) = p(c).getBoolean("adulto_liberado", false)
+    fun setAdulto(c: Context, on: Boolean) = p(c).edit().putBoolean("adulto_liberado", on).apply()
+
     fun favoritos(c: Context): Set<String> = p(c).getStringSet("vod_fav", emptySet()).orEmpty()
     fun ehFavorito(c: Context, id: String) = id in favoritos(c)
     fun alternarFavorito(c: Context, id: String): Boolean {
