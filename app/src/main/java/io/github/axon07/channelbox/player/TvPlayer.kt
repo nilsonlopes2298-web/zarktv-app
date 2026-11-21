@@ -104,8 +104,8 @@ class TvPlayer(
     val tracksVersion: StateFlow<Int> = _tracksVersion.asStateFlow()
 
     private var spec: StreamSpec? = null
-    /** Já trocou .ts por .m3u8 neste canal (só tenta uma vez). */
-    private var trocouFormato = false
+    /** Quantas alternativas (formato/identificação) já tentou neste canal. */
+    private var tentativaAlternativa = 0
     private var candidates: List<String?> = listOf(null)
     private var attempt = 0
     private var confirmed = false // the current type has played at least once
@@ -316,7 +316,7 @@ class TvPlayer(
             else -> listOf(null, StreamSpecs.MIME_HLS, StreamSpecs.MIME_DASH)
         }
         attempt = 0
-        trocouFormato = false
+        tentativaAlternativa = 0
         confirmed = false
         retries = 0
         refusals = 0
@@ -546,10 +546,14 @@ class TvPlayer(
         // ZarkTV: canal Xtream em .ts que não abriu → tenta o mesmo canal em HLS (.m3u8) antes de desistir.
         // Alguns servidores (Five, Club…) só liberam um dos dois formatos.
         val atual = spec
-        if (atual != null && !trocouFormato && Regex("""/live/[^?]+\.ts(\?|$)""").containsMatchIn(atual.url)) {
-            trocouFormato = true
-            spec = atual.copy(url = atual.url.replace(Regex("""\.ts(\?|$)"""), ".m3u8$1"), mime = StreamSpecs.MIME_HLS)
-            candidates = listOf(StreamSpecs.MIME_HLS, null)
+        val ehXtream = atual != null && Regex("""/live/[^?]+\.(ts|m3u8)(\?|$)""").containsMatchIn(atual.url)
+        if (atual != null && ehXtream && tentativaAlternativa < ALTERNATIVAS.size) {
+            // Sequência: .m3u8 → .ts com outra identificação (VLC) → .m3u8 com outra (okhttp).
+            val (ext, ua) = ALTERNATIVAS[tentativaAlternativa++]
+            val base = atual.url.replace(Regex("""\.(ts|m3u8)(\?|$)"""), ".$ext$2")
+            val headers = if (ua == null) atual.headers - "User-Agent" else atual.headers + ("User-Agent" to ua)
+            spec = atual.copy(url = base, headers = headers, mime = if (ext == "m3u8") StreamSpecs.MIME_HLS else null)
+            candidates = listOf(spec!!.mime)
             attempt = 0
             handler.post { start() }
             return
@@ -732,6 +736,13 @@ class TvPlayer(
         /** HTTP codes providers use for "refused" / "too many connections". */
         private val REFUSED = setOf(401, 403, 429, 456, 458, 509)
         const val DEFAULT_USER_AGENT = UserAgent.DEFAULT
+
+        /** Formatos e identificações tentados quando um canal Xtream não abre. */
+        private val ALTERNATIVAS = listOf(
+            "m3u8" to null,
+            "ts" to "VLC/3.0.20 LibVLC/3.0.20",
+            "m3u8" to "okhttp/4.12.0",
+        )
     }
 }
 
