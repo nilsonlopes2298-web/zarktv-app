@@ -58,6 +58,7 @@ fun HomeScreen(
     onSeries: () -> Unit,
     onSettings: () -> Unit,
     onProfile: () -> Unit,
+    onFavorites: () -> Unit,
     onPay: () -> Unit,
     onSupport: () -> Unit,
     onExit: () -> Unit,
@@ -133,61 +134,42 @@ fun HomeScreen(
 
             Spacer(Modifier.height(if (compacto) 16.dp else 26.dp))
 
-            // Os blocões.
-            val tiles = listOf(
-                Bloco("Canais ao vivo", if (channelCount > 0) "$channelCount canais" else "TV ao vivo", AppIcons.Tv, Color(0xFFE50914), Color(0xFF7A0409), onLive),
-                Bloco("Filmes", if (movieCount > 0) "$movieCount filmes" else "Filmes", AppIcons.Film, Color(0xFF3A3A3A), Color(0xFF161616), onMovies),
-                Bloco("Séries", if (showCount > 0) "$showCount séries" else "Séries", AppIcons.Grid, Color(0xFF3A3A3A), Color(0xFF161616), onSeries),
-                Bloco("Configurações", "Ajustes do app", AppIcons.Settings, Color(0xFF2B2B2B), Color(0xFF141414), onSettings),
-            )
+            // Os blocões: TV grande, Filmes e Séries (como no app antigo).
+            val tv = Bloco("TV ao vivo", if (channelCount > 0) "$channelCount canais" else "Canais", AppIcons.Tv, Color(0xFFE50914), Color(0xFF7A0409), onLive)
+            val filmes = Bloco("Filmes", if (movieCount > 0) "$movieCount filmes" else "Filmes", AppIcons.Film, Color(0xFF3A3A3A), Color(0xFF161616), onMovies)
+            val series = Bloco("Séries", if (showCount > 0) "$showCount séries" else "Séries", AppIcons.Grid, Color(0xFF3A3A3A), Color(0xFF161616), onSeries)
             if (compacto) {
-                tiles.chunked(2).forEachIndexed { r, linha ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        linha.forEachIndexed { c, b ->
-                            BlocoTile(b, 150.dp, Modifier.weight(1f).then(if (r == 0 && c == 0) Modifier.focusRequester(first) else Modifier))
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
+                BlocoTile(tv, 170.dp, Modifier.fillMaxWidth().focusRequester(first))
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    BlocoTile(filmes, 130.dp, Modifier.weight(1f))
+                    BlocoTile(series, 130.dp, Modifier.weight(1f))
                 }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.fillMaxWidth()) {
-                    tiles.forEachIndexed { i, b ->
-                        BlocoTile(b, 220.dp, Modifier.weight(1f).then(if (i == 0) Modifier.focusRequester(first) else Modifier))
-                    }
+                    BlocoTile(tv, 250.dp, Modifier.weight(1.5f).focusRequester(first))
+                    BlocoTile(filmes, 250.dp, Modifier.weight(1f))
+                    BlocoTile(series, 250.dp, Modifier.weight(1f))
                 }
             }
 
-            Spacer(Modifier.height(if (compacto) 12.dp else 26.dp))
-
-            // Minha conta.
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .background(Color(0x991A1A1A), RoundedCornerShape(14.dp))
-                    .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(14.dp))
-                    .padding(16.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Minha conta", color = Palette.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        when {
-                            conta == null -> "Conferindo conta…"
-                            conta.expira == null -> "Sem vencimento"
-                            else -> "Vence em " + java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(conta.expira))
-                        },
-                        color = if (dias != null && dias <= 5) Palette.Accent else Palette.TextDim, fontSize = 13.sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    item { PillButton("Pagar / Renovar", primary = true, onClick = onPay) }
-                    item { PillButton("Meu perfil", onClick = onProfile) }
-                    item { PillButton("Falar com o suporte", onClick = onSupport) }
-                    item { PillButton("Sair do app", onClick = onExit) }
-                }
+            Spacer(Modifier.height(16.dp))
+            // Atalhos pequenos.
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                AtalhoPerfil(AppIcons.Star, "Favoritos", onFavorites, Modifier.weight(1f))
+                AtalhoPerfil(AppIcons.Home, "Perfil", onProfile, Modifier.weight(1f))
+                AtalhoPerfil(AppIcons.Settings, "Configurações", onSettings, Modifier.weight(1f))
+                if (!compacto) AtalhoPerfil(AppIcons.Phone, "Suporte", onSupport, Modifier.weight(1f))
             }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                when {
+                    conta == null -> userName.ifBlank { "" }
+                    conta.expira == null -> "$userName · sem vencimento"
+                    else -> "$userName · vence em " + java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(conta.expira))
+                },
+                color = Palette.TextDim, fontSize = 12.sp,
+            )
         }
     }
 }

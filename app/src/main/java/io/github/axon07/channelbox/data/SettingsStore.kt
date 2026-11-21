@@ -151,7 +151,7 @@ data class AppSettings(
     val captionsByDefault: Boolean = false,
     /** App language ("en" = English). */
     val language: String = "pt-BR",
-    val refreshHours: Int = 12,
+    val refreshHours: Int = 24, // ZarkTV: atualiza o conteúdo uma vez por dia
     val backAction: BackAction = BackAction.ASK_EXIT,
     val autoUpdateCheck: Boolean = true,
     /** Decode audio with FFmpeg even when the box has its own decoder (fixes silent channels on some boxes). */
@@ -297,7 +297,7 @@ class SettingsStore(private val context: Context) {
         invertChannelKeys = this[Keys.INVERT_KEYS] ?: false,
         captionsByDefault = this[Keys.CAPTIONS_DEFAULT] ?: false,
         language = this[Keys.LANGUAGE] ?: "pt-BR",
-        refreshHours = this[Keys.REFRESH_HOURS] ?: 12,
+        refreshHours = this[Keys.REFRESH_HOURS] ?: 24,
         backAction = runCatching { BackAction.valueOf(this[Keys.BACK_ACTION] ?: "") }
             .getOrDefault(BackAction.ASK_EXIT),
         autoUpdateCheck = this[Keys.AUTO_UPDATE] ?: true,

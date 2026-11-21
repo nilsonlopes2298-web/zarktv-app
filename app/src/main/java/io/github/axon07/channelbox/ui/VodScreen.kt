@@ -2,6 +2,7 @@ package io.github.axon07.channelbox.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,6 +70,8 @@ class VodBrowser {
     var query by mutableStateOf("")
     var items by mutableStateOf<List<VodEntity>?>(null)
     var show by mutableStateOf<VodEntity?>(null)
+    /** ZarkTV: filme aberto na ficha (sinopse, elenco, Assistir). */
+    var movie by mutableStateOf<VodEntity?>(null)
     var episodes by mutableStateOf<List<VodEntity>?>(null)
     var season by mutableStateOf<Int?>(null)
     val grid = LazyGridState()
@@ -86,6 +89,7 @@ class VodBrowser {
             items = null
         }
         show = null
+        movie = null
         episodes = null
         focusToken++
     }
@@ -112,7 +116,9 @@ fun VodScreen(b: VodBrowser, vm: TvViewModel, onPlay: (item: VodEntity, show: Vo
     // Hold OK on a category: lock or hide it.
     var categoryMenu by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
     androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
-        if (show != null) ShowScreen(b, show, progress, vm, onPlay)
+        val movie = b.movie
+        if (movie != null) MovieDetail(b, movie, progress[movie.id], vm, onPlay)
+        else if (show != null) ShowScreen(b, show, progress, vm, onPlay)
         else LibraryScreen(b, progress, vm, onPlay, onCategoryMenu = { cat, locked -> categoryMenu = cat to locked })
         categoryMenu?.let { (cat, locked) -> CategoryMenu(b, vm, cat, locked) { categoryMenu = null } }
     }
@@ -309,11 +315,9 @@ private fun LibraryScreen(
                             focusToken = b.focusToken,
                             onFocused = { if (b.focusId == item.id) b.focusId = null },
                             onClick = {
+                                b.focusId = item.id
                                 if (item.kind == VodKind.SERIES) b.openShow(item)
-                                else {
-                                    b.focusId = item.id
-                                    onPlay(item, null)
-                                }
+                                else b.movie = item // ZarkTV: abre a ficha antes de tocar
                             },
                         )
                     }
@@ -497,13 +501,17 @@ private fun ShowScreen(
         }
     }
 
-    Row(Modifier.fillMaxSize().background(Palette.Background)) {
+    var ficha by remember(show.id) { mutableStateOf<io.github.axon07.channelbox.data.ZarkInfo?>(null) }
+    LaunchedEffect(show.id) { ficha = vm.zarkFicha(show) }
+    Box(Modifier.fillMaxSize().background(Palette.Background)) {
+    ficha?.fundo?.let { FundoFicha(it) }
+    Row(Modifier.fillMaxSize()) {
         // ---- Left: the show and its seasons ----
         Column(
             Modifier
                 .width(300.dp)
                 .fillMaxHeight()
-                .background(Brush.verticalGradient(listOf(Color(0xFF111821), Color(0xFF0B1016))))
+                .background(Brush.verticalGradient(listOf(Color(0xE6140405), Color(0xE60A0A0A))))
                 .padding(top = 24.dp, start = 18.dp, end = 18.dp, bottom = 12.dp)
         ) {
             Row {
@@ -515,14 +523,16 @@ private fun ShowScreen(
                     if (meta.isNotEmpty()) Text(meta, fontSize = 12.sp, color = Palette.TextDim, maxLines = 2, modifier = Modifier.padding(top = 4.dp))
                 }
             }
-            show.plot?.let {
-                Text(it, fontSize = 12.sp, color = Palette.TextDim, maxLines = 5, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 12.dp))
+            ficha?.genero?.let { Text(it, fontSize = 12.sp, color = Color(0xFF7CD992), maxLines = 1, modifier = Modifier.padding(top = 10.dp)) }
+            ficha?.elenco?.let { Text(it, fontSize = 12.sp, color = Color(0xFF7FB8FF), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)) }
+            (ficha?.sinopse ?: show.plot)?.let {
+                Text(it, fontSize = 12.sp, color = Color(0xFFDDDDDD), maxLines = 6, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
             }
             Spacer(Modifier.height(14.dp))
             LazyColumn(Modifier.weight(1f)) {
                 items(seasons, key = { it }) { s ->
                     CategoryEntry(
-                        label = if (s == 0) "Episodes" else "Season $s",
+                        label = if (s == 0) "Episódios" else "Temporada $s",
                         count = episodes?.count { it.season == s } ?: 0,
                         selected = s == b.season,
                         modifier = Modifier,
@@ -537,10 +547,10 @@ private fun ShowScreen(
         Column(Modifier.weight(1f).fillMaxHeight().padding(top = 24.dp, start = 24.dp, end = 24.dp)) {
             Text(
                 when {
-                    episodes == null -> "Loading episodes…"
-                    episodes.isEmpty() -> "No episodes found"
-                    b.season == 0 -> "Episodes"
-                    else -> "Season ${b.season}"
+                    episodes == null -> "Carregando episódios…"
+                    episodes.isEmpty() -> "Nenhum episódio encontrado"
+                    b.season == 0 -> "Episódios"
+                    else -> "Temporada ${b.season}"
                 },
                 fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text,
             )
@@ -568,6 +578,7 @@ private fun ShowScreen(
             }
         }
     }
+}
 }
 
 @Composable
@@ -609,7 +620,7 @@ private fun EpisodeRow(ep: VodEntity, progress: VodProgressEntity?, modifier: Mo
                 }
                 val meta = listOfNotNull(
                     ep.rating, // episode length for Xtream
-                    progress?.let { "Stopped at ${formatClock(it.position)}" },
+                    progress?.let { "Parou em ${formatClock(it.position)}" },
                 ).joinToString(" · ")
                 if (meta.isNotEmpty()) Text(meta, fontSize = 11.sp, color = Palette.TextDim, modifier = Modifier.padding(top = 3.dp))
             }
@@ -620,3 +631,86 @@ private fun EpisodeRow(ep: VodEntity, progress: VodProgressEntity?, modifier: Mo
 
 /** Posters fetched ahead of scrolling. */
 private const val PREFETCH = 36
+
+
+/** Imagem de fundo da ficha, escurecida para o texto aparecer. */
+@Composable
+private fun FundoFicha(url: String) {
+    Box(Modifier.fillMaxSize()) {
+        AsyncImage(model = url, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xF20A0A0A), Color(0xB30A0A0A), Color(0x660A0A0A)))))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC0A0A0A)))))
+    }
+}
+
+/** Ficha do filme (estilo UniTV/play): capa, título, nota, data, gênero, elenco, sinopse e Assistir. */
+@Composable
+private fun MovieDetail(
+    b: VodBrowser,
+    movie: VodEntity,
+    progress: VodProgressEntity?,
+    vm: TvViewModel,
+    onPlay: (VodEntity, VodEntity?) -> Unit,
+) {
+    var ficha by remember(movie.id) { mutableStateOf<io.github.axon07.channelbox.data.ZarkInfo?>(null) }
+    var carregou by remember(movie.id) { mutableStateOf(false) }
+    LaunchedEffect(movie.id) {
+        ficha = vm.zarkFicha(movie)
+        carregou = true
+    }
+    val play = remember { FocusRequester() }
+    LaunchedEffect(movie.id) {
+        delay(120)
+        runCatching { play.requestFocus() }
+    }
+    val retrato = androidx.compose.ui.platform.LocalConfiguration.current.let { it.screenHeightDp > it.screenWidthDp }
+    Box(Modifier.fillMaxSize().background(Palette.Background)) {
+        (ficha?.fundo ?: movie.poster)?.let { FundoFicha(it) }
+        val conteudo: @Composable () -> Unit = {
+            Text(movie.title, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            val nota = (ficha?.nota ?: movie.rating)?.toDoubleOrNull()
+            if (nota != null && nota > 0) {
+                val estrelas = (nota / 2).toInt().coerceIn(0, 5)
+                Text("★".repeat(estrelas) + "☆".repeat(5 - estrelas) + "  (${"%.1f".format(nota)})", color = Color(0xFFFFC107), fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
+            }
+            val meta = listOfNotNull(ficha?.data ?: movie.year, ficha?.duracao).joinToString("  ·  ")
+            if (meta.isNotEmpty()) Text(meta, color = Color(0xFF7FB8FF), fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+            ficha?.genero?.let { Text(it, color = Color(0xFF7CD992), fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp)) }
+            ficha?.diretor?.let { Text("Direção: $it", color = Color(0xFFDDDDDD), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp)) }
+            ficha?.elenco?.let { Text("Elenco: $it", color = Color(0xFF7FB8FF), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)) }
+            val sinopse = ficha?.sinopse ?: movie.plot
+            Text(
+                sinopse ?: if (carregou) "Sinopse não disponível." else "Carregando informações…",
+                color = Color(0xFFEEEEEE), fontSize = 15.sp, lineHeight = 21.sp, maxLines = 7, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            Spacer(Modifier.height(18.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.width(240.dp).focusRequester(play)) {
+                    BotaoCheio(if (progress != null && progress.position > 0) "▶  Continuar" else "▶  Assistir", Palette.Accent) {
+                        b.focusId = movie.id
+                        onPlay(movie, null)
+                    }
+                }
+                Box(Modifier.width(160.dp)) {
+                    BotaoContorno("‹ Voltar", cor = Color(0x55FFFFFF)) { b.movie = null; b.focusToken++ }
+                }
+            }
+        }
+        if (retrato) {
+            Column(
+                Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(20.dp),
+            ) {
+                PosterImage(ficha?.capa ?: movie.poster, movie.title, Modifier.width(170.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(10.dp)))
+                Spacer(Modifier.height(16.dp))
+                conteudo()
+            }
+        } else {
+            Row(Modifier.fillMaxSize().padding(36.dp), verticalAlignment = Alignment.Top) {
+                PosterImage(ficha?.capa ?: movie.poster, movie.title, Modifier.width(230.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(10.dp)))
+                Spacer(Modifier.width(30.dp))
+                Column(Modifier.weight(1f)) { conteudo() }
+            }
+        }
+    }
+}

@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +74,8 @@ enum class Mode {
     ORGANISE,
     /** ZarkTV: tela inicial com os blocões (normal focus). */
     HOME,
+    /** ZarkTV: TV ao vivo – lista de canais e prévia ao lado (normal focus). */
+    LIVE,
     /** ZarkTV: perfil (conta, renovar, conteúdo adulto, player, suporte). */
     PROFILE,
 }
@@ -129,7 +133,16 @@ fun TvApp(vm: TvViewModel) {
             LocalRecordingChannels provides recording,
             LocalShowChannelNumbers provides s.showChannelNumbers,
         ) {
-            TvAppContent(vm, s)
+            Box(Modifier.fillMaxSize()) {
+                TvAppContent(vm, s)
+                // Abertura: logo e versão, como na UniTV.
+                var abertura by remember { mutableStateOf(true) }
+                LaunchedEffect(Unit) {
+                    delay(1600)
+                    abertura = false
+                }
+                if (abertura) ZarkAbertura(vm.appVersion)
+            }
         }
     }
 }
@@ -1151,7 +1164,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 digits.isNotEmpty() -> digits = ""
                 touchBar -> touchBar = false
                 bannerVisible -> bannerVisible = false
-                else -> openGuide()
+                else -> mode = Mode.LIVE // ZarkTV: da tela cheia volta para a lista de canais
             }
             Mode.CHANNEL_LIST -> mode = Mode.PLAYER
             Mode.GUIDE -> openGroups()
@@ -1172,11 +1185,16 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             Mode.SETTINGS -> if (!settings.hasSource) mode = Mode.SETUP else mode = if (settingsSection != null) Mode.PROFILE else Mode.HOME
             Mode.HOME -> askExit(Mode.HOME)
             Mode.PROFILE -> mode = Mode.HOME
+            Mode.LIVE -> mode = Mode.HOME
             Mode.SEARCH -> openGroups(tile = 5)
             Mode.ORGANISE -> mode = organiseReturn
             Mode.VOD -> when {
                 vodResume != null -> {
                     vodResume = null
+                    vodBrowser.focusToken++
+                }
+                vodBrowser.movie != null -> {
+                    vodBrowser.movie = null
                     vodBrowser.focusToken++
                 }
                 vodBrowser.show != null -> vodBrowser.closeShow()
@@ -1283,6 +1301,12 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 Modifier.fillMaxSize()
             } else if (mode == Mode.MULTIVIEW) {
                 Modifier.size(0.dp)
+            } else if (mode == Mode.LIVE) {
+                val g = liveGeom()
+                Modifier
+                    .align(Alignment.TopStart)
+                    .offset(g.x, g.y)
+                    .size(g.w, g.h)
             } else if (mode in GUIDE_MODES) {
                 Modifier
                     .align(Alignment.TopEnd)
@@ -1511,7 +1535,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     Unit
                 }
                 val aoVivo = {
-                    if (current == null && visible.isNotEmpty()) tuneAndWatch(visible.first()) else openGuide()
+                    if (current == null && visible.isNotEmpty()) vm.tune(visible.first())
+                    mode = Mode.LIVE
                 }
                 val compartilhar = { texto: String ->
                     runCatching {
@@ -1533,7 +1558,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     setupPlaylistId = null
                     mode = Mode.SETUP
                 }
-                if (mode == Mode.HOME) HomeScreen(
+                if (mode == Mode.HOME && allChannels.isEmpty() && refreshState is RefreshState.Running) ZarkCarregando(refreshState)
+                else if (mode == Mode.HOME) HomeScreen(
                     serverName = pl?.name.orEmpty(),
                     userName = pl?.xtUser.orEmpty(),
                     conta = conta,
@@ -1545,6 +1571,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onSeries = { openVod(VodKind.SERIES) },
                     onSettings = { settingsSection = null; openSettings() },
                     onProfile = { mode = Mode.PROFILE },
+                    onFavorites = {
+                        vm.setFilter(ChannelFilter.Favorites)
+                        mode = Mode.LIVE
+                    },
                     onPay = pagar,
                     onSupport = suporte,
                     onExit = { askExit(Mode.HOME) },
@@ -1567,6 +1597,27 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onSupport = suporte,
                     onSettings = { settingsSection = null; openSettings() },
                     onShare = { compartilhar("Baixe o ZarkTV: celular https://zark.zarktvqx.cfd/celular · TV Box https://zark.zarktvqx.cfd/tv (Downloader 5366466)") },
+                    onBack = { mode = Mode.HOME },
+                )
+            }
+            Mode.LIVE -> {
+                val filtros by vm.filters.collectAsStateWithLifecycle()
+                LiveScreen(
+                    channels = visible,
+                    groupLabel = vm.filterTitle(filter, menuSections),
+                    groups = filtros.map { f -> f to (vm.filterTitle(f, menuSections) + (filterCounts[f]?.let { "  ($it)" } ?: "")) },
+                    currentGroup = filter,
+                    current = current,
+                    favorites = favorites,
+                    upcoming = upcoming,
+                    now = now,
+                    timeFormat = timeFormat,
+                    onPrevGroup = { vm.cycleFilter(-1) },
+                    onNextGroup = { vm.cycleFilter(1) },
+                    onGroup = { vm.setFilter(it) },
+                    onPick = { ch -> vm.withChannelAccess(ch) { vm.tune(ch) } },
+                    onFull = { mode = Mode.PLAYER },
+                    onFavorite = { vm.toggleFavorite(it) },
                     onBack = { mode = Mode.HOME },
                 )
             }
@@ -1727,6 +1778,17 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 ),
             )
             Mode.PLAYER, Mode.CHANNEL_LIST -> {
+                // ZarkTV: no celular/tablet, ao tocar na tela aparece o botão de voltar.
+                if (mode == Mode.PLAYER && touchBar) {
+                    Box(Modifier.fillMaxSize()) {
+                        Box(
+                            Modifier.align(Alignment.TopStart).padding(16.dp)
+                                .background(Color(0xCC000000), androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                                .tap(onClick = { touchBar = false; mode = Mode.LIVE })
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                        ) { Text("‹ Voltar", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+                    }
+                }
                 // With channels saved from last time, a reload runs quietly behind them (and a
                 // failed one keeps them – the reason is in Settings), so nothing covers the picture.
                 val fallback = when (val r = refreshState) {

@@ -2,6 +2,7 @@ package io.github.axon07.channelbox.data
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -143,9 +144,91 @@ object ZarkConfig {
         if (wrong) Login.SenhaErrada else Login.SemResposta
     }
 
+    /**
+     * Servidor automático: testa usuário e senha em todos os servidores do painel ao mesmo tempo
+     * e fica com o primeiro (na ordem do painel) que aceitar.
+     */
+    suspend fun loginAuto(http: OkHttpClient, servers: List<Server>, user: String, pass: String): Pair<Server, Login> =
+        kotlinx.coroutines.coroutineScope {
+            val tentativas = servers.map { s -> s to async { login(http, s, user, pass) } }
+            var resposta: Login = Login.SemResposta
+            for ((s, t) in tentativas) {
+                val r = t.await()
+                if (r is Login.Ok) {
+                    tentativas.forEach { it.second.cancel() }
+                    return@coroutineScope s to r
+                }
+                if (r == Login.SenhaErrada) resposta = r
+            }
+            (servers.firstOrNull() ?: PADRAO.first()) to resposta
+        }
+
+    // "Lembrar de mim": guarda usuário e senha para preencher o login da próxima vez.
+    fun lembrar(context: Context, user: String?, pass: String?) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
+            if (user == null) remove("lembrar_user").remove("lembrar_pass").putBoolean("lembrar", false)
+            else putString("lembrar_user", user).putString("lembrar_pass", pass).putBoolean("lembrar", true)
+        }.apply()
+    }
+
+    fun lembrado(context: Context): Triple<Boolean, String, String> {
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return Triple(p.getBoolean("lembrar", true), p.getString("lembrar_user", "").orEmpty(), p.getString("lembrar_pass", "").orEmpty())
+    }
+
     /** Dias que faltam até [expira] (0 = vence hoje, negativo = vencido). */
     fun diasRestantes(expira: Long): Int {
         val dia = 24L * 60 * 60 * 1000
         return (expira - System.currentTimeMillis()).floorDiv(dia).toInt()
     }
+}
+
+/** Ficha de um filme ou série (do get_vod_info / get_series_info do servidor). */
+data class ZarkInfo(
+    val sinopse: String?,
+    val elenco: String?,
+    val diretor: String?,
+    val genero: String?,
+    val data: String?,
+    val nota: String?,
+    val duracao: String?,
+    val fundo: String?,
+    val capa: String?,
+)
+
+object ZarkFicha {
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, ZarkInfo>()
+
+    private fun JsonObject.txt(vararg k: String): String? =
+        k.firstNotNullOfOrNull { key -> (this[key] as? JsonPrimitive)?.content?.trim()?.takeIf { it.isNotBlank() && it != "null" } }
+
+    private fun JsonObject.fundo(): String? = when (val b = this["backdrop_path"]) {
+        is JsonArray -> (b.firstOrNull() as? JsonPrimitive)?.content
+        is JsonPrimitive -> b.content
+        else -> null
+    }?.takeIf { it.startsWith("http") }
+
+    /** [login] do servidor; [movieId] para filme ou [seriesId] para série. */
+    suspend fun buscar(http: OkHttpClient, login: XtreamClient.Login, movieId: String?, seriesId: String?): ZarkInfo? =
+        withContext(Dispatchers.IO) {
+            val chave = "${login.base}|${movieId ?: ""}|${seriesId ?: ""}"
+            cache[chave]?.let { return@withContext it }
+            val url = if (movieId != null) login.api("get_vod_info", "&vod_id=$movieId") else login.api("get_series_info", "&series_id=$seriesId")
+            val txt = runCatching {
+                http.newCall(Request.Builder().url(url).build()).execute().use { r -> if (r.isSuccessful) r.body?.string() else null }
+            }.getOrNull() ?: return@withContext null
+            val raiz = runCatching { Json.parseToJsonElement(txt) as? JsonObject }.getOrNull() ?: return@withContext null
+            val i = raiz["info"] as? JsonObject ?: return@withContext null
+            ZarkInfo(
+                sinopse = i.txt("plot", "description"),
+                elenco = i.txt("cast", "actors"),
+                diretor = i.txt("director"),
+                genero = i.txt("genre"),
+                data = i.txt("releasedate", "releaseDate", "release_date"),
+                nota = i.txt("rating", "rating_5based"),
+                duracao = i.txt("duration"),
+                fundo = i.fundo(),
+                capa = i.txt("movie_image", "cover", "cover_big"),
+            ).also { cache[chave] = it }
+        }
 }

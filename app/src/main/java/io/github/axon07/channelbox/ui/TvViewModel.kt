@@ -997,6 +997,21 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             emptyList()
         }
 
+    /** ZarkTV: ficha do filme/série (sinopse, elenco, capa de fundo) direto do servidor. */
+    suspend fun zarkFicha(item: VodEntity): io.github.axon07.channelbox.data.ZarkInfo? {
+        val Ficha = io.github.axon07.channelbox.data.ZarkFicha
+        return if (item.kind == VodKind.SERIES) {
+            val p = c.settings.current().playlists.firstOrNull { it.id == item.playlistId && it.type == SourceType.XTREAM } ?: return null
+            val id = item.seriesKey ?: return null
+            Ficha.buscar(c.http, XtreamClient.Login(p.xtServer, p.xtUser, p.xtPass), null, id)
+        } else {
+            val url = item.url ?: return null
+            val login = XtreamClient.Login.fromStreamUrl(url) ?: return null
+            val id = url.substringAfterLast('/').substringBefore('.').takeIf { it.all(Char::isDigit) } ?: return null
+            Ficha.buscar(c.http, login, id, null)
+        }
+    }
+
     /** Where to resume [item], or null to start from the beginning. */
     suspend fun vodResumeAt(item: VodEntity): Long? {
         val p = repo.vod.progress(item.id) ?: return null
