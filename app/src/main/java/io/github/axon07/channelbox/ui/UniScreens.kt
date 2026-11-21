@@ -41,6 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
@@ -101,6 +103,7 @@ private val REGEX_ANIME = Regex("anime", RegexOption.IGNORE_CASE)
  * Tela principal no fluxo da UniTV: logo, ícones (buscar, histórico, perfil), abas e o conteúdo da aba.
  * Na aba TV a prévia do canal é desenhada pelo player no retângulo informado em [onPreviewRect].
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun UniShell(
     vm: TvViewModel,
@@ -203,7 +206,14 @@ fun UniShell(
             Spacer(Modifier.height(if (compacto) 6.dp else 10.dp))
 
             // ---- Abas ----
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(if (compacto) 4.dp else 14.dp), modifier = Modifier.fillMaxWidth()) {
+            // Subindo do conteúdo para as abas, o foco cai sempre na aba aberta (não numa vizinha, que trocaria a aba).
+            LaunchedEffect(tab) { runCatching { tabFocus[tab].requestFocus() } }
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(if (compacto) 4.dp else 14.dp),
+                modifier = Modifier.fillMaxWidth()
+                    .focusProperties { enter = { tabFocus[tab] } }
+                    .focusGroup(),
+            ) {
                 itemsIndexed(Aba.nomes) { i, nome ->
                     AbaItem(nome, i == tab, Modifier.focusRequester(tabFocus[i]), compacto) { onTab(i) }
                 }
