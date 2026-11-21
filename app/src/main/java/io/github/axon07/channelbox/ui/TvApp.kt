@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
@@ -2023,6 +2027,21 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         }
         if (digits.isNotEmpty() && !inPip) {
             NumberEntry(digits, digits.toIntOrNull()?.let { n -> allChannels.firstOrNull { it.number == n } })
+        }
+        // ZarkTV: download da atualização no canto inferior direito, com a porcentagem.
+        (update as? TvViewModel.UpdateState.Downloading)?.let { u ->
+            if (!inPip) Column(
+                Modifier.align(Alignment.BottomEnd).padding(18.dp).width(280.dp)
+                    .background(Color(0xF0141414), androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                    .padding(14.dp)
+            ) {
+                Text("Baixando atualização ${u.release.version}… ${u.percent}%", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(8.dp))
+                Box(Modifier.fillMaxWidth().height(6.dp).background(Color(0x33FFFFFF), androidx.compose.foundation.shape.RoundedCornerShape(3.dp))) {
+                    Box(Modifier.fillMaxWidth(u.percent / 100f).height(6.dp).background(Palette.Accent, androidx.compose.foundation.shape.RoundedCornerShape(3.dp)))
+                }
+                Text("Quando terminar, confirme a instalação.", color = Color(0xAAFFFFFF), fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+            }
         }
         if (!inPip) {
             popup?.let { p -> ActionDialog(p.title, p.subtitle, p.actions) }

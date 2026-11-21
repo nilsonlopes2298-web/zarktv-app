@@ -659,6 +659,8 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             }
             return
         }
+        // ZarkTV: baixa em segundo plano (o progresso aparece no cantinho) e o app continua usável.
+        _updatePrompt.value = false
         viewModelScope.launch {
             _update.value = UpdateState.Downloading(release, 0)
             try {
