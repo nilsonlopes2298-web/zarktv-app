@@ -1769,33 +1769,50 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     versaoNova = (update as? TvViewModel.UpdateState.Available)?.release?.version,
                     novidades = vm.zarkNovidades.collectAsStateWithLifecycle().value,
                     onAtualizar = { vm.startUpdate() },
-                ) else ProfileScreen(
-                    serverName = pl?.name.orEmpty(),
-                    userName = pl?.xtUser.orEmpty(),
+                ) else PerfilUni(
+                    vm = vm,
+                    usuario = pl?.xtUser.orEmpty(),
+                    senha = pl?.xtPass.orEmpty(),
+                    servidor = pl?.name.orEmpty(),
                     conta = conta,
-                    adultoBloqueado = !vm.zarkAdulto.collectAsStateWithLifecycle().value,
-                    onPay = pagar,
-                    onInvite = { compartilhar("Assista TV, filmes e séries no ZarkTV! Baixe o app: https://zark.zarktvqx.cfd/celular  — Assine: https://wa.me/558587890473") },
-                    onFavorites = {
-                        vm.setFilter(ChannelFilter.Favorites)
-                        openGuide()
-                    },
-                    onLive = aoVivo,
-                    onSwitchAccount = sairDaConta,
-                    onLogout = sairDaConta,
-                    onParental = { vm.zarkAlternarAdulto() },
-                    onPlayer = { settingsSection = "playback"; openSettings() },
-                    onSupport = suporte,
-                    onSettings = { settingsSection = null; openSettings() },
-                    onShare = { compartilhar("Baixe o ZarkTV: celular https://zark.zarktvqx.cfd/celular · TV Box https://zark.zarktvqx.cfd/tv (Downloader 5366466)") },
-                    onBack = { mode = Mode.HOME },
+                    adultoLiberado = vm.zarkAdulto.collectAsStateWithLifecycle().value,
                     temaNome = ZarkTema.atual.nome,
+                    playerFilmes = if (playerExterno) "Externo" else "Interno",
+                    onRenovar = pagar,
+                    onConvidar = { compartilhar("Assista TV, filmes e séries no ZarkTV! Baixe o app: https://zark.zarktvqx.cfd/celular  — Assine: https://wa.me/558587890473") },
+                    onSuporte = suporte,
+                    onSair = sairDaConta,
+                    onOutraConta = sairDaConta,
+                    onAdulto = { vm.zarkAlternarAdulto() },
+                    onControleParental = { settingsSection = "parental"; openSettings() },
+                    onConfiguracoes = { settingsSection = null; openSettings() },
+                    onPlayer = { settingsSection = "playback"; openSettings() },
+                    onAtualizar = { vm.checkForUpdates(manual = true) },
                     onTema = { ZarkTema.proximo(ctx) },
-                    playerFilmes = if (playerExterno) "Externo (VLC, MX…)" else "Interno",
                     onPlayerFilmes = {
                         playerExterno = !playerExterno
                         io.github.axon07.channelbox.data.ZarkConfig.setPlayerExterno(zarkCtx, playerExterno)
                     },
+                    onFavoritosCanais = {
+                        vm.setFilter(ChannelFilter.Favorites)
+                        homeTab = Aba.TV
+                        mode = Mode.HOME
+                    },
+                    onFavoritosVod = {
+                        vodBrowser.open(VodKind.MOVIE)
+                        vodBrowser.category = VOD_FAVORITOS
+                        vodDeInicio = false
+                        vodBrowser.voltarInicio = null
+                        mode = Mode.VOD
+                    },
+                    onAbrir = { item ->
+                        vodBrowser.open(item.kind)
+                        vodDeInicio = true
+                        vodBrowser.voltarInicio = { vodDeInicio = false; mode = Mode.HOME }
+                        if (item.kind == VodKind.SERIES) vodBrowser.openShow(item) else vodBrowser.movie = item
+                        mode = Mode.VOD
+                    },
+                    onVoltar = { mode = Mode.HOME },
                 )
                 // Tutorial da primeira vez (como o "Otimizada a operação…" da UniTV).
                 if (mode == Mode.HOME && !tutorialVisto && allChannels.isNotEmpty()) {
