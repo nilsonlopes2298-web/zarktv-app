@@ -507,9 +507,10 @@ fun ListaDeCanais(
 
 @Composable
 private fun AbaDestaques(vm: TvViewModel, compacto: Boolean, banners: List<io.github.axon07.channelbox.data.ZarkBanner>, onOpen: (VodEntity) -> Unit) {
-    val filmes by remember { vm.vodTop(VodKind.MOVIE, null, 12) }.collectAsState(initial = emptyList())
-    val series by remember { vm.vodTop(VodKind.SERIES, null, 12) }.collectAsState(initial = emptyList())
-    val todos = remember(filmes, series) { (filmes.zip(series).flatMap { listOf(it.first, it.second) } + filmes.drop(series.size) + series.drop(filmes.size)).take(16) }
+    // Só os mais novos: 3 filmes + 2 séries (no máximo 5 cards, como na UniTV).
+    val filmes by remember { vm.vodTop(VodKind.MOVIE, null, 3) }.collectAsState(initial = emptyList())
+    val series by remember { vm.vodTop(VodKind.SERIES, null, 3) }.collectAsState(initial = emptyList())
+    val todos = remember(filmes, series) { (filmes.zip(series).flatMap { listOf(it.first, it.second) } + filmes.drop(series.size) + series.drop(filmes.size)).distinctBy { it.title.lowercase().substringBefore(" (") }.take(5) }
     val uri = androidx.compose.ui.platform.LocalUriHandler.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val temBanner = banners.isNotEmpty()
@@ -546,7 +547,7 @@ private fun AbaDestaques(vm: TvViewModel, compacto: Boolean, banners: List<io.gi
                 Text("Carregando destaques…", color = Color.White, fontSize = 16.sp)
             } else {
                 val altura = if (compacto) 300.dp else (alturaTotal - (if (temBanner) alturaBanner + 10.dp else 0.dp))
-                Mosaico(todos, altura, onOpen = onOpen)
+                DestaquesGrade(todos, altura, onOpen = onOpen)
             }
         }
     }

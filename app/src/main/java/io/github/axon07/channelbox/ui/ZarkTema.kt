@@ -14,8 +14,8 @@ data class ZarkModelo(val id: String, val nome: String, val cores: List<Color>, 
 
 object ZarkTema {
     val modelos = listOf(
+        ZarkModelo("preto", "ZarkTV (preto e vermelho)", listOf(Color(0xFF2A0608), Color(0xFF0E0E0E), Color(0xFF050505)), Color(0xFFE50914)),
         ZarkModelo("vermelho", "Vermelho", listOf(Color(0xFF6B0B14), Color(0xFF3A0509), Color(0xFF160204)), Color(0xFFFFB74D)),
-        ZarkModelo("preto", "Preto e vermelho", listOf(Color(0xFF1C1C1C), Color(0xFF0E0E0E), Color(0xFF050505)), Color(0xFFE50914)),
         ZarkModelo("roxo", "Roxo e dourado", listOf(Color(0xFF3B1466), Color(0xFF1E0A38), Color(0xFF0C0418)), Color(0xFFFFC23D)),
         ZarkModelo("azul", "Azul", listOf(Color(0xFF0D2A66), Color(0xFF081A40), Color(0xFF030A1C)), Color(0xFF4FC3F7)),
     )

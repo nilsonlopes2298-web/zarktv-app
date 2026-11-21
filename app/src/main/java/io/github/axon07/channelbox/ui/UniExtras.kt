@@ -462,3 +462,20 @@ private fun BotaoPilula(label: String, onClick: () -> Unit) {
         }
     }
 }
+
+
+/** Destaques (como na UniTV): 3 capas altas + 2 empilhadas, só os mais novos, com o nome embaixo. */
+@Composable
+fun DestaquesGrade(itens: List<VodEntity>, altura: Dp, onOpen: (VodEntity) -> Unit) {
+    if (itens.isEmpty()) return
+    val foco = remember { FocusRequester() }
+    Row(Modifier.fillMaxWidth().height(altura), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        itens.take(3).forEachIndexed { i, a ->
+            TileImagem(a.poster, a.title, Modifier.weight(1f).fillMaxHeight().let { if (i == 0) it.focusRequester(foco) else it }, rotulo = true) { onOpen(a) }
+        }
+        val resto = itens.drop(3).take(2)
+        if (resto.isNotEmpty()) Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            resto.forEach { a -> TileImagem(a.poster, a.title, Modifier.fillMaxWidth().weight(1f), rotulo = true) { onOpen(a) } }
+        }
+    }
+}
