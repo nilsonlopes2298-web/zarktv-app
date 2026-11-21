@@ -169,7 +169,7 @@ fun UniShell(
     // O fundo é desenhado atrás do vídeo (TvApp), para a prévia do canal aparecer.
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compacto = maxWidth < 700.dp
-        Column(Modifier.fillMaxSize().padding(horizontal = if (compacto) 10.dp else 28.dp, vertical = if (compacto) 8.dp else 14.dp)) {
+        Column(Modifier.fillMaxSize().padding(start = if (compacto) 10.dp else 28.dp, end = if (compacto) 10.dp else 28.dp, top = if (compacto) 14.dp else 20.dp, bottom = if (compacto) 8.dp else 14.dp)) {
             // ---- Topo ----
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 androidx.compose.foundation.Image(

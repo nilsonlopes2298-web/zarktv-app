@@ -445,7 +445,7 @@ private fun PosterCard(
         }
         Spacer(Modifier.height(6.dp))
         Text(item.title, fontSize = 12.sp, color = Palette.Text, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        val meta = listOfNotNull(item.year, item.rating?.let { "★ $it" }).joinToString(" · ")
+        val meta = listOfNotNull(item.year, item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let { "★ " + String.format(java.util.Locale.US, "%.1f", it) }).joinToString(" · ")
         if (meta.isNotEmpty()) Text(meta, fontSize = 11.sp, color = Palette.TextDim, maxLines = 1)
     }
 }

@@ -176,7 +176,7 @@ fun LiveScreen(
                     itemsIndexed(groups) { _, (f, label) ->
                         LinhaFocavel(selecionado = f == currentGroup, onClick = { onGroup(f) }) {
                             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(label, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                Text(label.trim(), color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                                 contagem(f)?.let { Text("$it", color = Palette.TextDim, fontSize = 12.sp) }
                             }
                         }

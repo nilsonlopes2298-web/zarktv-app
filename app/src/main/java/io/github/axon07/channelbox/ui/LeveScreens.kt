@@ -78,7 +78,7 @@ fun InicioLeve(
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val retrato = maxHeight > maxWidth
             val compacto = maxWidth < 700.dp
-            Column(Modifier.fillMaxSize().padding(horizontal = if (compacto) 14.dp else 36.dp, vertical = if (compacto) 12.dp else 20.dp)) {
+            Column(Modifier.fillMaxSize().padding(start = if (compacto) 14.dp else 36.dp, end = if (compacto) 14.dp else 36.dp, top = if (compacto) 18.dp else 24.dp, bottom = if (compacto) 12.dp else 20.dp)) {
                 // Topo: marca à esquerda; busca, perfil, ajustes e hora à direita.
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     if (logoUrl != null) {

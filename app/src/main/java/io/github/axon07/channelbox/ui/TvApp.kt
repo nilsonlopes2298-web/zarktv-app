@@ -696,7 +696,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         playbackTitle = show?.title ?: item.title
         pbSubtitle = if (show != null) {
             legendaEpisodio(item, show)
-        } else listOfNotNull(item.year, item.rating?.let { "★ $it" }).joinToString(" · ").ifEmpty { null }
+        } else listOfNotNull(item.year, item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let { "★ " + String.format(java.util.Locale.US, "%.1f", it) }).joinToString(" · ").ifEmpty { null }
         playbackReturn = Mode.VOD
         vm.player.exo.stop()
         vm.zarkAplicarPreferencias()
@@ -727,7 +727,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         playbackTitle = show?.title ?: item.title
         pbSubtitle = if (show != null) {
             legendaEpisodio(item, show)
-        } else listOfNotNull(item.year, item.rating?.let { "★ $it" }).joinToString(" · ").ifEmpty { null }
+        } else listOfNotNull(item.year, item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let { "★ " + String.format(java.util.Locale.US, "%.1f", it) }).joinToString(" · ").ifEmpty { null }
         playbackReturn = Mode.VOD
         playbackToken++
         mode = Mode.PLAYBACK
