@@ -54,6 +54,7 @@ import io.github.axon07.channelbox.data.Playlist
 import io.github.axon07.channelbox.data.RefreshState
 import io.github.axon07.channelbox.data.SourceType
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Add or edit one playlist: M3U URL, Xtream Codes login or Stalker portal (portal URL + MAC).
@@ -532,7 +533,11 @@ fun TvTextField(
     }
 }
 
-/** Entrada do ZarkTV no estilo do webplay: usuário, senha e servidor. */
+/**
+ * Entrada do ZarkTV no estilo do webplay: primeiro o servidor (em cima), depois usuário e senha.
+ * A lista de servidores e DNS vem do config.json do painel (o mesmo do webplay); o login é
+ * testado em cada DNS do servidor até um responder, e salva o DNS que funcionou.
+ */
 @Composable
 fun ZarkLoginScreen(
     vm: TvViewModel,
@@ -540,20 +545,21 @@ fun ZarkLoginScreen(
     onAdvanced: () -> Unit,
     onDone: () -> Unit,
 ) {
-    val servers = remember {
-        listOf(
-            "Club" to "http://roncb.sytes.net",
-            "Uniplay" to "http://zarktvqx.top",
-            "Five" to "http://imagenshd.top",
-            "Live" to "http://atomm.top",
-        )
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var servers by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkConfig.cached(context)) }
+    LaunchedEffect(Unit) {
+        servers = io.github.axon07.channelbox.data.ZarkConfig.servers(context, vm.zarkHttp)
     }
     var user by rememberSaveable { mutableStateOf("") }
     var pass by rememberSaveable { mutableStateOf("") }
-    var sel by rememberSaveable { mutableStateOf(0) }
+    var selName by rememberSaveable { mutableStateOf("") }
+    val sel = servers.indexOfFirst { it.name == selName }.coerceAtLeast(0)
+    var testing by remember { mutableStateOf(false) }
+    var erro by remember { mutableStateOf<String?>(null) }
     var submitted by remember { mutableStateOf(false) }
     var sawRunning by remember { mutableStateOf(false) }
     val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     LaunchedEffect(refreshState, submitted) {
         if (submitted) when (refreshState) {
@@ -562,63 +568,120 @@ fun ZarkLoginScreen(
         }
     }
 
-    val busy = submitted && refreshState is RefreshState.Running
-    val canEnter = !busy && user.isNotBlank() && pass.isNotBlank()
-    val entrar = {
-        if (canEnter) {
-            submitted = true
-            sawRunning = false
-            vm.savePlaylist(
-                Playlist(
-                    id = Playlist.newId(),
-                    name = servers[sel].first,
-                    type = SourceType.XTREAM,
-                    xtServer = servers[sel].second,
-                    xtUser = user.trim(),
-                    xtPass = pass.trim(),
-                )
-            )
+    val busy = testing || (submitted && refreshState is RefreshState.Running)
+    val canEnter = !busy && user.isNotBlank() && pass.isNotBlank() && servers.isNotEmpty()
+    val entrar: () -> Unit = entrar@{
+        if (!canEnter) return@entrar
+        val server = servers[sel]
+        testing = true
+        erro = null
+        scope.launch {
+            val r = io.github.axon07.channelbox.data.ZarkConfig.login(vm.zarkHttp, server, user.trim(), pass.trim())
+            testing = false
+            when (r) {
+                is io.github.axon07.channelbox.data.ZarkConfig.Login.Ok -> {
+                    vm.zarkConta.value = r
+                    submitted = true
+                    sawRunning = false
+                    vm.savePlaylist(
+                        Playlist(
+                            id = Playlist.newId(),
+                            name = server.name,
+                            type = SourceType.XTREAM,
+                            xtServer = r.dns,
+                            xtUser = user.trim(),
+                            xtPass = pass.trim(),
+                        )
+                    )
+                }
+                io.github.axon07.channelbox.data.ZarkConfig.Login.SenhaErrada ->
+                    erro = "Usuário ou senha incorretos para o servidor ${server.name}. Confira e tente de novo."
+                io.github.axon07.channelbox.data.ZarkConfig.Login.SemResposta ->
+                    erro = "O servidor ${server.name} não respondeu. Verifique a internet ou escolha outro servidor."
+            }
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Palette.Background), contentAlignment = Alignment.Center) {
+    val first = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        delay(80)
+        runCatching { first.requestFocus() }
+    }
+
+    Box(
+        Modifier.fillMaxSize().background(
+            androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xFF2A0608), Palette.Background, Palette.Background))
+        ),
+        contentAlignment = Alignment.Center,
+    ) {
         Column(
-            Modifier.widthIn(max = 420.dp).padding(24.dp).verticalScroll(rememberScrollState()),
+            Modifier
+                .widthIn(max = 460.dp)
+                .padding(24.dp)
+                .background(Color(0xCC101010), RoundedCornerShape(16.dp))
+                .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(16.dp))
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("▶ ", color = Palette.Accent, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                Text("Zark", color = Palette.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                Text("TV", color = Palette.Accent, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-            }
-            Text("Login na sua conta", color = Palette.Text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            ZarkLogo(28)
+            Text("Entre na sua conta", color = Palette.Text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
 
-            TvTextField("Usuário", user, { user = it })
-            TvTextField("Senha", pass, { pass = it }, password = true)
-
-            Text("Servidor", color = Palette.TextDim, fontSize = 12.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                servers.forEachIndexed { i, s ->
-                    PillButton(s.first, primary = (i == sel)) { sel = i }
+            // 1º o servidor, em cima, como no webplay.
+            Text("1. Escolha o servidor", color = Palette.TextDim, fontSize = 12.sp)
+            androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(servers.size) { i ->
+                    PillButton(
+                        servers[i].name,
+                        modifier = if (i == 0) Modifier.focusRequester(first) else Modifier,
+                        primary = (i == sel),
+                    ) { selName = servers[i].name }
                 }
             }
 
-            Spacer(Modifier.height(4.dp))
-            PrimaryButton(if (busy) "Entrando…" else "Entrar", enabled = canEnter, onClick = entrar)
+            Text("2. Usuário e senha", color = Palette.TextDim, fontSize = 12.sp)
+            TvTextField("Usuário", user, { user = it; erro = null })
+            TvTextField("Senha", pass, { pass = it; erro = null }, password = true)
 
-            if (submitted && refreshState is RefreshState.Failed) {
-                Text(
-                    (refreshState as RefreshState.Failed).message,
-                    color = Palette.Error, fontSize = 12.sp, maxLines = 4, overflow = TextOverflow.Ellipsis,
+            Spacer(Modifier.height(2.dp))
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                PrimaryButton(
+                    when {
+                        testing -> "Conferindo…"
+                        busy -> "Carregando canais…"
+                        else -> "Entrar"
+                    },
+                    enabled = canEnter, onClick = entrar,
                 )
             }
 
-            QuietButton("Ver planos") { uri.openUri("https://wa.me/558587890473") }
-            QuietButton("Opções avançadas (M3U, MAC, outro servidor)") { onAdvanced() }
+            val falhou = submitted && refreshState is RefreshState.Failed
+            (erro ?: if (falhou) (refreshState as RefreshState.Failed).message else null)?.let {
+                Text(it, color = Palette.Error, fontSize = 12.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
+            }
+            if (submitted && refreshState is RefreshState.Running) {
+                Text((refreshState as RefreshState.Running).message, color = Palette.TextDim, fontSize = 12.sp, maxLines = 2)
+            }
+
+            Box(Modifier.fillMaxWidth().height(1.dp).background(SetupStyle.Line))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                QuietButton("Assinar / Suporte") { uri.openUri(io.github.axon07.channelbox.data.ZarkConfig.WHATSAPP) }
+                QuietButton("Opções avançadas") { onAdvanced() }
+            }
         }
+    }
+}
+
+/** Marca "▶ ZarkTV" em preto e vermelho. */
+@Composable
+fun ZarkLogo(size: Int = 26) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text("▶ ", color = Palette.Accent, fontSize = size.sp, fontWeight = FontWeight.Bold)
+        Text("Zark", color = Palette.Text, fontSize = size.sp, fontWeight = FontWeight.Bold)
+        Text("TV", color = Palette.Accent, fontSize = size.sp, fontWeight = FontWeight.Bold)
     }
 }

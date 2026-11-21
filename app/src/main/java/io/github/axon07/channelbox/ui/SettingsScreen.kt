@@ -129,8 +129,19 @@ fun SettingsScreen(
     onOrganise: () -> Unit = {},
     /** Open on Network & VPN (from first-time setup, when the ISP blocks the playlist). */
     openNetwork: Boolean = false,
+    /** ZarkTV "Minha conta": abre direto em "parental" (senha de adulto) ou "playback" (player). */
+    openSection: String? = null,
 ) {
-    var category by rememberSaveable { mutableStateOf(if (openNetwork) SettingsCategory.NETWORK else SettingsCategory.SOURCE) }
+    var category by rememberSaveable {
+        mutableStateOf(
+            when {
+                openNetwork -> SettingsCategory.NETWORK
+                openSection == "parental" -> SettingsCategory.PARENTAL
+                openSection == "playback" -> SettingsCategory.PLAYBACK
+                else -> SettingsCategory.SOURCE
+            }
+        )
+    }
     var page by remember { mutableStateOf<Page?>(null) }
     /** Playlist shown on the PLAYLIST page. */
     var playlistId by rememberSaveable { mutableStateOf<String?>(null) }

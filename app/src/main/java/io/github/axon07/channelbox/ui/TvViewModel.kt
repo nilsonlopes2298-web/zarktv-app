@@ -16,6 +16,9 @@ import io.github.axon07.channelbox.data.ReleaseInfo
 import io.github.axon07.channelbox.data.StreamSpecs
 import io.github.axon07.channelbox.data.RefreshState
 import io.github.axon07.channelbox.data.Playlist
+import io.github.axon07.channelbox.data.SourceType
+import io.github.axon07.channelbox.data.XtreamClient
+import io.github.axon07.channelbox.data.ZarkConfig
 import io.github.axon07.channelbox.data.OverrideEntity
 import io.github.axon07.channelbox.player.Timeshift
 import io.github.axon07.channelbox.data.VodCategory
@@ -1483,6 +1486,48 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshNow() = reload { }
 
     fun savePlaylist(p: Playlist) = reload { c.settings.savePlaylist(p) }
+
+    // ---- ZarkTV: servidores do painel, troca automática de DNS e vencimento ----------------
+
+    val zarkHttp get() = c.http
+
+    /** Conta conferida no player_api (vencimento e status), ou null enquanto não conferiu. */
+    val zarkConta = MutableStateFlow<ZarkConfig.Login.Ok?>(null)
+    private var zarkConferido = false
+
+    /**
+     * Na abertura: confere a conta do servidor ZarkTV. Se o DNS salvo não responde, testa os
+     * outros DNS do mesmo servidor (do config.json) e troca sozinho para o que funcionar.
+     */
+    fun zarkConferir() {
+        if (zarkConferido) return
+        zarkConferido = true
+        viewModelScope.launch {
+            val s = c.settings.current()
+            val p = s.playlists.firstOrNull { it.type == SourceType.XTREAM && it.enabled }
+                ?: return@launch
+            val servers = ZarkConfig.servers(getApplication(), c.http)
+            val grupo = servers.firstOrNull { it.name.equals(p.name, ignoreCase = true) }
+            val atual = XtreamClient.Login(p.xtServer, p.xtUser, p.xtPass).base
+            // O DNS salvo primeiro; depois os outros do mesmo servidor.
+            val dns = (listOf(atual) + grupo?.dns.orEmpty()).distinct()
+            when (val r = ZarkConfig.login(c.http, ZarkConfig.Server(p.name, dns), p.xtUser, p.xtPass)) {
+                is ZarkConfig.Login.Ok -> {
+                    zarkConta.value = r
+                    if (r.dns != atual) {
+                        showToast("Servidor trocado automaticamente")
+                        savePlaylist(p.copy(xtServer = r.dns))
+                    }
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    fun zarkLimparConta() {
+        zarkConta.value = null
+        zarkConferido = false
+    }
 
     fun removePlaylist(id: String) = reload {
         // Finish the clean-up even if another change (e.g. adding a playlist) starts a new reload.

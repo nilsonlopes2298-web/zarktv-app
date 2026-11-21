@@ -70,6 +70,10 @@ enum class Mode {
     SEARCH,
     /** Organise many channels / groups at once (normal focus). */
     ORGANISE,
+    /** ZarkTV: tela inicial com os blocões (normal focus). */
+    HOME,
+    /** ZarkTV: perfil (conta, renovar, conteúdo adulto, player, suporte). */
+    PROFILE,
 }
 
 /** Screens where we read the remote ourselves (the others use normal focus). */
@@ -182,8 +186,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         mutableStateOf(
             when {
                 !settings.hasSource -> Mode.SETUP
-                !settings.playLastOnStart -> Mode.GUIDE // "Turn on last channel on app start" off
-                else -> Mode.PLAYER
+                else -> Mode.HOME // ZarkTV: sempre abre na tela inicial
             }
         )
     }
@@ -191,6 +194,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var setupPlaylistId by remember { mutableStateOf<String?>(null) }
     /** Settings opened from first-time setup for network options. */
     var settingsFromSetup by remember { mutableStateOf(false) }
+    /** ZarkTV "Minha conta": seção a abrir nas configurações ("parental", "playback") ou null. */
+    var settingsSection by remember { mutableStateOf<String?>(null) }
+    /** ZarkTV: "Trocar de conta"/"Sair" no perfil – volta para a tela de login. */
+    var zarkTrocarConta by remember { mutableStateOf(false) }
     /** When the groups menu was opened (for [groupsBack]). */
     var groupsOpenedAt by remember { mutableLongStateOf(0L) }
     /** When Back was pressed on the side menu: a second Back soon after exits. */
@@ -299,6 +306,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
 
     /** Back on the side menu – the last step before leaving. */
     fun lastBack() {
+        // ZarkTV: do menu lateral, Voltar leva à tela inicial (lá, Voltar pergunta se quer sair).
+        if (settings.hasSource) {
+            mode = Mode.HOME
+            return
+        }
         when (settings.backAction) {
             BackAction.ASK_EXIT -> {
                 val t = android.os.SystemClock.uptimeMillis()
@@ -1049,7 +1061,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     // Live TV doesn't play behind Movies & TV Shows; it comes back when you leave them.
     LaunchedEffect(mode) {
         when (mode) {
-            Mode.VOD -> vm.enterLibrary()
+            Mode.VOD, Mode.HOME, Mode.PROFILE -> vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
             // Audio & subtitles opened from a movie, episode or recording is still part of playback.
             Mode.OPTIONS -> if (optionsReturn != Mode.PLAYBACK) vm.leaveLibrary()
@@ -1133,7 +1145,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
 
     // ---- Back: TV → Guide → Groups → Exit? ----------------------------------------------------
 
-    BackHandler(enabled = !(mode == Mode.SETUP && !settings.hasSource)) {
+    BackHandler(enabled = !(mode == Mode.SETUP && (!settings.hasSource || zarkTrocarConta))) {
         when (mode) {
             Mode.PLAYER -> when {
                 digits.isNotEmpty() -> digits = ""
@@ -1157,7 +1169,9 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 else -> leavePlayback()
             }
             Mode.MULTIVIEW -> if (multiPicking && multi.count > 0) multiPicking = false else closeMultiView()
-            Mode.SETTINGS -> if (!settings.hasSource) mode = Mode.SETUP else openGroups(tile = 2)
+            Mode.SETTINGS -> if (!settings.hasSource) mode = Mode.SETUP else mode = if (settingsSection != null) Mode.PROFILE else Mode.HOME
+            Mode.HOME -> askExit(Mode.HOME)
+            Mode.PROFILE -> mode = Mode.HOME
             Mode.SEARCH -> openGroups(tile = 5)
             Mode.ORGANISE -> mode = organiseReturn
             Mode.VOD -> when {
@@ -1167,7 +1181,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
                 vodBrowser.show != null -> vodBrowser.closeShow()
                 vodBrowser.query.isNotEmpty() -> vodBrowser.query = ""
-                else -> openGroups(tile = if (vodBrowser.kind == VodKind.MOVIE) 3 else 4)
+                else -> mode = Mode.HOME
             }
             Mode.SETUP -> mode = Mode.SETTINGS
         }
@@ -1479,10 +1493,88 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     )
                 }
             }
+            Mode.HOME, Mode.PROFILE -> {
+                LaunchedEffect(Unit) { vm.zarkConferir() }
+                val conta by vm.zarkConta.collectAsStateWithLifecycle()
+                val pl = settings.playlists.firstOrNull { it.enabled } ?: settings.playlists.firstOrNull()
+                val ctx = LocalContext.current
+                val uri = androidx.compose.ui.platform.LocalUriHandler.current
+                val pagar = {
+                    runCatching {
+                        uri.openUri(io.github.axon07.channelbox.data.ZarkConfig.checkoutUrl(ctx, pl?.xtUser.orEmpty(), pl?.name.orEmpty()))
+                    }.onFailure { vm.showToast("Fale com o suporte no WhatsApp: (85) 8789-0473") }
+                    Unit
+                }
+                val suporte = {
+                    runCatching { uri.openUri(io.github.axon07.channelbox.data.ZarkConfig.WHATSAPP) }
+                        .onFailure { vm.showToast("WhatsApp do suporte: (85) 8789-0473") }
+                    Unit
+                }
+                val aoVivo = {
+                    if (current == null && visible.isNotEmpty()) tuneAndWatch(visible.first()) else openGuide()
+                }
+                val compartilhar = { texto: String ->
+                    runCatching {
+                        ctx.startActivity(
+                            android.content.Intent.createChooser(
+                                android.content.Intent(android.content.Intent.ACTION_SEND)
+                                    .setType("text/plain")
+                                    .putExtra(android.content.Intent.EXTRA_TEXT, texto),
+                                "Compartilhar ZarkTV",
+                            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                    Unit
+                }
+                val sairDaConta = {
+                    pl?.let { vm.removePlaylist(it.id) }
+                    vm.zarkLimparConta()
+                    zarkTrocarConta = true
+                    setupPlaylistId = null
+                    mode = Mode.SETUP
+                }
+                if (mode == Mode.HOME) HomeScreen(
+                    serverName = pl?.name.orEmpty(),
+                    userName = pl?.xtUser.orEmpty(),
+                    conta = conta,
+                    channelCount = allChannels.size,
+                    movieCount = movieCount,
+                    showCount = showCount,
+                    onLive = aoVivo,
+                    onMovies = { openVod(VodKind.MOVIE) },
+                    onSeries = { openVod(VodKind.SERIES) },
+                    onSettings = { settingsSection = null; openSettings() },
+                    onProfile = { mode = Mode.PROFILE },
+                    onPay = pagar,
+                    onSupport = suporte,
+                    onExit = { askExit(Mode.HOME) },
+                ) else ProfileScreen(
+                    serverName = pl?.name.orEmpty(),
+                    userName = pl?.xtUser.orEmpty(),
+                    conta = conta,
+                    adultoBloqueado = settings.pinHash != null,
+                    onPay = pagar,
+                    onInvite = { compartilhar("Assista TV, filmes e séries no ZarkTV! Baixe o app: https://zark.zarktvqx.cfd/celular  — Assine: https://wa.me/558587890473") },
+                    onFavorites = {
+                        vm.setFilter(ChannelFilter.Favorites)
+                        openGuide()
+                    },
+                    onLive = aoVivo,
+                    onSwitchAccount = sairDaConta,
+                    onLogout = sairDaConta,
+                    onParental = { settingsSection = "parental"; openSettings() },
+                    onPlayer = { settingsSection = "playback"; openSettings() },
+                    onSupport = suporte,
+                    onSettings = { settingsSection = null; openSettings() },
+                    onShare = { compartilhar("Baixe o ZarkTV: celular https://zark.zarktvqx.cfd/celular · TV Box https://zark.zarktvqx.cfd/tv (Downloader 5366466)") },
+                    onBack = { mode = Mode.HOME },
+                )
+            }
             Mode.ORGANISE -> OrganiseScreen(vm, start = organiseStart, onExit = { mode = organiseReturn })
             Mode.SETTINGS -> SettingsScreen(
                 onOrganise = { openOrganise(null) },
                 openNetwork = settingsFromSetup,
+                openSection = settingsSection,
                 settings = settings,
                 refreshState = refreshState,
                 channelCount = allChannels.size,
@@ -1499,14 +1591,17 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             )
             Mode.SETUP -> {
                 // Decided once on entry: saving the first playlist mustn't restart this screen.
-                val firstRun = remember(setupPlaylistId) { !settings.hasSource }
+                val firstRun = remember(setupPlaylistId) { !settings.hasSource || zarkTrocarConta }
                 var manualSetup by remember { mutableStateOf(false) }
                 if (firstRun && !manualSetup) {
                     ZarkLoginScreen(
                         vm = vm,
                         refreshState = refreshState,
                         onAdvanced = { manualSetup = true },
-                        onDone = { mode = Mode.PLAYER },
+                        onDone = {
+                            zarkTrocarConta = false
+                            mode = Mode.HOME
+                        },
                     )
                 } else key(setupPlaylistId) {
                     SetupScreen(
@@ -1518,7 +1613,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                             settingsFromSetup = true
                             mode = Mode.SETTINGS
                         },
-                        onDone = { mode = if (firstRun) Mode.PLAYER else Mode.SETTINGS },
+                        onDone = { mode = if (firstRun) Mode.HOME else Mode.SETTINGS },
                     )
                 }
             }
@@ -1622,7 +1717,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
             }
             Mode.EXIT_CONFIRM -> ActionDialog(
-                title = "Exit Channelbox?",
+                title = "Sair do ZarkTV?",
                 subtitle = null,
                 actions = listOf(
                     DialogAction("Exit") { exitApp() },
