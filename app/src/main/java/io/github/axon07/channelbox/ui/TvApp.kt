@@ -695,7 +695,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         ) return
         playbackTitle = show?.title ?: item.title
         pbSubtitle = if (show != null) {
-            (if (item.season > 0) "Season ${item.season} · Episode ${item.episode} · " else "") + item.title
+            legendaEpisodio(item, show)
         } else listOfNotNull(item.year, item.rating?.let { "★ $it" }).joinToString(" · ").ifEmpty { null }
         playbackReturn = Mode.VOD
         vm.player.exo.stop()
@@ -726,7 +726,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         val show = vodPreviewShow
         playbackTitle = show?.title ?: item.title
         pbSubtitle = if (show != null) {
-            (if (item.season > 0) "Temporada ${item.season} · Episódio ${item.episode} · " else "") + item.title
+            legendaEpisodio(item, show)
         } else listOfNotNull(item.year, item.rating?.let { "★ $it" }).joinToString(" · ").ifEmpty { null }
         playbackReturn = Mode.VOD
         playbackToken++
@@ -2256,3 +2256,13 @@ private data class TextInput(
 
 /** Back presses closer together than this go straight through the menus to "Exit?". */
 private const val EXIT_AGAIN_MS = 2_500L
+
+
+/** "Temporada 1 · Episódio 3" + o nome do episódio só quando ele diz algo além de "S01E03 - Episódio 3". */
+internal fun legendaEpisodio(item: VodEntity, show: VodEntity): String {
+    val base = if (item.season > 0) "Temporada ${item.season} · Episódio ${item.episode}" else ""
+    var resto = item.title.replace(show.title, "", ignoreCase = true)
+    resto = resto.replace(Regex("""(?i)s\d+\s*e\d+|epis[oó]dio\s*\d+|temporada\s*\d+"""), "")
+        .trim(' ', '-', '·', '|', ':', '.')
+    return listOf(base, resto).filter { it.isNotBlank() }.joinToString(" · ").ifEmpty { item.title }
+}

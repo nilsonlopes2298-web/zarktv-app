@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -762,23 +763,23 @@ private fun FichaCabecalho(
 ) {
     var mais by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.Bottom) {
-        Text(titulo, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        Text(titulo, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         (ficha?.nota ?: rating)?.toDoubleOrNull()?.takeIf { it > 0 }?.let {
             Spacer(Modifier.width(12.dp))
-            Text(String.format(java.util.Locale.US, "%.1f", it), color = Color(0xFFFFC107), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text(String.format(java.util.Locale.US, "%.1f", it), color = Color(0xFFFFC107), fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
     }
     val meta = listOfNotNull(ficha?.data ?: ano, ficha?.duracao).joinToString("  |  ")
-    if (meta.isNotEmpty()) Text(meta, color = Color(0xFFB0C4FF), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
-    destaque?.let { Text(it, color = Color(0xFFFFC107), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp)) }
+    if (meta.isNotEmpty()) Text(meta, color = Color(0xFFB0B8C8), fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 4.dp))
+    destaque?.let { Text(it, color = Color(0xFFFFA726), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp)) }
     val generos = ficha?.genero?.split(",", "/", "|")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
     if (generos.isNotEmpty()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 10.dp)) {
-            Text("Gênero : ", color = Color(0xFFB0C4FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text("Gênero : ", color = Color(0xFFB0B8C8), fontSize = 13.sp)
             generos.take(5).forEach { g ->
                 Text(
-                    g, color = Color.White, fontSize = 14.sp,
-                    modifier = Modifier.padding(end = 6.dp).border(1.5.dp, Color.White, RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 2.dp),
+                    g, color = Color.White, fontSize = 12.sp,
+                    modifier = Modifier.padding(end = 6.dp).border(1.dp, Color(0xCCFFFFFF), RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 1.dp),
                 )
             }
         }
@@ -787,11 +788,11 @@ private fun FichaCabecalho(
     LinhaInfo("Elenco", ficha?.elenco)
     val sinopse = ficha?.sinopse ?: plot
     Row(Modifier.padding(top = 6.dp)) {
-        Text("Sinopse :  ", color = Color(0xFFB0C4FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text("Sinopse :  ", color = Color(0xFFB0B8C8), fontSize = 13.sp)
         Column {
-            Text(sinopse ?: "Sem informações", color = Color.White, fontSize = 15.sp, lineHeight = 21.sp, maxLines = if (mais) 20 else 3, overflow = TextOverflow.Ellipsis)
+            Text(sinopse ?: "Sem informações", color = Color(0xE6FFFFFF), fontSize = 13.sp, lineHeight = 19.sp, maxLines = if (mais) 20 else 3, overflow = TextOverflow.Ellipsis)
             if (!mais && (sinopse?.length ?: 0) > 160) {
-                Text("Mais", color = Color(0xFFFF5252), fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.tap(onClick = { mais = true }).padding(vertical = 4.dp))
+                Text("Mais", color = Color(0xFFFF5252), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.tap(onClick = { mais = true }).padding(vertical = 4.dp))
             }
         }
     }
@@ -799,9 +800,9 @@ private fun FichaCabecalho(
 
 @Composable
 private fun LinhaInfo(rotulo: String, valor: String?) {
-    Row(Modifier.padding(top = 6.dp)) {
-        Text("$rotulo :  ", color = Color(0xFFB0C4FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-        Text(valor ?: "Sem informações", color = Color.White, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    Row(Modifier.padding(top = 4.dp)) {
+        Text("$rotulo :  ", color = Color(0xFFB0B8C8), fontSize = 13.sp)
+        Text(valor ?: "Sem informações", color = Color(0xE6FFFFFF), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -811,16 +812,16 @@ private fun BotaoFicha(label: String, principal: Boolean, modifier: Modifier = M
     var f by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
-        modifier = modifier.height(50.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
+        modifier = modifier.height(40.dp).widthIn(min = 120.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (principal) Color(0xCCB71C1C) else Color(0x998E99C9),
+            containerColor = if (principal) Color(0xCCB71C1C) else Color(0x80596273),
             focusedContainerColor = Color(0xFFE53935),
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
     ) {
-        Box(Modifier.padding(horizontal = 24.dp).fillMaxHeight(), contentAlignment = Alignment.Center) {
-            Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Box(Modifier.padding(horizontal = 16.dp).fillMaxHeight(), contentAlignment = Alignment.Center) {
+            Text(label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
         }
     }
 }
@@ -847,16 +848,16 @@ private fun BotaoNumero(label: String, visto: Boolean, onClick: () -> Unit) {
     var f by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(width = 86.dp, height = 52.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
+        modifier = Modifier.size(width = 70.dp, height = 40.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(3.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (visto) Color(0x665C6BC0) else Color(0xB38E99C9),
+            containerColor = if (visto) Color(0x55434A57) else Color(0x99596273),
             focusedContainerColor = Color(0xFFE53935),
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(label, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+            Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -871,7 +872,7 @@ private fun Recomendados(vm: TvViewModel, kind: String, atual: VodEntity, onOpen
     }.collectAsState(initial = emptyList())
     if (parecidos.isEmpty()) return
     Spacer(Modifier.height(22.dp))
-    Text("Você também pode gostar", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    Text("Você também pode gostar", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
     Spacer(Modifier.height(10.dp))
     androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items(parecidos, key = { it.id }) { p -> PosterTile(p, 120.dp, 180.dp) { onOpen(p) } }
@@ -938,14 +939,17 @@ private fun BotoesExtras(vm: TvViewModel, item: VodEntity, serie: Boolean, episo
     var resol by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.resolucao(ctx)) }
     var fav by remember(item.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.ehFavorito(ctx, item.id)) }
     var segue by remember(item.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.segue(ctx, item.id)) }
-    BotaoFicha("Idioma: " + io.github.axon07.channelbox.data.ZarkPrefs.nomeIdioma(idioma), false) {
+    // Rótulos curtos (como na UniTV); o valor escolhido aparece num aviso rápido.
+    BotaoFicha("Idioma", false) {
         idioma = io.github.axon07.channelbox.data.ZarkPrefs.proximoIdioma(ctx)
+        vm.showToast("Áudio: " + io.github.axon07.channelbox.data.ZarkPrefs.nomeIdioma(idioma))
     }
-    BotaoFicha("Resolução: " + io.github.axon07.channelbox.data.ZarkPrefs.nomeResolucao(resol), false) {
+    BotaoFicha("Resolução", false) {
         resol = io.github.axon07.channelbox.data.ZarkPrefs.proximaResolucao(ctx)
+        vm.showToast("Resolução: " + io.github.axon07.channelbox.data.ZarkPrefs.nomeResolucao(resol))
     }
     BotaoFicha(if (fav) "★ Favorito" else "☆ Favorito", fav) { fav = vm.zarkFavoritar(item) }
-    if (serie) BotaoFicha(if (segue) "Notificações: ligadas" else "Notificações", segue) {
+    if (serie) BotaoFicha(if (segue) "Notificações ✓" else "Notificações", segue) {
         segue = io.github.axon07.channelbox.data.ZarkPrefs.alternarSeguir(ctx, item.id, episodios)
         vm.showToast(if (segue) "Vamos avisar no sininho quando sair episódio novo" else "Notificações desligadas")
     }
