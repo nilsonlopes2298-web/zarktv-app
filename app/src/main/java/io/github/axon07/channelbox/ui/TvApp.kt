@@ -668,7 +668,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     }
 
     fun leavePlayback() {
-        if (playbackReturn == Mode.VOD) {
+        if (playbackReturn == Mode.VOD && (vodBrowser.movie != null || vodBrowser.show != null) && vodPreviewItem != null) {
+            // Igual à UniTV: ao sair da tela cheia o vídeo continua tocando na miniatura da ficha.
+            vodBrowser.previewId = vodPreviewItem?.id
+            vodBrowser.focusToken++
+        } else if (playbackReturn == Mode.VOD) {
             vm.stopVod()
             vodBrowser.focusToken++
             vm.player.stop() // back to browsing; live TV resumes when the library is closed
@@ -681,6 +685,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
 
     fun startVod(item: VodEntity, show: VodEntity?, at: Long) {
         vodResume = null
+        vodPreviewItem = item
+        vodPreviewShow = show
         vodUrlAtual = item.url
         vodPosterAtual = show?.poster ?: item.poster
         // ZarkTV: cliente escolheu player externo (VLC, MX…) para filmes e séries.
