@@ -132,7 +132,8 @@ fun UniShell(
     }
     if (tab != Aba.TV) LaunchedEffect(Unit) { onPreviewRect(null) }
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(FundoZark)) {
+    // O fundo é desenhado atrás do vídeo (TvApp), para a prévia do canal aparecer.
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         val compacto = maxWidth < 700.dp
         Column(Modifier.fillMaxSize().padding(horizontal = if (compacto) 10.dp else 28.dp, vertical = if (compacto) 8.dp else 14.dp)) {
             // ---- Topo ----
@@ -146,13 +147,6 @@ fun UniShell(
                 Text("Zark", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text("TV", color = Color(0xFFFF4D57), fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                if (false) {
-                    Box(
-                        Modifier.clip(RoundedCornerShape(50)).background(if (dias < 0) Color(0xFFB00020) else Color(0xFFB8860B))
-                            .tap(onClick = onRenew).padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) { Text(if (dias < 0) "Vencido · Renovar" else "Vence em $dias dia(s)", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
-                    Spacer(Modifier.width(10.dp))
-                }
                 IconeRedondo(AppIcons.Search, "Buscar", onSearch)
                 Spacer(Modifier.width(10.dp))
                 IconeRedondo(AppIcons.History, "Histórico", onHistory)
@@ -304,7 +298,6 @@ private fun AbaTv(
         Column(mod) {
             Box(
                 Modifier.fillMaxWidth().aspectRatio(16f / 9f)
-                    .background(Color.Black, RoundedCornerShape(4.dp))
                     .border(2.dp, Color(0x55FFFFFF), RoundedCornerShape(4.dp))
                     .onGloballyPositioned { onPreviewRect(it.boundsInRoot()) }
                     .tap(onClick = { if (current != null) onFull() })
@@ -410,7 +403,8 @@ private fun AbaDestaques(vm: TvViewModel, compacto: Boolean, banners: List<io.gi
     val uri = androidx.compose.ui.platform.LocalUriHandler.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val temBanner = banners.isNotEmpty()
-        val alturaBanner = if (compacto) 150.dp else maxHeight * 0.42f
+        val alturaTotal = maxHeight
+        val alturaBanner = if (compacto) 150.dp else alturaTotal * 0.42f
         Column(Modifier.fillMaxSize()) {
             if (temBanner) {
                 // Banners enviados pelo painel, trocando sozinhos.
@@ -441,7 +435,7 @@ private fun AbaDestaques(vm: TvViewModel, compacto: Boolean, banners: List<io.gi
             if (todos.isEmpty()) {
                 Text("Carregando destaques…", color = Color.White, fontSize = 16.sp)
             } else {
-                val altura = if (compacto) 200.dp else (maxHeight - (if (temBanner) alturaBanner + 10.dp else 0.dp))
+                val altura = if (compacto) 200.dp else (alturaTotal - (if (temBanner) alturaBanner + 10.dp else 0.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(todos, key = { it.id }) { item ->
                         PosterTile(item, altura * (2f / 3f), altura, mostrarTitulo = false) { onOpen(item) }
@@ -491,10 +485,15 @@ private fun AbaCatalogo(
             }
         }
         if (fileiras.isEmpty()) item {
-            Text(
-                if (filtro != null) "Nenhuma categoria encontrada para esta aba no seu servidor." else "Carregando…",
-                color = Color.White, fontSize = 15.sp,
-            )
+            Column {
+                Text(
+                    if (filtro != null) "Nenhuma categoria encontrada para esta aba no seu servidor."
+                    else "Os filmes e séries ainda não foram carregados.",
+                    color = Color.White, fontSize = 15.sp,
+                )
+                Spacer(Modifier.height(10.dp))
+                PillButton("Atualizar conteúdo agora", primary = true) { vm.refreshNow() }
+            }
         }
         items(fileiras, key = { "${it.first}|${it.second}" }) { (t, cat, titulo) ->
             Fileira(vm, t, cat, titulo, compacto, onOpen) { onLibrary(t, cat) }

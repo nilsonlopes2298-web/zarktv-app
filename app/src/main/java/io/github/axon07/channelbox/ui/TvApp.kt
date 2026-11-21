@@ -1286,6 +1286,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     ) {
         // Always the first child so the view (and its video surface) is never recreated;
         // in the guide it shrinks into the top-right preview window.
+        // ZarkTV: fundo das telas com prévia desenhado ANTES do vídeo (senão cobre a janelinha).
+        Box(
+            if (!inPip && (mode == Mode.HOME || mode == Mode.LIVE)) Modifier.fillMaxSize().background(FundoZark)
+            else Modifier.size(0.dp)
+        )
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {

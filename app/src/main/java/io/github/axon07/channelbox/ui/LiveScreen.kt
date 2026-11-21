@@ -101,11 +101,8 @@ fun LiveScreen(
     }
     val hora = remember(now) { java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(now)) }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Brush.linearGradient(listOf(Color(0xFF3A0508), Color(0xFF140203), Color(0xFF0A0A0A))))
-    ) {
+    // O fundo é desenhado atrás do vídeo (TvApp), para a prévia do canal aparecer.
+    Box(Modifier.fillMaxSize()) {
         // Topo: voltar, marca, hora.
         Row(
             Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 14.dp),
