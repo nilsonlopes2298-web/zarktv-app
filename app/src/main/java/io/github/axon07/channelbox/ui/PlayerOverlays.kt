@@ -1,5 +1,6 @@
 package io.github.axon07.channelbox.ui
 
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
