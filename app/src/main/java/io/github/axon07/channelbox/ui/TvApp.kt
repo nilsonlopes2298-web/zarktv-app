@@ -687,6 +687,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             (if (item.season > 0) "Season ${item.season} · Episode ${item.episode} · " else "") + item.title
         } else listOfNotNull(item.year, item.rating?.let { "★ $it" }).joinToString(" · ").ifEmpty { null }
         playbackReturn = Mode.VOD
+        vm.player.exo.stop()
         vm.playVod(item, at, show?.id)
         playbackToken++
         mode = Mode.PLAYBACK
@@ -1384,6 +1385,9 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     view.player = null
                     view.player = vm.player.exo
                 }
+                // Só a TV ao vivo guarda o último quadro ao trocar de canal; filme/série começa com tela preta
+                // (senão aparecia a imagem parada do canal anterior).
+                view.setKeepContentOnPlayerReset(mode == Mode.PLAYER || mode == Mode.CHANNEL_LIST || mode == Mode.HOME || mode == Mode.LIVE)
                 view.resizeMode = when (settings.videoScale) {
                     1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
@@ -1639,10 +1643,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 vodResume?.let { (item, show, at) ->
                     ActionDialog(
                         title = item.title,
-                        subtitle = "You stopped at ${formatClock(at)}",
+                        subtitle = "Você parou em ${formatClock(at)}. Quer continuar de onde parou?",
                         actions = listOf(
-                            DialogAction("Resume from ${formatClock(at)}") { startVod(item, show, at) },
-                            DialogAction("Start over") { startVod(item, show, 0) },
+                            DialogAction("Continuar de ${formatClock(at)}") { startVod(item, show, at) },
+                            DialogAction("Recomeçar do início") { startVod(item, show, 0) },
                         ),
                     )
                 }

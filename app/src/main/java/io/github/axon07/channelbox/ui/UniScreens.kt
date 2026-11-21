@@ -631,8 +631,8 @@ private fun AbaCatalogo(
             val primeira = (catsFilmes.map { VodKind.MOVIE to it.name } + catsSeries.map { VodKind.SERIES to it.name })
                 .firstOrNull { filtro.containsMatchIn(it.second) }
             if (primeira != null) {
-                val itens by remember(primeira) { vm.vodTop(primeira.first, primeira.second, 10) }.collectAsState(initial = emptyList())
-                Mosaico(itens, if (compacto) 260.dp else 340.dp, onOpen = onOpen)
+                val itens by remember(primeira) { vm.vodTop(primeira.first, primeira.second, 9) }.collectAsState(initial = emptyList())
+                Mosaico(itens, alturaHero, onOpen = onOpen, onMais = { onLibrary(primeira.first, primeira.second) })
             }
         }
         if (fileiras.isEmpty()) item {

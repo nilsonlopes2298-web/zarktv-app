@@ -234,14 +234,18 @@ fun HeroCatalogo(
 
 /** Mosaico (Destaques, Kids, Anime): um grande, colunas de dois e uma fileira embaixo. */
 @Composable
-fun Mosaico(itens: List<VodEntity>, altura: Dp, focoInicial: FocusRequester? = null, onOpen: (VodEntity) -> Unit) {
+fun Mosaico(itens: List<VodEntity>, altura: Dp, focoInicial: FocusRequester? = null, onMais: (() -> Unit)? = null, onOpen: (VodEntity) -> Unit) {
     if (itens.isEmpty()) return
     fun t(k: Int) = itens.getOrNull(k)
     Column(Modifier.fillMaxWidth().height(altura), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth().weight(1.9f), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             t(0)?.let { a -> TileImagem(a.poster, a.title, Modifier.weight(2f).fillMaxHeight().let { m -> focoInicial?.let { m.focusRequester(it) } ?: m }) { onOpen(a) } }
             Column(Modifier.weight(1.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                listOfNotNull(t(1), t(2)).forEach { a -> TileImagem(a.poster, a.title, Modifier.fillMaxWidth().weight(1f)) { onOpen(a) } }
+                t(1)?.let { a ->
+                    if (onMais != null) TileImagem(a.poster, "Mais", Modifier.fillMaxWidth().weight(1f), rotulo = true) { onMais() }
+                    else TileImagem(a.poster, a.title, Modifier.fillMaxWidth().weight(1f)) { onOpen(a) }
+                }
+                t(2)?.let { a -> TileImagem(a.poster, a.title, Modifier.fillMaxWidth().weight(1f)) { onOpen(a) } }
             }
             Column(Modifier.weight(1.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 listOfNotNull(t(3), t(4)).forEach { a -> TileImagem(a.poster, a.title, Modifier.fillMaxWidth().weight(1f)) { onOpen(a) } }

@@ -541,7 +541,7 @@ private fun ShowScreen(
                     val faixas = inSeason.chunked(10)
                     var faixa by remember(b.season) { mutableStateOf(faixas.indexOfFirst { l -> l.any { it.id == ultimo?.id } }.coerceAtLeast(0)) }
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
-                        if (seasons.size > 1) {
+                        if (seasons.isNotEmpty()) {
                             BotaoFicha((if (b.season == 0) "Episódios" else "Temporada ${b.season}") + if (listaTemporadas) "  ▲" else "  ▼", false) {
                                 listaTemporadas = !listaTemporadas
                             }
