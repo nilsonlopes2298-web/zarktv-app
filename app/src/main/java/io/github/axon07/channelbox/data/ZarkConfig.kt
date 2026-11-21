@@ -37,9 +37,9 @@ object ZarkConfig {
     private const val KEY_CONFIG = "config_json"
 
     private fun quick(http: OkHttpClient) = http.newBuilder()
-        .connectTimeout(6, TimeUnit.SECONDS)
-        .readTimeout(8, TimeUnit.SECONDS)
-        .callTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(12, TimeUnit.SECONDS)
+        .callTimeout(16, TimeUnit.SECONDS)
         .build()
 
     private fun get(http: OkHttpClient, url: String): String? = runCatching {

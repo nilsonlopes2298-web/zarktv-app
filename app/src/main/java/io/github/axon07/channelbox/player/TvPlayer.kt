@@ -104,6 +104,8 @@ class TvPlayer(
     val tracksVersion: StateFlow<Int> = _tracksVersion.asStateFlow()
 
     private var spec: StreamSpec? = null
+    /** Já trocou .ts por .m3u8 neste canal (só tenta uma vez). */
+    private var trocouFormato = false
     private var candidates: List<String?> = listOf(null)
     private var attempt = 0
     private var confirmed = false // the current type has played at least once
@@ -305,11 +307,14 @@ class TvPlayer(
         candidates = when {
             stream.mime != null -> listOf(stream.mime)
             !isHttp -> listOf(null) // rtsp://, rtmp://, udp://, file:// – the player knows these
+            // Xtream ao vivo (.ts): é TS mesmo; se falhar, troca direto para .m3u8 (mais rápido que testar 3 tipos).
+            Regex("""/live/[^?]+\.ts(\?|$)""").containsMatchIn(stream.url) -> listOf(null)
             // DRM-protected IPTV streams are almost always DASH, even without ".mpd" in the link.
             stream.drm != null -> listOf(StreamSpecs.MIME_DASH, null, StreamSpecs.MIME_HLS)
             else -> listOf(null, StreamSpecs.MIME_HLS, StreamSpecs.MIME_DASH)
         }
         attempt = 0
+        trocouFormato = false
         confirmed = false
         retries = 0
         refusals = 0
@@ -390,6 +395,15 @@ class TvPlayer(
             exo.prepare()
             exo.playWhenReady = true
             _status.value = PlayerStatus.Buffering
+            // ZarkTV: canal ao vivo que fica só "Carregando…" (sem imagem em 12 s) conta como falha:
+            // tenta o outro formato e, se não der, mostra o aviso em vez de girar para sempre.
+            if (isLive) {
+                val alvo = spec
+                val tk = startToken
+                handler.postDelayed({
+                    if (spec === alvo && startToken == tk && !confirmed && exo.playbackState != Player.STATE_READY) failed("sem imagem em 12 s")
+                }, 12_000L)
+            }
         } catch (e: Exception) {
             // e.g. an unsupported stream type – try the next one instead of crashing.
             failed(e.message ?: e.javaClass.simpleName)
@@ -512,11 +526,22 @@ class TvPlayer(
             handler.post { start() }
             return
         }
-        if (!isLive) {
-            _status.value = PlayerStatus.Error("Can't play this ($reason)")
+        // ZarkTV: canal Xtream em .ts que não abriu → tenta o mesmo canal em HLS (.m3u8) antes de desistir.
+        // Alguns servidores (Five, Club…) só liberam um dos dois formatos.
+        val atual = spec
+        if (atual != null && !trocouFormato && Regex("""/live/[^?]+\.ts(\?|$)""").containsMatchIn(atual.url)) {
+            trocouFormato = true
+            spec = atual.copy(url = atual.url.replace(Regex("""\.ts(\?|$)"""), ".m3u8$1"), mime = StreamSpecs.MIME_HLS)
+            candidates = listOf(StreamSpecs.MIME_HLS, null)
+            attempt = 0
+            handler.post { start() }
             return
         }
-        scheduleRetry("Channel unavailable – retrying… ($reason)")
+        if (!isLive) {
+            _status.value = PlayerStatus.Error("Não foi possível reproduzir ($reason)")
+            return
+        }
+        scheduleRetry("Canal fora do ar no momento – tentando de novo… ($reason)")
     }
 
     private fun scheduleRetry(message: String) {

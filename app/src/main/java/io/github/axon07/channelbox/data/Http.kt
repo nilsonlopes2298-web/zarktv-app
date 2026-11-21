@@ -25,7 +25,8 @@ import java.util.zip.GZIPInputStream
 
 /** User agent used for every request that doesn't set its own (Settings → Network). */
 object UserAgent {
-    const val DEFAULT = "Channelbox/1.0 (Linux; Android) ExoPlayer"
+    // ZarkTV: identidade aceita pela maioria dos servidores Xtream (alguns bloqueiam nomes desconhecidos).
+    const val DEFAULT = "IPTVSmartersPlayer"
 
     /** Name to user-agent string. Empty string = Channelbox default. */
     val PRESETS = linkedMapOf(

@@ -1446,7 +1446,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
                 // Só a TV ao vivo guarda o último quadro ao trocar de canal; filme/série começa com tela preta
                 // (senão aparecia a imagem parada do canal anterior).
-                view.setKeepContentOnPlayerReset(mode == Mode.PLAYER || mode == Mode.CHANNEL_LIST || mode == Mode.HOME || mode == Mode.LIVE)
+                view.setKeepContentOnPlayerReset(false) // ZarkTV: ao trocar de canal não fica a imagem congelada do canal anterior
                 view.resizeMode = when (settings.videoScale) {
                     1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL

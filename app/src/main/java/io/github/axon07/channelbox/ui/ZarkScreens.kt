@@ -25,6 +25,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -231,8 +234,15 @@ fun ZarkLoginScreen(
         }
     }
     val versao = io.github.axon07.channelbox.BuildConfig.VERSION_NAME
+    // Capas passando atrás (filmes, séries e banners do painel) para a entrada ficar bonita.
+    val capasVod by remember { vm.vodTop(io.github.axon07.channelbox.data.VodKind.MOVIE, null, 24) }.collectAsState(initial = emptyList())
+    val capas = remember(capasVod) {
+        val painel = io.github.axon07.channelbox.data.ZarkPainel.extras(context)
+        (painel.banners.map { it.imagem } + listOfNotNull(painel.fundo) + capasVod.mapNotNull { it.poster }).distinct().take(30)
+    }
 
     ZarkFundo {
+        ParedeDeCapas(capas)
         if (deitado) {
             Row(
                 Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 24.dp),
@@ -240,28 +250,28 @@ fun ZarkLoginScreen(
             ) {
                 Column(Modifier.weight(1f).padding(end = 32.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Zark", color = Color.White, fontSize = 44.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
-                        Text("TV", color = Palette.Accent, fontSize = 44.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
+                        Text("Zark", color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
+                        Text("TV", color = Palette.Accent, fontSize = 64.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
                     }
                     Spacer(Modifier.height(10.dp))
-                    Text("Canais ao vivo, filmes e séries\nno celular, na TV Box e na Smart TV.", color = Color(0xCCFFFFFF), fontSize = 16.sp, lineHeight = 22.sp)
+                    Text("Canais ao vivo, esportes, filmes e séries\nno celular, na TV Box e na Smart TV.", color = Color(0xE6FFFFFF), fontSize = 18.sp, lineHeight = 25.sp)
                     Spacer(Modifier.height(18.dp))
                     Box(Modifier.width(48.dp).height(3.dp).background(Palette.Accent, RoundedCornerShape(2.dp)))
                     Spacer(Modifier.height(18.dp))
                     Text("Versão $versao", color = Color(0x66FFFFFF), fontSize = 12.sp)
                 }
-                Box(Modifier.width(380.dp).verticalScroll(rememberScrollState())) { formulario() }
+                Box(Modifier.width(340.dp).verticalScroll(rememberScrollState())) { formulario() }
             }
         } else {
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                ZarkMarca(tamanho = 32)
+                ZarkMarca(tamanho = 42)
                 Spacer(Modifier.height(6.dp))
-                Text("Canais, filmes e séries", color = Color(0xAAFFFFFF), fontSize = 13.sp)
+                Text("Canais, esportes, filmes e séries", color = Color(0xCCFFFFFF), fontSize = 15.sp)
                 Spacer(Modifier.height(24.dp))
-                Box(Modifier.widthIn(max = 440.dp).fillMaxWidth()) { formulario() }
+                Box(Modifier.widthIn(max = 400.dp).fillMaxWidth()) { formulario() }
                 Spacer(Modifier.height(16.dp))
                 Text("Versão $versao", color = Color(0x55FFFFFF), fontSize = 11.sp)
             }
@@ -455,5 +465,46 @@ fun BarrinhaCarregando(modifier: Modifier = Modifier) {
         val ini = (size.width * x).coerceAtLeast(0f)
         val fim = (size.width * x + w).coerceAtMost(size.width)
         if (fim > ini) drawRect(Palette.Accent, topLeft = androidx.compose.ui.geometry.Offset(ini, 0f), size = androidx.compose.ui.geometry.Size(fim - ini, size.height))
+    }
+}
+
+
+/**
+ * Parede de capas atrás da entrada: três faixas de capas andando devagar, bem escurecidas.
+ * Em TV Box fraca fica parada (sem animação).
+ */
+@Composable
+fun ParedeDeCapas(capas: List<String>) {
+    if (capas.isEmpty()) return
+    val t = rememberInfiniteTransition(label = "capas")
+    val desloc by t.animateFloat(
+        0f, 1f,
+        infiniteRepeatable(tween(60_000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "d",
+    )
+    val mover = if (ZarkLeve.ativo) 0f else desloc
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+        val altura = maxHeight / 3
+        val largura = altura * 0.68f
+        val porLinha = (maxWidth / largura).toInt() + 3
+        Column(Modifier.fillMaxSize()) {
+            repeat(3) { linha ->
+                val sentido = if (linha % 2 == 0) -1f else 1f
+                Row(
+                    Modifier.height(altura).graphicsLayer { translationX = sentido * mover * largura.toPx() * 2 - largura.toPx() },
+                ) {
+                    repeat(porLinha) { i ->
+                        val url = capas[(linha * 7 + i) % capas.size]
+                        coil.compose.AsyncImage(
+                            url, null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.width(largura).fillMaxSize().padding(3.dp)
+                                .clip(RoundedCornerShape(6.dp)),
+                        )
+                    }
+                }
+            }
+        }
+        // Escurece para o texto e o cartão ficarem legíveis.
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xE60A0A0A), Color(0xB30A0A0A), Color(0xD90A0A0A)))))
     }
 }

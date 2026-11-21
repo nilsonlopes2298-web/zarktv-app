@@ -82,10 +82,10 @@ fun InicioLeve(
                 // Topo: marca à esquerda; busca, perfil, ajustes e hora à direita.
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     if (logoUrl != null) {
-                        coil.compose.AsyncImage(logoUrl, "ZarkTV", contentScale = ContentScale.Fit, modifier = Modifier.height(40.dp).width(140.dp))
+                        coil.compose.AsyncImage(logoUrl, "ZarkTV", contentScale = ContentScale.Fit, modifier = Modifier.height(52.dp).width(190.dp))
                     } else {
-                        Text("Zark", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
-                        Text("TV", color = Palette.Accent, fontSize = 24.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
+                        Text("Zark", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
+                        Text("TV", color = Palette.Accent, fontSize = 34.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
                     }
                     Spacer(Modifier.weight(1f))
                     IconeLeve(AppIcons.Search, "Buscar", onBuscar)
@@ -170,11 +170,11 @@ private fun CartaoLeve(nome: String, icone: ImageVector, onClick: () -> Unit, mo
         verticalArrangement = Arrangement.Center,
     ) {
         Box(
-            Modifier.size(64.dp).clip(CircleShape).background(if (foco) Color(0x33FFFFFF) else Color(0x22E53935)),
+            Modifier.size(76.dp).clip(CircleShape).background(if (foco) Color(0x33FFFFFF) else Color(0x22E53935)),
             contentAlignment = Alignment.Center,
-        ) { AppIcon(icone, tint = Color.White, size = 32.dp) }
+        ) { AppIcon(icone, tint = Color.White, size = 38.dp) }
         Spacer(Modifier.height(14.dp))
-        Text(nome, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        Text(nome, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
