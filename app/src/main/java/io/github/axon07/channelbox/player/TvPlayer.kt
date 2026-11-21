@@ -418,7 +418,22 @@ class TvPlayer(
         // DefaultDataSource adds udp://, rtmp://, file:// … and uses OkHttp for http(s).
         val dataSource = if (s.url.startsWith("smb://")) SmbDataSource.Factory(storageSettings)
         else DefaultDataSource.Factory(context, httpSource)
-        val sources = DefaultMediaSourceFactory(context).setDataSourceFactory(dataSource)
+        // ZarkTV: canais Full HD de IPTV costumam vir sem "quadro-chave IDR" e com unidades de acesso
+        // fora do padrão; sem estas opções o player fica só carregando (HD/SD abrem, FHD não).
+        val tsFlags = androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+            androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
+        val extratores = androidx.media3.extractor.DefaultExtractorsFactory()
+            .setTsExtractorFlags(tsFlags)
+            .setTsExtractorTimestampSearchBytes(1500 * androidx.media3.extractor.ts.TsExtractor.TS_PACKET_SIZE)
+            .setConstantBitrateSeekingEnabled(true)
+        val sources = DefaultMediaSourceFactory(dataSource, extratores)
+        if (mime == StreamSpecs.MIME_HLS || s.url.contains(".m3u8", ignoreCase = true)) {
+            val hls = androidx.media3.exoplayer.hls.HlsMediaSource.Factory(dataSource)
+                .setExtractorFactory(androidx.media3.exoplayer.hls.DefaultHlsExtractorFactory(tsFlags, true))
+                .setAllowChunklessPreparation(true)
+            val itemHls = MediaItem.Builder().setUri(s.url).setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8).build()
+            if (s.drm == null) return hls.createMediaSource(itemHls)
+        }
         val item = MediaItem.Builder().setUri(s.url)
         if (mime != null) item.setMimeType(mime)
 
