@@ -693,7 +693,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         // Atualização obrigatória não pode ser fechada.
         val forced = (s as? UpdateState.Available)?.release?.forced == true ||
             (s as? UpdateState.Downloading)?.release?.forced == true
-        if (forced) return
+        // Mesmo obrigatória, o cliente pode fechar e continuar assistindo (se a instalação falhar, não trava o app).
         _updatePrompt.value = false
         if (skipThisVersion && s is UpdateState.Available) {
             viewModelScope.launch { c.settings.setSkippedVersion(s.release.version) }

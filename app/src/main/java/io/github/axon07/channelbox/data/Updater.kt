@@ -60,7 +60,7 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
                 notes = json.str("notas").orEmpty().trim(),
                 apkUrl = json.str("url") ?: "https://github.com/${BuildConfig.UPDATE_REPO}/releases/download/latest/zarktv.apk",
                 apkSize = json.str("tamanho")?.toLongOrNull() ?: 0L,
-                forced = json.str("obrigatoria")?.lowercase() != "false",
+                forced = json.str("obrigatoria")?.lowercase() == "true", // só obriga se o painel mandar "true"
             )
         }
     }
