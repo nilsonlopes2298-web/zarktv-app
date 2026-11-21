@@ -527,7 +527,7 @@ private fun ShowScreen(
                 BotaoFicha(if (ultimo != null) "▶  Continuar T${ultimo.season}E${ultimo.episode}" else "▶  Assistir", true, Modifier.focusRequester(primeiro)) {
                     alvo?.let { b.focusId = it.id; onPlay(it, show) }
                 }
-                BotaoExtras(vm, show, serie = true, episodios = episodes?.size ?: 0)
+                BotoesExtras(vm, show, serie = true, episodios = episodes?.size ?: 0)
                 BotaoFicha("Player externo", false) { alvo?.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, show.title) } }
                 BotaoFicha("‹ Voltar", false) {
                     b.closeShow()
@@ -698,7 +698,7 @@ private fun MovieDetail(
             Spacer(Modifier.height(18.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
                 BotaoFicha(if (progress != null && progress.position > 0) "⛶  Continuar" else "⛶  Tela cheia", true, Modifier.focusRequester(play)) { assistir() }
-                BotaoExtras(vm, movie, serie = false, episodios = 0)
+                BotoesExtras(vm, movie, serie = false, episodios = 0)
                 BotaoFicha("Player externo", false) { movie.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, movie.title) } }
                 BotaoFicha("‹ Voltar", false) {
                     b.movie = null
