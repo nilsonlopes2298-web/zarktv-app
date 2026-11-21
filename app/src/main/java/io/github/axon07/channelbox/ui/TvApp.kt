@@ -276,6 +276,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     val showCount by vm.showCount.collectAsStateWithLifecycle()
     /** Movie/episode waiting for "Resume or start over?", with where you stopped. */
     var vodResume by remember { mutableStateOf<Triple<VodEntity, VodEntity?, Long>?>(null) }
+    var previewPergunta by remember { mutableStateOf<Triple<VodEntity, VodEntity?, Long>?>(null) }
     val scope = rememberCoroutineScope()
     /** Last key press or touch, for closing the guide/menus when idle. */
     var lastInput by remember { mutableLongStateOf(android.os.SystemClock.uptimeMillis()) }
@@ -705,10 +706,16 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         mode = Mode.PLAYBACK
     }
 
-    /** ZarkTV: toca na miniatura da ficha (sem tela cheia). */
-    fun previewVod(item: VodEntity, show: VodEntity?) {
+    /** ZarkTV: toca na miniatura da ficha (sem tela cheia). Se já assistiu parte, pergunta antes. */
+    fun previewVod(item: VodEntity, show: VodEntity?, inicio: Long? = null) {
         scope.launch {
-            val at = vm.vodResumeAt(item) ?: 0L
+            val salvo = vm.vodResumeAt(item)
+            if (inicio == null && salvo != null && salvo > 0) {
+                previewPergunta = Triple(item, show, salvo)
+                return@launch
+            }
+            val at = inicio ?: salvo ?: 0L
+            previewPergunta = null
             vodUrlAtual = item.url
             vodPosterAtual = show?.poster ?: item.poster
             vodPreviewShow = show
@@ -1190,6 +1197,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     LaunchedEffect(mode) { if (mode != Mode.CHANNEL_LIST) gruposAbertos = false }
     // ZarkTV: saiu dos filmes/séries (por qualquer caminho) = o filme/miniatura para de tocar.
     LaunchedEffect(mode) {
+        if (mode != Mode.VOD) previewPergunta = null
         if (mode != Mode.VOD && mode != Mode.PLAYBACK && mode != Mode.OPTIONS && mode != Mode.UPDATE && vodBrowser.previewId != null) {
             vm.stopVod()
             vm.player.stop()
@@ -1317,6 +1325,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             Mode.SEARCH -> openGroups(tile = 5)
             Mode.ORGANISE -> mode = organiseReturn
             Mode.VOD -> when {
+                previewPergunta != null -> {
+                    previewPergunta = null
+                    vodBrowser.focusToken++
+                }
                 vodResume != null -> {
                     vodResume = null
                     vodBrowser.focusToken++
@@ -1719,6 +1731,17 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     }
                 }
                 VodScreen(vodBrowser, vm, onPlay = { item, show -> playVod(item, show) })
+                previewPergunta?.let { (item, show, at) ->
+                    val ep = if (show != null && item.season > 0) "T${item.season} E${item.episode}, " else ""
+                    ActionDialog(
+                        title = show?.title ?: item.title,
+                        subtitle = "Você parou em ${ep}${formatClock(at)}. Quer continuar de onde parou ou começar do início?",
+                        actions = listOf(
+                            DialogAction("Continuar de ${formatClock(at)}") { previewVod(item, show, at) },
+                            DialogAction("Começar do início") { previewVod(item, show, 0L) },
+                        ),
+                    )
+                }
                 vodResume?.let { (item, show, at) ->
                     ActionDialog(
                         title = item.title,

@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -139,20 +140,70 @@ fun BoxScope.NumberEntry(digits: String, match: ChannelEntity?) {
 
 @Composable
 fun BoxScope.StatusMessage(status: PlayerStatus, channel: ChannelEntity?, fallback: String?) {
-    // ZarkTV: carregando = rodinha azul pequena no meio (sem texto), como nos apps de IPTV.
+    // ZarkTV: abrindo o canal = logo + nome do canal, anel girando em volta e barrinha passando.
     if (channel != null && status is PlayerStatus.Buffering) {
         val giro = androidx.compose.animation.core.rememberInfiniteTransition(label = "carregando")
         val ang by giro.animateFloat(
             0f, 360f,
-            androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(900, easing = androidx.compose.animation.core.LinearEasing)),
+            androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1000, easing = androidx.compose.animation.core.LinearEasing)),
             label = "ang",
         )
-        androidx.compose.foundation.Canvas(Modifier.align(Alignment.Center).size(46.dp)) {
-            drawCircle(Color(0x33FFFFFF), style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx()))
-            drawArc(
-                Color(0xFF2F8CFF), ang, 100f, false,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
-            )
+        val pulso by giro.animateFloat(
+            0.92f, 1.04f,
+            androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(700), androidx.compose.animation.core.RepeatMode.Reverse),
+            label = "pulso",
+        )
+        androidx.compose.foundation.layout.Column(
+            Modifier.align(Alignment.Center)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xB3000000))
+                .padding(horizontal = 28.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
+                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                    drawCircle(Color(0x26FFFFFF), style = androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
+                    drawArc(
+                        androidx.compose.ui.graphics.Brush.sweepGradient(listOf(Color(0x002F8CFF), Color(0xFF2F8CFF), Color(0xFF7FB8FF))),
+                        ang, 120f, false,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                    )
+                }
+                Box(
+                    Modifier.size(58.dp).graphicsLayer { scaleX = pulso; scaleY = pulso }
+                        .clip(androidx.compose.foundation.shape.CircleShape).background(Color(0x33FFFFFF)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (!channel.logoUrl.isNullOrBlank()) {
+                        coil.compose.AsyncImage(channel.logoUrl, null, contentScale = androidx.compose.ui.layout.ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(8.dp))
+                    } else Text(channel.name.take(2).uppercase(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
+            Text(channel.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1)
+            Text("Abrindo o canal…", fontSize = 12.sp, color = Color(0xB3FFFFFF))
+            androidx.compose.foundation.layout.Spacer(Modifier.size(10.dp))
+            BarrinhaCarregando(Modifier.width(160.dp))
+        }
+        return
+    }
+    if (channel != null && status is PlayerStatus.Error) {
+        // Erro sem termos técnicos: só o essencial.
+        val tentando = status.message.contains("tentando", ignoreCase = true) || status.message.contains("Reconnect", ignoreCase = true)
+        androidx.compose.foundation.layout.Column(
+            Modifier.align(Alignment.Center)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xCC000000))
+                .padding(horizontal = 28.dp, vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(channel.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1)
+            Text(if (tentando) "Canal fora do ar no momento" else "Não foi possível abrir este canal", fontSize = 14.sp, color = Color(0xFFFF8A80))
+            if (tentando) {
+                Text("Tentando de novo…", fontSize = 12.sp, color = Color(0xB3FFFFFF))
+                androidx.compose.foundation.layout.Spacer(Modifier.size(10.dp))
+                BarrinhaCarregando(Modifier.width(160.dp))
+            } else Text("Escolha outro canal ou tente mais tarde.", fontSize = 12.sp, color = Color(0xB3FFFFFF))
         }
         return
     }
