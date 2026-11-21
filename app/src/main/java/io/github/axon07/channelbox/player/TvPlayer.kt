@@ -93,6 +93,12 @@ class TvPlayer(
     private val _status = MutableStateFlow<PlayerStatus>(PlayerStatus.Idle)
     val status: StateFlow<PlayerStatus> = _status.asStateFlow()
 
+    /**
+     * ZarkTV: formato do vídeo quando o arquivo tem vídeo mas nenhum decodificador do aparelho
+     * consegue abrir (aí só toca o som). null = está tudo certo.
+     */
+    val videoSemSuporte = MutableStateFlow<String?>(null)
+
     /** Bumped whenever the available/selected audio & subtitle tracks change. */
     private val _tracksVersion = MutableStateFlow(0)
     val tracksVersion: StateFlow<Int> = _tracksVersion.asStateFlow()
@@ -195,6 +201,15 @@ class TvPlayer(
             )
             setWakeMode(C.WAKE_MODE_NETWORK)
             playWhenReady = true
+            addListener(object : Player.Listener {
+                override fun onTracksChanged(tracks: Tracks) {
+                    val videos = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
+                    videoSemSuporte.value =
+                        if (videos.isNotEmpty() && videos.none { g -> (0 until g.length).any { g.isTrackSupported(it) } })
+                            videos.first().getTrackFormat(0).let { it.sampleMimeType ?: it.codecs ?: "desconhecido" }
+                        else null
+                }
+            })
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     when (playbackState) {

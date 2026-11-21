@@ -242,6 +242,8 @@ fun ProfileScreen(
     onBack: () -> Unit,
     temaNome: String = ZarkTema.atual.nome,
     onTema: () -> Unit = {},
+    playerFilmes: String = "Interno",
+    onPlayerFilmes: () -> Unit = {},
 ) {
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) {
@@ -312,6 +314,7 @@ fun ProfileScreen(
                 LinhaPerfil(AppIcons.Captions, "Áudio, legenda e player", null, onPlayer)
                 LinhaPerfil(AppIcons.Info, "Ajuda e suporte", "WhatsApp", onSupport)
                 LinhaPerfil(AppIcons.Grid, "Tema do app", temaNome, onTema)
+                LinhaPerfil(AppIcons.Film, "Player de filmes e séries", playerFilmes, onPlayerFilmes)
                 LinhaPerfil(AppIcons.Settings, "Configurações", null, onSettings)
                 LinhaPerfil(AppIcons.Globe, "Compartilhar o app", null, onShare)
             }

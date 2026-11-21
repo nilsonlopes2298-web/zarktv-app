@@ -176,6 +176,23 @@ object ZarkConfig {
         return Triple(p.getBoolean("lembrar", true), p.getString("lembrar_user", "").orEmpty(), p.getString("lembrar_pass", "").orEmpty())
     }
 
+    // Player de filmes e séries: interno (padrão) ou externo (VLC, MX Player…).
+    fun playerExterno(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("player_externo", false)
+
+    fun setPlayerExterno(context: Context, on: Boolean) =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("player_externo", on).apply()
+
+    /** Abre o link num player instalado no aparelho (VLC, MX Player, Just Player…). */
+    fun abrirExterno(context: Context, url: String, titulo: String): Boolean = runCatching {
+        val i = android.content.Intent(android.content.Intent.ACTION_VIEW)
+            .setDataAndType(android.net.Uri.parse(url), "video/*")
+            .putExtra("title", titulo)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(android.content.Intent.createChooser(i, "Abrir com…").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    }.getOrDefault(false)
+
     /** Dias que faltam até [expira] (0 = vence hoje, negativo = vencido). */
     fun diasRestantes(expira: Long): Int {
         val dia = 24L * 60 * 60 * 1000

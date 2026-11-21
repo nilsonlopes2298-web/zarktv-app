@@ -216,6 +216,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var homePreview by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     /** Filme/série aberto direto da tela principal: Voltar retorna para ela. */
     var vodDeInicio by remember { mutableStateOf(false) }
+    /** Link do filme/episódio tocando agora (para abrir no player externo). */
+    var vodUrlAtual by remember { mutableStateOf<String?>(null) }
+    val zarkCtx = LocalContext.current
+    var playerExterno by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkConfig.playerExterno(zarkCtx)) }
     /** When the groups menu was opened (for [groupsBack]). */
     var groupsOpenedAt by remember { mutableLongStateOf(0L) }
     /** When Back was pressed on the side menu: a second Back soon after exits. */
@@ -627,6 +631,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
 
     fun startVod(item: VodEntity, show: VodEntity?, at: Long) {
         vodResume = null
+        vodUrlAtual = item.url
+        // ZarkTV: cliente escolheu player externo (VLC, MX…) para filmes e séries.
+        if (playerExterno && item.url != null &&
+            io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(zarkCtx, item.url, show?.title ?: item.title)
+        ) return
         playbackTitle = show?.title ?: item.title
         pbSubtitle = if (show != null) {
             (if (item.season > 0) "Season ${item.season} · Episode ${item.episode} · " else "") + item.title
@@ -1472,6 +1481,32 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             }
             Mode.PLAYBACK -> {
                 (playerStatus as? PlayerStatus.Error)?.let { StatusMessage(it, null, it.message) }
+                // ZarkTV: vídeo num formato que o aparelho não abre (só toca o som) → oferece o player externo.
+                val semVideo by vm.player.videoSemSuporte.collectAsStateWithLifecycle()
+                val url = vodUrlAtual
+                if (semVideo != null) {
+                    ActionDialog(
+                        title = "Este vídeo não abre no player interno",
+                        subtitle = "O formato do vídeo ($semVideo) não é suportado por este aparelho. Abra num player externo como VLC ou MX Player.",
+                        actions = listOfNotNull(
+                            url?.let {
+                                DialogAction("Abrir no player externo") {
+                                    vm.player.exo.pause()
+                                    io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(zarkCtx, it, playbackTitle)
+                                }
+                            },
+                            url?.let {
+                                DialogAction("Sempre usar player externo") {
+                                    playerExterno = true
+                                    io.github.axon07.channelbox.data.ZarkConfig.setPlayerExterno(zarkCtx, true)
+                                    vm.player.exo.pause()
+                                    io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(zarkCtx, it, playbackTitle)
+                                }
+                            },
+                            DialogAction("Voltar") { leavePlayback() },
+                        ),
+                    )
+                }
                 // Timelines and remote directions stay left-to-right in every language.
                 LtrBox {
                     PlaybackControls(
@@ -1654,6 +1689,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onBack = { mode = Mode.HOME },
                     temaNome = ZarkTema.atual.nome,
                     onTema = { ZarkTema.proximo(ctx) },
+                    playerFilmes = if (playerExterno) "Externo (VLC, MX…)" else "Interno",
+                    onPlayerFilmes = {
+                        playerExterno = !playerExterno
+                        io.github.axon07.channelbox.data.ZarkConfig.setPlayerExterno(zarkCtx, playerExterno)
+                    },
                 )
             }
             Mode.LIVE -> {

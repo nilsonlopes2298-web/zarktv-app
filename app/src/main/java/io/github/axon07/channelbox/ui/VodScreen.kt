@@ -3,6 +3,7 @@ package io.github.axon07.channelbox.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -687,11 +688,17 @@ private fun MovieDetail(
                 modifier = Modifier.padding(top = 12.dp),
             )
             Spacer(Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
                 Box(Modifier.width(240.dp).focusRequester(play)) {
                     BotaoCheio(if (progress != null && progress.position > 0) "▶  Continuar" else "▶  Assistir", Palette.Accent) {
                         b.focusId = movie.id
                         onPlay(movie, null)
+                    }
+                }
+                val ctxExt = androidx.compose.ui.platform.LocalContext.current
+                Box(Modifier.width(200.dp)) {
+                    BotaoContorno("Player externo", cor = Color(0x55FFFFFF)) {
+                        movie.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctxExt, it, movie.title) }
                     }
                 }
                 Box(Modifier.width(160.dp)) {
