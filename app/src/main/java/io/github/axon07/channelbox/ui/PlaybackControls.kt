@@ -48,6 +48,8 @@ data class PlaybackUi(
     val ended: Boolean,
     /** Seconds just skipped (shown briefly as "−10 s" / "+30 s"), 0 = none. */
     val skipped: Long = 0,
+    /** ZarkTV: capa do filme/série mostrada na barra. */
+    val poster: String? = null,
 )
 
 /**
@@ -120,27 +122,38 @@ fun BoxScope.PlaybackControls(
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x99000000), Color(0xE6000000))))
                 .padding(start = 32.dp, end = 32.dp, top = 48.dp, bottom = 14.dp)
         ) {
-            Text(ui.title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            ui.subtitle?.let {
-                Text(it, fontSize = 13.sp, color = Palette.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 1.dp))
-            }
-            Spacer(Modifier.height(10.dp))
-            // Seek bar with the times at either end.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(formatClock(ui.position), fontSize = 12.sp, color = Color.White, modifier = Modifier.width(64.dp))
-                Box(Modifier.weight(1f)) { Scrubber(ui, onSeekTo) }
-                Text(
-                    if (ui.duration > 0) "−" + formatClock((ui.duration - ui.position).coerceAtLeast(0)) else "",
-                    fontSize = 12.sp, color = Palette.TextDim, textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                    modifier = Modifier.width(64.dp),
-                )
+            // ZarkTV (estilo UniTV): capa à esquerda, título, tempo e barra vermelha.
+            Row(verticalAlignment = Alignment.Bottom) {
+                if (!ui.poster.isNullOrBlank()) {
+                    coil.compose.AsyncImage(
+                        ui.poster, null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.width(62.dp).height(92.dp).clip(RoundedCornerShape(4.dp)),
+                    )
+                    Spacer(Modifier.width(14.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(ui.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    ui.subtitle?.let {
+                        Text(it, fontSize = 13.sp, color = Color(0xFFFFC107), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 1.dp))
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(formatClock(ui.position), fontSize = 13.sp, color = Color.White, modifier = Modifier.width(70.dp))
+                        Box(Modifier.weight(1f)) { Scrubber(ui, onSeekTo) }
+                        Text(
+                            if (ui.duration > 0) formatClock(ui.duration) else "",
+                            fontSize = 13.sp, color = Color.White, textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                            modifier = Modifier.width(70.dp),
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(6.dp))
             // Transport in the middle; captions and close on the right; remote hints on the left.
             Box(Modifier.fillMaxWidth()) {
                 if (!touch) {
                     Text(
-                        if (focused != null) "◀ ▶ choose · OK select · ▲ back" else "OK pause · ◀ ▶ skip · ▼ buttons",
+                        if (focused != null) "◀ ▶ escolher · OK confirmar · ▲ voltar" else "OK pausar · ◀ voltar 10s · ▶ avançar 30s · ▼ mais",
                         fontSize = 11.sp, color = Palette.TextDim, maxLines = 1,
                         modifier = Modifier.align(Alignment.CenterStart),
                     )

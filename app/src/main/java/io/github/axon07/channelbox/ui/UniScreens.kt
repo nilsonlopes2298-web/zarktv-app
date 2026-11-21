@@ -68,16 +68,23 @@ val FundoZark: Brush get() = ZarkTema.atual.fundo
 /** Abas da tela principal. */
 object Aba {
     const val TV = 0
-    const val FAVORITOS = 1
+    const val JOGOS = 1
     const val DESTAQUES = 2
     const val FILMES = 3
     const val SERIES = 4
     const val KIDS = 5
     const val ANIME = 6
-    val nomes = listOf("TV", "★ FAVORITOS", "DESTAQUES", "FILMES", "SÉRIES", "KIDS", "ANIME")
+    val nomes = listOf("TV", "JOGOS", "DESTAQUES", "FILMES", "SÉRIES", "KIDS", "ANIME")
 
-    /** Abas com a prévia do canal (o vídeo fica ligado). */
-    fun temPrevia(tab: Int) = tab == TV || tab == FAVORITOS
+    /** Abas com a prévia do canal (o vídeo fica ligado). Favoritos é um grupo dentro da TV. */
+    fun temPrevia(tab: Int) = tab == TV
+
+    /** Nome do grupo para mostrar (Todos / ★ Favoritos em português). */
+    fun rotulo(f: ChannelFilter, titulo: String) = when (f) {
+        ChannelFilter.All -> "Todos os canais"
+        ChannelFilter.Favorites -> "★ Favoritos"
+        else -> titulo
+    }
 }
 
 private val REGEX_KIDS = Regex("infantil|kids|desenho|crian|anima[cç][aã]o|disney|cartoon|pixar", RegexOption.IGNORE_CASE)
@@ -98,6 +105,10 @@ fun UniShell(
     channels: List<ChannelEntity>,
     favChannels: List<ChannelEntity>,
     groupLabel: String,
+    groups: List<Pair<ChannelFilter, String>> = emptyList(),
+    currentGroup: ChannelFilter = ChannelFilter.All,
+    onGroup: (ChannelFilter) -> Unit = {},
+    onAssistirJogo: () -> Unit = {},
     current: ChannelEntity?,
     favorites: Set<String>,
     upcoming: Map<String, List<ProgramEntity>>,
@@ -190,11 +201,9 @@ fun UniShell(
                     Aba.TV -> AbaTv(
                         compacto, channels, groupLabel, current, favorites, upcoming, now, timeFormat,
                         onPrevGroup, onNextGroup, onPickChannel, onFull, onFavorite, onPreviewRect,
+                        groups, currentGroup, onGroup,
                     )
-                    Aba.FAVORITOS -> AbaTv(
-                        compacto, favChannels, "★ Meus favoritos", current, favorites, upcoming, now, timeFormat,
-                        {}, {}, onPickChannel, onFull, onFavorite, onPreviewRect,
-                    )
+                    Aba.JOGOS -> AbaJogos(vm, compacto, onAssistirJogo)
                     Aba.DESTAQUES -> AbaDestaques(vm, compacto, extras.banners, onOpenItem)
                     Aba.FILMES -> AbaCatalogo(vm, VodKind.MOVIE, compacto, null, onOpenItem, onOpenLibrary)
                     Aba.SERIES -> AbaCatalogo(vm, VodKind.SERIES, compacto, null, onOpenItem, onOpenLibrary)
@@ -353,6 +362,9 @@ private fun AbaTv(
     onFull: () -> Unit,
     onFavorite: (ChannelEntity) -> Unit,
     onPreviewRect: (Rect?) -> Unit,
+    groups: List<Pair<ChannelFilter, String>>,
+    currentGroup: ChannelFilter,
+    onGroup: (ChannelFilter) -> Unit,
 ) {
     val previa: @Composable (Modifier) -> Unit = { mod ->
         Column(mod) {
@@ -379,7 +391,7 @@ private fun AbaTv(
         }
     }
     val lista: @Composable (Modifier) -> Unit = { mod ->
-        ListaDeCanais(mod, channels, groupLabel, current, favorites, onPrevGroup, onNextGroup, onPick, onFull, onFavorite)
+        ListaDeCanais(mod, channels, groupLabel, current, favorites, onPrevGroup, onNextGroup, onPick, onFull, onFavorite, groups, currentGroup, onGroup)
     }
     if (compacto) {
         Column(Modifier.fillMaxSize()) {
@@ -408,21 +420,44 @@ fun ListaDeCanais(
     onPick: (ChannelEntity) -> Unit,
     onFull: () -> Unit,
     onFavorite: (ChannelEntity) -> Unit,
+    groups: List<Pair<ChannelFilter, String>> = emptyList(),
+    currentGroup: ChannelFilter = ChannelFilter.All,
+    onGroup: (ChannelFilter) -> Unit = {},
 ) {
+    var verGrupos by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val inicio = channels.indexOfFirst { it.id == current?.id }.coerceAtLeast(0)
     LaunchedEffect(channels) { runCatching { listState.scrollToItem((inicio - 2).coerceAtLeast(0)) } }
     Column(modifier.background(Color(0x55000000), RoundedCornerShape(8.dp))) {
         Row(Modifier.fillMaxWidth().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
             PillButton("◀", onClick = onPrevGroup)
-            Text(
-                groupLabel.ifBlank { "Lista de Canais" }, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 6.dp),
-            )
+            Box(Modifier.weight(1f).padding(horizontal = 6.dp)) {
+                LinhaFocavel(selecionado = verGrupos, onClick = { verGrupos = !verGrupos }) {
+                    Text(
+                        (groups.firstOrNull { it.first == currentGroup }?.second ?: groupLabel.ifBlank { "Lista de Canais" }) + if (verGrupos) "  ▲" else "  ▼",
+                        color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    )
+                }
+            }
             PillButton("▶", onClick = onNextGroup)
         }
+        if (verGrupos && groups.isNotEmpty()) {
+            // Grupos de canais (o ★ Favoritos é um deles).
+            LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
+                items(groups) { (f, nome) ->
+                    LinhaFocavel(selecionado = f == currentGroup, onClick = { onGroup(f); verGrupos = false }) {
+                        Text(nome, color = Color.White, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+                    }
+                }
+            }
+            return@Column
+        }
         if (channels.isEmpty()) {
-            Text("Nenhum canal neste grupo", color = Palette.TextDim, fontSize = 14.sp, modifier = Modifier.padding(16.dp))
+            Text(
+                if (currentGroup == ChannelFilter.Favorites) "Nenhum favorito ainda. Segure OK num canal para favoritar." else "Nenhum canal neste grupo",
+                color = Palette.TextDim, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
+            )
         }
         LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f)) {
             itemsIndexed(channels, key = { _, ch -> ch.id }) { _, ch ->
@@ -647,6 +682,78 @@ fun PosterTile(item: VodEntity, w: Dp, h: Dp, mostrarTitulo: Boolean = true, onC
         }
         if (mostrarTitulo) {
             Text(item.title, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
+        }
+    }
+}
+
+
+// ---- Jogos: guia de jogos do dia ----------------------------------------------------------------
+
+@Composable
+private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: () -> Unit) {
+    var jogos by remember { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkJogos.Jogo>?>(null) }
+    var filtro by remember { mutableStateOf(0) } // 0 todos, 1 ao vivo, 2 encerrados
+    LaunchedEffect(Unit) {
+        while (true) {
+            jogos = io.github.axon07.channelbox.data.ZarkJogos.hoje(vm.zarkHttp)
+            delay(60_000) // atualiza o placar a cada minuto
+        }
+    }
+    val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR"))
+    Row(Modifier.fillMaxSize()) {
+        if (!compacto) {
+            Column(Modifier.width(150.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Atalho("Todos", Color(0xFF43A047), Modifier.fillMaxWidth().weight(1f), compacto) { filtro = 0 }
+                Atalho("Ao vivo", Color(0xFFFB8C00), Modifier.fillMaxWidth().weight(1f), compacto) { filtro = 1 }
+                Atalho("Encerrados", Color(0xFF039BE5), Modifier.fillMaxWidth().weight(1f), compacto) { filtro = 2 }
+            }
+            Spacer(Modifier.width(12.dp))
+        }
+        val lista = jogos?.filter {
+            when (filtro) {
+                1 -> it.estado == "in"
+                2 -> it.estado == "post"
+                else -> true
+            }
+        }
+        when {
+            lista == null -> Text("Carregando os jogos de hoje…", color = Color.White, fontSize = 16.sp)
+            lista.isEmpty() -> Text("Nenhum jogo encontrado agora.", color = Color.White, fontSize = 16.sp)
+            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
+                items(lista) { j ->
+                    LinhaFocavel(onClick = onAssistir) {
+                        Row(
+                            Modifier.fillMaxWidth().background(Color(0x55FFFFFF), RoundedCornerShape(6.dp)).height(if (compacto) 76.dp else 92.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                Modifier.width(if (compacto) 80.dp else 150.dp).fillMaxHeight().background(Color(0x33FFFFFF)),
+                                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+                            ) {
+                                if (j.ligaLogo != null) AsyncImage(j.ligaLogo, null, modifier = Modifier.size(if (compacto) 28.dp else 40.dp))
+                                Text(j.liga, color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                            }
+                            Text(j.casa.nome, color = Color.White, fontSize = if (compacto) 14.sp else 19.sp, textAlign = TextAlign.End, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+                            j.casa.logo?.let { AsyncImage(it, null, modifier = Modifier.size(if (compacto) 30.dp else 42.dp)) }
+                            Column(Modifier.width(if (compacto) 84.dp else 130.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    if (j.estado == "pre") hora.format(java.util.Date(j.inicio)) else "${j.casa.placar ?: 0} x ${j.fora.placar ?: 0}",
+                                    color = Color.White, fontSize = if (compacto) 18.sp else 26.sp, fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    when (j.estado) { "in" -> "Em andamento · ${j.detalhe}"; "post" -> "Encerrado"; else -> "Hoje" },
+                                    color = if (j.estado == "in") Color(0xFFFF5252) else Color(0xCCFFFFFF), fontSize = 11.sp, maxLines = 1,
+                                )
+                            }
+                            j.fora.logo?.let { AsyncImage(it, null, modifier = Modifier.size(if (compacto) 30.dp else 42.dp)) }
+                            Text(j.fora.nome, color = Color.White, fontSize = if (compacto) 14.sp else 19.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+                            if (!compacto && j.canais.isNotEmpty()) {
+                                Text(j.canais.take(2).joinToString("\n"), color = Color(0xFFFFD54F), fontSize = 11.sp, maxLines = 2, modifier = Modifier.width(110.dp).padding(end = 8.dp))
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -507,103 +507,88 @@ private fun ShowScreen(
         if (b.episodes == null) {
             val list = vm.episodes(show)
             b.episodes = list
-            // Open on the season you were last watching, else the first one.
             val last = list.filter { it.id in progress }.maxByOrNull { progress.getValue(it.id).updated }
             b.season = last?.season ?: list.firstOrNull()?.season
             b.focusId = last?.id
             b.focusToken++
         }
     }
+    var ficha by remember(show.id) { mutableStateOf<io.github.axon07.channelbox.data.ZarkInfo?>(null) }
+    LaunchedEffect(show.id) { ficha = vm.zarkFicha(show) }
     val episodes = b.episodes
     val seasons = episodes?.map { it.season }?.distinct().orEmpty()
     val inSeason = episodes?.filter { it.season == b.season }.orEmpty()
-    val touch = LocalInputModeManager.current.inputMode == InputMode.Touch
-    val firstEpisode = remember { FocusRequester() }
-    LaunchedEffect(b.focusToken, episodes != null) {
-        if (!touch && episodes != null && b.focusId == null) {
-            delay(60)
-            runCatching { firstEpisode.requestFocus() }
-        }
+    val ultimo = episodes?.filter { it.id in progress }?.maxByOrNull { progress.getValue(it.id).updated }
+    var listaTemporadas by remember { mutableStateOf(false) }
+    val primeiro = remember { FocusRequester() }
+    LaunchedEffect(episodes != null) {
+        delay(150)
+        runCatching { primeiro.requestFocus() }
     }
-
-    var ficha by remember(show.id) { mutableStateOf<io.github.axon07.channelbox.data.ZarkInfo?>(null) }
-    LaunchedEffect(show.id) { ficha = vm.zarkFicha(show) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     Box(Modifier.fillMaxSize().background(Palette.Background)) {
-    ficha?.fundo?.let { FundoFicha(it) }
-    Row(Modifier.fillMaxSize()) {
-        // ---- Left: the show and its seasons ----
+        (ficha?.fundo ?: show.poster)?.let { FundoFicha(it) }
         Column(
-            Modifier
-                .width(300.dp)
-                .fillMaxHeight()
-                .background(Brush.verticalGradient(listOf(Color(0xE6140405), Color(0xE60A0A0A))))
-                .padding(top = 24.dp, start = 18.dp, end = 18.dp, bottom = 12.dp)
+            Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 36.dp, vertical = 24.dp)
         ) {
-            Row {
-                PosterImage(show.poster, show.title, Modifier.width(96.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(6.dp)))
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(show.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Palette.Text, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                    val meta = listOfNotNull(show.year, show.rating?.let { "★ $it" }, show.category.takeIf { it.isNotBlank() }).joinToString(" · ")
-                    if (meta.isNotEmpty()) Text(meta, fontSize = 12.sp, color = Palette.TextDim, maxLines = 2, modifier = Modifier.padding(top = 4.dp))
+            FichaCabecalho(show.title, ficha, show.plot, show.rating, show.year, ultimo?.let { "T${it.season} - E${it.episode}" })
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
+                val alvo = ultimo ?: inSeason.firstOrNull()
+                BotaoFicha(if (ultimo != null) "▶  Continuar T${ultimo.season}E${ultimo.episode}" else "▶  Assistir", true, Modifier.focusRequester(primeiro)) {
+                    alvo?.let { b.focusId = it.id; onPlay(it, show) }
+                }
+                BotaoFicha("Player externo", false) { alvo?.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, show.title) } }
+                BotaoFicha("‹ Voltar", false) {
+                    b.closeShow()
+                    b.voltarInicio?.invoke()
                 }
             }
-            ficha?.genero?.let { Text(it, fontSize = 12.sp, color = Color(0xFF7CD992), maxLines = 1, modifier = Modifier.padding(top = 10.dp)) }
-            ficha?.elenco?.let { Text(it, fontSize = 12.sp, color = Color(0xFF7FB8FF), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)) }
-            (ficha?.sinopse ?: show.plot)?.let {
-                Text(it, fontSize = 12.sp, color = Color(0xFFDDDDDD), maxLines = 6, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
-            }
-            Spacer(Modifier.height(14.dp))
-            LazyColumn(Modifier.weight(1f)) {
-                items(seasons, key = { it }) { s ->
-                    CategoryEntry(
-                        label = if (s == 0) "Episódios" else "Temporada $s",
-                        count = episodes?.count { it.season == s } ?: 0,
-                        selected = s == b.season,
-                        modifier = Modifier,
-                        onFocus = { b.season = s },
-                        onClick = { b.season = s },
-                    )
-                }
-            }
-        }
-
-        // ---- Right: episodes ----
-        Column(Modifier.weight(1f).fillMaxHeight().padding(top = 24.dp, start = 24.dp, end = 24.dp)) {
-            Text(
-                when {
-                    episodes == null -> "Carregando episódios…"
-                    episodes.isEmpty() -> "Nenhum episódio encontrado"
-                    b.season == 0 -> "Episódios"
-                    else -> "Temporada ${b.season}"
-                },
-                fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text,
-            )
-            Spacer(Modifier.height(12.dp))
-            LazyColumn(state = b.episodeList, verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
-                items(inSeason, key = { it.id }) { ep ->
-                    val requester = remember { FocusRequester() }
-                    if (ep.id == b.focusId) {
-                        LaunchedEffect(b.focusToken) {
-                            delay(60)
-                            runCatching { requester.requestFocus() }
+            Spacer(Modifier.height(18.dp))
+            when {
+                episodes == null -> Text("Carregando episódios…", color = Color.White, fontSize = 16.sp)
+                episodes.isEmpty() -> Text("Nenhum episódio encontrado", color = Color.White, fontSize = 16.sp)
+                else -> {
+                    // Seletor de temporada (abre a lista ao clicar) e o intervalo de episódios.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        BotaoFicha((if (b.season == 0) "Episódios" else "Temporada ${b.season}") + if (listaTemporadas) "  ▲" else "  ▼", false) {
+                            listaTemporadas = !listaTemporadas
+                        }
+                        Spacer(Modifier.width(24.dp))
+                        Text("1-${inSeason.size}", color = Color(0xFFFF5252), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    }
+                    if (listaTemporadas) {
+                        Column(Modifier.padding(top = 4.dp).width(260.dp).background(Color(0xF2FFFFFF))) {
+                            seasons.forEach { t ->
+                                BotaoLista(if (t == 0) "Episódios" else "Temporada $t", t == b.season) {
+                                    b.season = t
+                                    listaTemporadas = false
+                                }
+                            }
                         }
                     }
-                    EpisodeRow(
-                        ep = ep,
-                        progress = progress[ep.id],
-                        modifier = (if (ep == inSeason.first()) Modifier.focusRequester(firstEpisode) else Modifier)
-                            .focusRequester(requester),
-                        onClick = {
-                            b.focusId = ep.id
-                            onPlay(ep, show)
-                        },
-                    )
+                    Spacer(Modifier.height(12.dp))
+                    // Episódios em botões numerados (como na UniTV).
+                    inSeason.chunked(10).forEach { linha ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                            linha.forEach { ep ->
+                                val n = if (ep.episode > 0) ep.episode else inSeason.indexOf(ep) + 1
+                                val p = progress[ep.id]
+                                BotaoNumero(
+                                    if (ep.id == ultimo?.id) "▶" else "$n",
+                                    visto = p != null && p.duration > 0 && p.position > p.duration * 0.9,
+                                ) {
+                                    b.focusId = ep.id
+                                    onPlay(ep, show)
+                                }
+                            }
+                        }
+                    }
                 }
             }
+            Recomendados(vm, io.github.axon07.channelbox.data.VodKind.SERIES, show) { b.openShow(it) }
         }
     }
-}
 }
 
 @Composable
@@ -678,88 +663,188 @@ private fun MovieDetail(
     onPlay: (VodEntity, VodEntity?) -> Unit,
 ) {
     var ficha by remember(movie.id) { mutableStateOf<io.github.axon07.channelbox.data.ZarkInfo?>(null) }
-    var carregou by remember(movie.id) { mutableStateOf(false) }
-    LaunchedEffect(movie.id) {
-        ficha = vm.zarkFicha(movie)
-        carregou = true
-    }
+    LaunchedEffect(movie.id) { ficha = vm.zarkFicha(movie) }
     val play = remember { FocusRequester() }
     LaunchedEffect(movie.id) {
-        delay(120)
+        delay(150)
         runCatching { play.requestFocus() }
     }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     val retrato = androidx.compose.ui.platform.LocalConfiguration.current.let { it.screenHeightDp > it.screenWidthDp }
+    val assistir = {
+        b.focusId = movie.id
+        onPlay(movie, null)
+    }
     Box(Modifier.fillMaxSize().background(Palette.Background)) {
         (ficha?.fundo ?: movie.poster)?.let { FundoFicha(it) }
-        val conteudo: @Composable () -> Unit = {
-            Text(movie.title, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            val nota = (ficha?.nota ?: movie.rating)?.toDoubleOrNull()
-            if (nota != null && nota > 0) {
-                val estrelas = (nota / 2).toInt().coerceIn(0, 5)
-                Text("★".repeat(estrelas) + "☆".repeat(5 - estrelas) + "  (${"%.1f".format(nota)})", color = Color(0xFFFFC107), fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
+        Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = if (retrato) 18.dp else 36.dp, vertical = 24.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1.25f)) {
+                    FichaCabecalho(movie.title, ficha, movie.plot, movie.rating, movie.year, null)
+                }
+                if (!retrato) {
+                    Spacer(Modifier.width(24.dp))
+                    // Prévia com o botão play vermelho (como na UniTV).
+                    var f by remember { mutableStateOf(false) }
+                    Surface(
+                        onClick = assistir,
+                        modifier = Modifier.weight(1f).aspectRatio(16f / 9f).onFocusChanged { f = it.isFocused }
+                            .border(if (f) 3.dp else 2.dp, if (f) Color(0xFFFFE082) else Color(0x99FFE0B2), RoundedCornerShape(4.dp))
+                            .tap(onClick = assistir),
+                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+                        colors = ClickableSurfaceDefaults.colors(containerColor = Color.Black, focusedContainerColor = Color.Black),
+                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+                    ) {
+                        Box(Modifier.fillMaxSize()) {
+                            AsyncImage(ficha?.fundo ?: movie.poster, movie.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                            Box(
+                                Modifier.align(Alignment.Center).size(64.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(Brush.radialGradient(listOf(Color(0xFFFF5252), Color(0xFFC62828)))),
+                                contentAlignment = Alignment.Center,
+                            ) { AppIcon(AppIcons.Play, tint = Color.White, size = 30.dp) }
+                        }
+                    }
+                }
             }
-            val meta = listOfNotNull(ficha?.data ?: movie.year, ficha?.duracao).joinToString("  ·  ")
-            if (meta.isNotEmpty()) Text(meta, color = Color(0xFF7FB8FF), fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
-            ficha?.genero?.let { Text(it, color = Color(0xFF7CD992), fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp)) }
-            ficha?.diretor?.let { Text("Direção: $it", color = Color(0xFFDDDDDD), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp)) }
-            ficha?.elenco?.let { Text("Elenco: $it", color = Color(0xFF7FB8FF), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)) }
-            val sinopse = ficha?.sinopse ?: movie.plot
-            Text(
-                sinopse ?: if (carregou) "Sinopse não disponível." else "Carregando informações…",
-                color = Color(0xFFEEEEEE), fontSize = 15.sp, lineHeight = 21.sp, maxLines = 7, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 12.dp),
-            )
             Spacer(Modifier.height(18.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
-                Box(Modifier.width(240.dp).focusRequester(play)) {
-                    BotaoCheio(if (progress != null && progress.position > 0) "▶  Continuar" else "▶  Assistir", Palette.Accent) {
-                        b.focusId = movie.id
-                        onPlay(movie, null)
-                    }
-                }
-                val ctxExt = androidx.compose.ui.platform.LocalContext.current
-                Box(Modifier.width(200.dp)) {
-                    BotaoContorno("Player externo", cor = Color(0x55FFFFFF)) {
-                        movie.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctxExt, it, movie.title) }
-                    }
-                }
-                Box(Modifier.width(160.dp)) {
-                    BotaoContorno("‹ Voltar", cor = Color(0x55FFFFFF)) {
-                        b.movie = null
-                        b.focusToken++
-                        b.voltarInicio?.invoke()
-                    }
+                BotaoFicha(if (progress != null && progress.position > 0) "⛶  Continuar" else "⛶  Tela cheia", true, Modifier.focusRequester(play)) { assistir() }
+                BotaoFicha("Player externo", false) { movie.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, movie.title) } }
+                BotaoFicha("‹ Voltar", false) {
+                    b.movie = null
+                    b.focusToken++
+                    b.voltarInicio?.invoke()
                 }
             }
-            // Você também pode gostar (mesma categoria).
-            val parecidos by remember(movie.id) {
-                vm.vodTop(VodKind.MOVIE, movie.category, 16).let { f ->
-                    kotlinx.coroutines.flow.flow { f.collect { l -> emit(l.filter { it.id != movie.id }.take(15)) } }
-                }
-            }.collectAsState(initial = emptyList())
-            if (parecidos.isNotEmpty()) {
-                Spacer(Modifier.height(18.dp))
-                Text("Você também pode gostar", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(parecidos, key = { it.id }) { p -> PosterTile(p, 110.dp, 165.dp) { b.movie = p } }
-                }
+            Recomendados(vm, VodKind.MOVIE, movie) { b.movie = it }
+        }
+    }
+}
+
+/** Título, nota, data, gêneros em etiquetas, direção, elenco e sinopse (com "Mais"). */
+@Composable
+private fun FichaCabecalho(
+    titulo: String,
+    ficha: io.github.axon07.channelbox.data.ZarkInfo?,
+    plot: String?,
+    rating: String?,
+    ano: String?,
+    destaque: String?,
+) {
+    var mais by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(titulo, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        (ficha?.nota ?: rating)?.toDoubleOrNull()?.takeIf { it > 0 }?.let {
+            Spacer(Modifier.width(12.dp))
+            Text(String.format(java.util.Locale.US, "%.1f", it), color = Color(0xFFFFC107), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+    val meta = listOfNotNull(ficha?.data ?: ano, ficha?.duracao).joinToString("  |  ")
+    if (meta.isNotEmpty()) Text(meta, color = Color(0xFFB0C4FF), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
+    destaque?.let { Text(it, color = Color(0xFFFFC107), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp)) }
+    val generos = ficha?.genero?.split(",", "/", "|")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+    if (generos.isNotEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 10.dp)) {
+            Text("Gênero : ", color = Color(0xFFB0C4FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            generos.take(5).forEach { g ->
+                Text(
+                    g, color = Color.White, fontSize = 14.sp,
+                    modifier = Modifier.padding(end = 6.dp).border(1.5.dp, Color.White, RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 2.dp),
+                )
             }
         }
-        if (retrato) {
-            Column(
-                Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(20.dp),
-            ) {
-                PosterImage(ficha?.capa ?: movie.poster, movie.title, Modifier.width(170.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(10.dp)))
-                Spacer(Modifier.height(16.dp))
-                conteudo()
-            }
-        } else {
-            Row(Modifier.fillMaxSize().padding(36.dp), verticalAlignment = Alignment.Top) {
-                PosterImage(ficha?.capa ?: movie.poster, movie.title, Modifier.width(230.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(10.dp)))
-                Spacer(Modifier.width(30.dp))
-                Column(Modifier.weight(1f).verticalScroll(androidx.compose.foundation.rememberScrollState())) { conteudo() }
+    }
+    LinhaInfo("Direção", ficha?.diretor)
+    LinhaInfo("Elenco", ficha?.elenco)
+    val sinopse = ficha?.sinopse ?: plot
+    Row(Modifier.padding(top = 6.dp)) {
+        Text("Sinopse :  ", color = Color(0xFFB0C4FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Column {
+            Text(sinopse ?: "Sem informações", color = Color.White, fontSize = 15.sp, lineHeight = 21.sp, maxLines = if (mais) 20 else 3, overflow = TextOverflow.Ellipsis)
+            if (!mais && (sinopse?.length ?: 0) > 160) {
+                Text("Mais", color = Color(0xFFFF5252), fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.tap(onClick = { mais = true }).padding(vertical = 4.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun LinhaInfo(rotulo: String, valor: String?) {
+    Row(Modifier.padding(top = 6.dp)) {
+        Text("$rotulo :  ", color = Color(0xFFB0C4FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text(valor ?: "Sem informações", color = Color.White, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Botão da ficha (Tela cheia, Player externo, Temporada…): cinza-azulado, vermelho no foco. */
+@Composable
+private fun BotaoFicha(label: String, principal: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(50.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (principal) Color(0xCCB71C1C) else Color(0x998E99C9),
+            focusedContainerColor = Color(0xFFE53935),
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
+    ) {
+        Box(Modifier.padding(horizontal = 24.dp).fillMaxHeight(), contentAlignment = Alignment.Center) {
+            Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun BotaoLista(label: String, marcado: Boolean, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(48.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(0.dp)),
+        colors = ClickableSurfaceDefaults.colors(containerColor = if (marcado) Color(0xFFE53935) else Color.Transparent, focusedContainerColor = Color(0xFFE53935)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+    ) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, color = if (marcado || f) Color.White else Color(0xFF555555), fontSize = 17.sp, modifier = Modifier.weight(1f))
+            if (marcado) Text("✓", color = Color.White, fontSize = 17.sp)
+        }
+    }
+}
+
+@Composable
+private fun BotaoNumero(label: String, visto: Boolean, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(width = 86.dp, height = 52.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(3.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (visto) Color(0x665C6BC0) else Color(0xB38E99C9),
+            focusedContainerColor = Color(0xFFE53935),
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(label, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+/** "Você também pode gostar": títulos da mesma categoria. */
+@Composable
+private fun Recomendados(vm: TvViewModel, kind: String, atual: VodEntity, onOpen: (VodEntity) -> Unit) {
+    val parecidos by remember(atual.id) {
+        vm.vodTop(kind, atual.category, 16).let { f ->
+            kotlinx.coroutines.flow.flow { f.collect { l -> emit(l.filter { it.id != atual.id }.take(15)) } }
+        }
+    }.collectAsState(initial = emptyList())
+    if (parecidos.isEmpty()) return
+    Spacer(Modifier.height(22.dp))
+    Text("Você também pode gostar", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(10.dp))
+    androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        items(parecidos, key = { it.id }) { p -> PosterTile(p, 120.dp, 180.dp) { onOpen(p) } }
     }
 }

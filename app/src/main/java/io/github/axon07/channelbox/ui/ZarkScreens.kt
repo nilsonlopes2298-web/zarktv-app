@@ -224,6 +224,12 @@ fun ZarkLoginScreen(
 /** Tela "Carregando conteúdo": Canais, Filmes e Séries, Guia — como no app antigo, com a marca ZarkTV. */
 @Composable
 fun ZarkCarregando(refreshState: RefreshState) {
+    // ZarkTV: o cliente vê só a abertura (logo + versão); o conteúdo carrega por trás.
+    ZarkAbertura(io.github.axon07.channelbox.BuildConfig.VERSION_NAME, carregando = true)
+}
+
+@Composable
+private fun ZarkCarregandoEtapas(refreshState: RefreshState) {
     val msg = (refreshState as? RefreshState.Running)?.message.orEmpty()
     val etapa = when {
         refreshState is RefreshState.Done -> 3
@@ -356,7 +362,7 @@ fun BotaoContorno(label: String, cor: Color, texto: Color = Color.White, fundo: 
 
 /** Abertura do app: logo e versão no centro, como na UniTV. */
 @Composable
-fun ZarkAbertura(versao: String) {
+fun ZarkAbertura(versao: String, carregando: Boolean = false) {
     Box(
         Modifier
             .fillMaxSize()
@@ -374,6 +380,14 @@ fun ZarkAbertura(versao: String) {
             ZarkMarca(30)
             Spacer(Modifier.height(8.dp))
             Text("V $versao", color = Palette.TextDim, fontSize = 14.sp)
+            if (carregando) {
+                Spacer(Modifier.height(26.dp))
+                val giro = rememberInfiniteTransition(label = "abertura")
+                val ang by giro.animateFloat(0f, 360f, infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Restart), label = "g")
+                Canvas(Modifier.size(34.dp)) {
+                    drawArc(Palette.Accent, ang, 270f, false, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round))
+                }
+            }
         }
     }
 }

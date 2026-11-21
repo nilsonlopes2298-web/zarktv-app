@@ -222,6 +222,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var vodDeInicio by remember { mutableStateOf(false) }
     /** Link do filme/episódio tocando agora (para abrir no player externo). */
     var vodUrlAtual by remember { mutableStateOf<String?>(null) }
+    var vodPosterAtual by remember { mutableStateOf<String?>(null) }
     /** ZarkTV: na tela cheia, ◀ na lista de canais abre os grupos ao lado (sem sair da TV). */
     var gruposAbertos by remember { mutableStateOf(false) }
     var grupoIndex by remember { mutableIntStateOf(0) }
@@ -643,6 +644,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     fun startVod(item: VodEntity, show: VodEntity?, at: Long) {
         vodResume = null
         vodUrlAtual = item.url
+        vodPosterAtual = show?.poster ?: item.poster
         // ZarkTV: cliente escolheu player externo (VLC, MX…) para filmes e séries.
         if (playerExterno && item.url != null &&
             io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(zarkCtx, item.url, show?.title ?: item.title)
@@ -1548,6 +1550,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                             buffering = pbBuffering,
                             ended = pbEnded,
                             skipped = pbSkipped,
+                            poster = if (playbackReturn == Mode.VOD) vodPosterAtual else null,
                         ),
                         visible = playbackOverlay,
                         onToggle = { togglePause() },
@@ -1654,8 +1657,17 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     userName = pl?.xtUser.orEmpty(),
                     conta = conta,
                     channels = visible,
-                    favChannels = remember(allChannels, favorites) { allChannels.filter { it.id in favorites } },
+                    favChannels = emptyList(),
                     groupLabel = vm.filterTitle(filter, menuSections),
+                    groups = filtrosLista.map { f -> f to (Aba.rotulo(f, vm.filterTitle(f, menuSections)) + (filterCounts[f]?.let { "  ($it)" } ?: "")) },
+                    currentGroup = filter,
+                    onGroup = { vm.setFilter(it) },
+                    onAssistirJogo = {
+                        // Abre a TV no grupo de jogos/esportes, se existir.
+                        filtrosLista.firstOrNull { f -> Regex("jogos|esporte|futebol|premiere", RegexOption.IGNORE_CASE).containsMatchIn(vm.filterTitle(f, menuSections)) }
+                            ?.let { vm.setFilter(it) }
+                        homeTab = Aba.TV
+                    },
                     current = current,
                     favorites = favorites,
                     upcoming = upcoming,
@@ -1984,7 +1996,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     playingId = cur?.id,
                     upcoming = upcoming,
                     now = now,
-                    grupos = filtrosLista.map { f -> vm.filterTitle(f, menuSections) + (filterCounts[f]?.let { "  ($it)" } ?: "") },
+                    grupos = filtrosLista.map { f -> Aba.rotulo(f, vm.filterTitle(f, menuSections)) + (filterCounts[f]?.let { "  ($it)" } ?: "") },
                     grupoSel = if (gruposAbertos) grupoIndex else -1,
                     grupoAtual = filtrosLista.indexOf(filter),
                     gruposAbertos = gruposAbertos,
