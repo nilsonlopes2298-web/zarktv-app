@@ -39,6 +39,10 @@ object ZarkLayout {
         p(c).getString("layout_local", null) ?: io.github.axon07.channelbox.data.ZarkPainel.extras(c).layout ?: "padrao"
 
     fun atualizar(c: Context) {
+        // Uma vez só: quem trocou o layout nos testes volta para o padrão UniTV.
+        if (!p(c).getBoolean("layout_reset_v1", false)) {
+            p(c).edit().remove("layout_local").putBoolean("layout_reset_v1", true).apply()
+        }
         leve.value = when (escolha(c).lowercase()) {
             "leve", "lite", "lista", "zplay", "simples" -> true
             "auto" -> ZarkLeve.ativo
