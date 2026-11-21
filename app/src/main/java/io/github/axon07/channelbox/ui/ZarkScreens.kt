@@ -162,20 +162,21 @@ fun ZarkLoginScreen(
         runCatching { first.requestFocus() }
     }
 
-    ZarkFundo {
+    // Proporção por aparelho: TV/tablet deitado = marca à esquerda e cartão compacto à direita;
+    // celular em pé = marca em cima e cartão na largura da tela.
+    val cfg = androidx.compose.ui.platform.LocalConfiguration.current
+    val deitado = cfg.screenWidthDp > cfg.screenHeightDp
+    val baixo = cfg.screenHeightDp < 600
+    val formulario: @Composable () -> Unit = {
         Column(
             Modifier
-                .widthIn(max = 480.dp)
-                .padding(20.dp)
-                .background(Color(0xE6141414), RoundedCornerShape(20.dp))
-                .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(20.dp))
-                .padding(horizontal = 26.dp, vertical = 26.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .background(Color(0xF0121212), RoundedCornerShape(14.dp))
+                .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(14.dp))
+                .padding(horizontal = 22.dp, vertical = if (baixo) 16.dp else 22.dp),
+            verticalArrangement = Arrangement.spacedBy(if (baixo) 8.dp else 12.dp),
         ) {
-            ZarkMarca()
-            Text("Login na sua conta", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-
+            Text("Entrar", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text("Use o usuário e a senha que você recebeu.", color = Palette.TextDim, fontSize = 12.sp)
             Box(Modifier.focusRequester(first)) {
                 TvTextField("Usuário", user, { user = it; erro = null })
             }
@@ -186,21 +187,21 @@ fun ZarkLoginScreen(
                 Spacer(Modifier.width(8.dp))
                 PillButton(if (verSenha) "Ocultar" else "Mostrar") { verSenha = !verSenha }
             }
-
-            Caixinha("Lembrar de mim", lembrar) { lembrar = !lembrar }
-
-            BotaoContorno(
-                if (manual) "Servidor: ${servers.getOrNull(sel)?.name ?: "—"} (toque para automático)" else "Escolher o servidor manualmente",
-                cor = Color(0x33FFFFFF),
-            ) { manual = !manual }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Caixinha("Lembrar de mim", lembrar) { lembrar = !lembrar }
+                Spacer(Modifier.weight(1f))
+                Text(
+                    if (manual) "Servidor automático" else "Escolher servidor",
+                    color = Palette.TextDim, fontSize = 12.sp,
+                    modifier = Modifier.tap(onClick = { manual = !manual }),
+                )
+            }
             if (manual) {
                 androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(servers.size) { i ->
                         PillButton(servers[i].name, primary = i == sel) { selName = servers[i].name }
                     }
                 }
-            } else {
-                Text("O servidor é escolhido automaticamente.", color = Palette.TextDim, fontSize = 12.sp)
             }
 
             erro?.let { Text(it, color = Palette.Error, fontSize = 13.sp) }
@@ -208,15 +209,62 @@ fun ZarkLoginScreen(
                 Text(refreshState.message, color = Palette.Error, fontSize = 13.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
             }
 
-            BotaoCheio(if (testing) "Conferindo…" else "Entrar", Palette.Accent, enabled = canEnter, onClick = entrar)
-            BotaoContorno("Ver planos", cor = Color(0xFFD4A017), texto = Color(0xFFFFD34D), fundo = Color(0x33D4A017)) {
-                runCatching { uri.openUri(ZarkConfig.checkoutUrl(context, user.trim(), servers.getOrNull(sel)?.name.orEmpty())) }
+            BotaoCheio(if (testing) "Conferindo…" else "Entrar", Palette.Accent, enabled = canEnter, altura = if (baixo) 44 else 48, onClick = entrar)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.weight(1f)) {
+                    BotaoContorno("Ver planos", cor = Color(0x44FFFFFF), altura = if (baixo) 40 else 44) {
+                        runCatching { uri.openUri(ZarkConfig.checkoutUrl(context, user.trim(), servers.getOrNull(sel)?.name.orEmpty())) }
+                    }
+                }
+                Box(Modifier.weight(1f)) {
+                    BotaoContorno("Suporte", cor = Color(0x44FFFFFF), altura = if (baixo) 40 else 44) {
+                        runCatching { uri.openUri(ZarkConfig.WHATSAPP) }
+                    }
+                }
             }
+            if (!manual) Text("O servidor é escolhido sozinho.", color = Color(0x66FFFFFF), fontSize = 11.sp)
             Text(
                 "Opções avançadas",
-                color = Color(0x66FFFFFF), fontSize = 11.sp, textAlign = TextAlign.Center,
+                color = Color(0x55FFFFFF), fontSize = 11.sp, textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().tap(onClick = onAdvanced),
             )
+        }
+    }
+    val versao = io.github.axon07.channelbox.BuildConfig.VERSION_NAME
+
+    ZarkFundo {
+        if (deitado) {
+            Row(
+                Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = 32.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Zark", color = Color.White, fontSize = 44.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
+                        Text("TV", color = Palette.Accent, fontSize = 44.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text("Canais ao vivo, filmes e séries\nno celular, na TV Box e na Smart TV.", color = Color(0xCCFFFFFF), fontSize = 16.sp, lineHeight = 22.sp)
+                    Spacer(Modifier.height(18.dp))
+                    Box(Modifier.width(48.dp).height(3.dp).background(Palette.Accent, RoundedCornerShape(2.dp)))
+                    Spacer(Modifier.height(18.dp))
+                    Text("Versão $versao", color = Color(0x66FFFFFF), fontSize = 12.sp)
+                }
+                Box(Modifier.width(380.dp).verticalScroll(rememberScrollState())) { formulario() }
+            }
+        } else {
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                ZarkMarca(tamanho = 32)
+                Spacer(Modifier.height(6.dp))
+                Text("Canais, filmes e séries", color = Color(0xAAFFFFFF), fontSize = 13.sp)
+                Spacer(Modifier.height(24.dp))
+                Box(Modifier.widthIn(max = 440.dp).fillMaxWidth()) { formulario() }
+                Spacer(Modifier.height(16.dp))
+                Text("Versão $versao", color = Color(0x55FFFFFF), fontSize = 11.sp)
+            }
         }
     }
 }
@@ -322,11 +370,11 @@ private fun Caixinha(label: String, marcado: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun BotaoCheio(label: String, cor: Color, enabled: Boolean = true, onClick: () -> Unit) {
+fun BotaoCheio(label: String, cor: Color, enabled: Boolean = true, altura: Int = 52, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().height(52.dp).onFocusChanged { focused = it.isFocused }
+        modifier = Modifier.fillMaxWidth().height(altura.dp).onFocusChanged { focused = it.isFocused }
             .border(if (focused) 3.dp else 0.dp, if (focused) Color.White else Color.Transparent, RoundedCornerShape(12.dp))
             .tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
@@ -337,17 +385,17 @@ fun BotaoCheio(label: String, cor: Color, enabled: Boolean = true, onClick: () -
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text(label, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
 
 @Composable
-fun BotaoContorno(label: String, cor: Color, texto: Color = Color.White, fundo: Color = Color(0x14FFFFFF), onClick: () -> Unit) {
+fun BotaoContorno(label: String, cor: Color, texto: Color = Color.White, fundo: Color = Color(0x14FFFFFF), altura: Int = 50, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().height(50.dp).onFocusChanged { focused = it.isFocused }
+        modifier = Modifier.fillMaxWidth().height(altura.dp).onFocusChanged { focused = it.isFocused }
             .border(if (focused) 3.dp else 1.5.dp, if (focused) Color.White else cor, RoundedCornerShape(12.dp))
             .tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
@@ -355,7 +403,7 @@ fun BotaoContorno(label: String, cor: Color, texto: Color = Color.White, fundo: 
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
     ) {
         Box(Modifier.fillMaxSize().padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
-            Text(label, color = texto, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(label, color = texto, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
