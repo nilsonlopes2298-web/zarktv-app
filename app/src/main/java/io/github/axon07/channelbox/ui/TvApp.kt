@@ -734,11 +734,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 liveFocus != null && touchBar -> liveFocus?.let { pressLiveSlot(it) }
                 digits.isNotEmpty() -> commitDigits()
                 allChannels.isEmpty() -> mode = Mode.SETTINGS
-                // OK shows the control bar with Pause highlighted: OK again pauses.
+                // ZarkTV: OK na tela cheia abre a lista de canais do lado esquerdo (como no UniTV).
                 current != null -> {
                     bannerVisible = false
-                    liveFocus = LiveSlot.PAUSE
-                    touchBarToken++
+                    openList()
                 }
                 else -> openList()
             }
@@ -864,7 +863,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         listIndex = (listIndex - 8).coerceAtLeast(0)
                     AndroidKeyEvent.KEYCODE_CHANNEL_DOWN, AndroidKeyEvent.KEYCODE_PAGE_DOWN ->
                         listIndex = (listIndex + 8).coerceAtMost((size - 1).coerceAtLeast(0))
-                    AndroidKeyEvent.KEYCODE_DPAD_LEFT -> { vm.cycleFilter(-1); listIndex = 0 }
+                    // ZarkTV: ◀ abre os grupos de canais.
+                    AndroidKeyEvent.KEYCODE_DPAD_LEFT -> openGroups()
                     AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> { vm.cycleFilter(1); listIndex = 0 }
                     AndroidKeyEvent.KEYCODE_GUIDE, AndroidKeyEvent.KEYCODE_MENU -> openGuide()
                     AndroidKeyEvent.KEYCODE_LAST_CHANNEL -> { vm.previousChannel(); mode = Mode.PLAYER }
