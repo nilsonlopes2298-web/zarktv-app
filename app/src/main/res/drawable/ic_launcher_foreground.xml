@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Channelbox logo: a TV screen showing a programme guide. Adaptive-icon foreground (108dp, 66dp safe zone). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="55"
+        android:scaleX="1.05"
+        android:scaleY="1.05"
+        android:translateY="-1">
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="5" android:pathData="M36.0,31.5 H72.0 A7.5,7.5 0 0 1 79.5,39.0 V61.0 A7.5,7.5 0 0 1 72.0,68.5 H36.0 A7.5,7.5 0 0 1 28.5,61.0 V39.0 A7.5,7.5 0 0 1 36.0,31.5 Z" />
+        <path android:fillColor="#FFFFFFFF" android:fillAlpha="1" android:pathData="M38.5,40 H44.5 A2.5,2.5 0 0 1 47,42.5 V42.5 A2.5,2.5 0 0 1 44.5,45 H38.5 A2.5,2.5 0 0 1 36,42.5 V42.5 A2.5,2.5 0 0 1 38.5,40 Z" />
+        <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.55" android:pathData="M52.0,40 H69.5 A2.5,2.5 0 0 1 72.0,42.5 V42.5 A2.5,2.5 0 0 1 69.5,45 H52.0 A2.5,2.5 0 0 1 49.5,42.5 V42.5 A2.5,2.5 0 0 1 52.0,40 Z" />
+        <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.55" android:pathData="M38.5,47.5 H54.5 A2.5,2.5 0 0 1 57,50.0 V50.0 A2.5,2.5 0 0 1 54.5,52.5 H38.5 A2.5,2.5 0 0 1 36,50.0 V50.0 A2.5,2.5 0 0 1 38.5,47.5 Z" />
+        <path android:fillColor="#FFFFFFFF" android:fillAlpha="1" android:pathData="M62.0,47.5 H69.5 A2.5,2.5 0 0 1 72.0,50.0 V50.0 A2.5,2.5 0 0 1 69.5,52.5 H62.0 A2.5,2.5 0 0 1 59.5,50.0 V50.0 A2.5,2.5 0 0 1 62.0,47.5 Z" />
+        <path android:fillColor="#FFFFFFFF" android:fillAlpha="1" android:pathData="M38.5,55 H48.5 A2.5,2.5 0 0 1 51,57.5 V57.5 A2.5,2.5 0 0 1 48.5,60 H38.5 A2.5,2.5 0 0 1 36,57.5 V57.5 A2.5,2.5 0 0 1 38.5,55 Z" />
+        <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.55" android:pathData="M56.0,55 H69.5 A2.5,2.5 0 0 1 72.0,57.5 V57.5 A2.5,2.5 0 0 1 69.5,60 H56.0 A2.5,2.5 0 0 1 53.5,57.5 V57.5 A2.5,2.5 0 0 1 56.0,55 Z" />
+        <path android:fillColor="#FFFFFFFF" android:fillAlpha="1" android:pathData="M45.5,73.5 H62.5 A2.5,2.5 0 0 1 65,76.0 V76.0 A2.5,2.5 0 0 1 62.5,78.5 H45.5 A2.5,2.5 0 0 1 43,76.0 V76.0 A2.5,2.5 0 0 1 45.5,73.5 Z" />
+    </group>
+</vector>

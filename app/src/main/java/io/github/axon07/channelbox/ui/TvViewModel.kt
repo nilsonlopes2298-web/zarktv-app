@@ -1,0 +1,1609 @@
+package io.github.axon07.channelbox.ui
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import io.github.axon07.channelbox.container
+import io.github.axon07.channelbox.data.AppSettings
+import io.github.axon07.channelbox.data.BackAction
+import io.github.axon07.channelbox.data.REFRESH_CHOICES
+import io.github.axon07.channelbox.system.RefreshWorker
+import io.github.axon07.channelbox.data.ChannelEntity
+import io.github.axon07.channelbox.data.ProgramEntity
+import io.github.axon07.channelbox.data.RecStatus
+import io.github.axon07.channelbox.data.RecordingEntity
+import io.github.axon07.channelbox.data.ReleaseInfo
+import io.github.axon07.channelbox.data.StreamSpecs
+import io.github.axon07.channelbox.data.RefreshState
+import io.github.axon07.channelbox.data.Playlist
+import io.github.axon07.channelbox.data.OverrideEntity
+import io.github.axon07.channelbox.player.Timeshift
+import io.github.axon07.channelbox.data.VodCategory
+import io.github.axon07.channelbox.data.VodEntity
+import io.github.axon07.channelbox.data.VodKind
+import io.github.axon07.channelbox.data.VodProgressEntity
+import kotlinx.coroutines.flow.Flow
+import io.github.axon07.channelbox.data.TvRepository.Companion.HOUR
+import io.github.axon07.channelbox.player.PlayerOptions
+import io.github.axon07.channelbox.player.TvPlayer
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import io.github.axon07.channelbox.data.NetworkSettings
+import io.github.axon07.channelbox.data.StorageSettings
+import io.github.axon07.channelbox.data.UserAgent
+import io.github.axon07.channelbox.data.download
+import io.github.axon07.channelbox.system.VpnManager
+import io.github.axon07.channelbox.data.Catchup
+import io.github.axon07.channelbox.data.StreamSpec
+
+/** A row of the groups menu. */
+sealed interface MenuRow {
+    /** A playlist's heading; selecting it opens or closes the section. */
+    data class Header(val key: String, val label: String, val open: Boolean, val collapsible: Boolean) : MenuRow
+    data class Item(val filter: ChannelFilter, val section: String, val indented: Boolean) : MenuRow
+}
+
+sealed interface ChannelFilter {
+    val label: String
+
+    data object All : ChannelFilter {
+        override val label = "All channels"
+    }
+
+    data object Favorites : ChannelFilter {
+        override val label = "Favourites"
+    }
+
+    /** Every channel from one playlist (shown when more than one is in use). */
+    data class Source(val id: String, val name: String) : ChannelFilter {
+        override val label: String get() = name
+    }
+
+    /** A group; with several playlists, [playlistId] keeps each playlist's groups apart. */
+    data class Group(val name: String, val playlistId: String? = null) : ChannelFilter {
+        override val label: String get() = if (name == UNGROUPED) "Other channels" else name
+    }
+
+    companion object {
+        /** Group name the playlist parsers give channels without a group. */
+        const val UNGROUPED = "Uncategorized"
+    }
+}
+
+/** Most titles listed at once in a category (search finds the rest). */
+const val VOD_PAGE = 3_000
+const val VOD_SEARCH_LIMIT = 300
+
+/** Pseudo-category: movies / shows you've started. */
+const val VOD_CONTINUE = "\u0000continue"
+
+/** How much of the timeline the guide shows at once. */
+const val GUIDE_SPAN = 2 * HOUR
+const val GUIDE_STEP = HOUR / 2
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class TvViewModel(app: Application) : AndroidViewModel(app) {
+
+    private val c = app.container
+    private val repo = c.repository
+    // The audio decoder choice is read once at start (changing it takes effect after a restart).
+    /** Engine options are read once: changing them takes effect the next time Channelbox starts. */
+    private val playerOptions = runBlocking {
+        c.settings.current().let {
+            PlayerOptions(
+                softwareAudio = it.preferSoftwareAudio,
+                softwareVideo = it.softwareVideo,
+                dolbyVision = it.dolbyVision,
+                buffer = it.bufferSize,
+                passthrough = it.audioPassthrough,
+            )
+        }
+    }
+    val player = TvPlayer(app, c.http, playerOptions)
+
+    /** Extra players for multi-view (released when multi-view closes). */
+    fun newTilePlayer(): TvPlayer = TvPlayer(getApplication(), c.http, playerOptions, handleAudioFocus = false).also {
+        it.storageSettings = { settings.value?.storage ?: StorageSettings() }
+        it.captionsByDefault = { settings.value?.captionsByDefault ?: false }
+    }
+
+    /** True while the app is shrunk to a picture-in-picture window. */
+    val inPip = MutableStateFlow(false)
+
+    val settings: StateFlow<AppSettings?> = c.settings.flow
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val refreshState: StateFlow<RefreshState> = repo.state
+
+    /** False until the saved channels have been read at start-up (so "no channels" isn't flashed). */
+    val channelsLoaded: StateFlow<Boolean> = combine(repo.channels, c.settings.flow) { _, _ -> true }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    // ---- Your changes: names, numbers, order, hidden, locked ----------------------------------
+
+    val overrides: StateFlow<Map<String, OverrideEntity>> = repo.overrides
+        .map { list -> list.associateBy { it.id } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    /** Renamed group → the playlist's name for it (overrides are kept under the original). */
+    @Volatile private var groupOriginals: Map<String, String> = emptyMap()
+
+    fun originalGroup(shown: String): String = groupOriginals[shown] ?: shown
+
+    /** The playlist's channels with your names, numbers and hidden items applied. */
+    val allChannels: StateFlow<List<ChannelEntity>> = combine(repo.channels, overrides, c.settings.flow) { saved, ov, s ->
+        // Only channels of playlists that exist and are on: a removed playlist disappears at once,
+        // without waiting for the reload that deletes its rows.
+        val live = s.playlists.filter { it.enabled }.mapTo(HashSet()) { it.id }
+        val list = saved.filter { playlistOf(it) in live }
+        if (ov.isEmpty()) {
+            groupOriginals = emptyMap()
+            return@combine list
+        }
+        val originals = HashMap<String, String>()
+        var renumbered = false
+        val out = list.mapNotNull { ch ->
+            val g = ov[groupKey(ch.groupTitle)]
+            val o = ov[channelKey(ch.id)]
+            if (g?.hidden == true || o?.hidden == true) return@mapNotNull null
+            var c = ch
+            o?.name?.let { c = c.copy(name = it) }
+            o?.position?.let {
+                c = c.copy(number = it)
+                renumbered = true
+            }
+            g?.name?.let {
+                originals[it] = ch.groupTitle
+                c = c.copy(groupTitle = it)
+            }
+            c
+        }
+        groupOriginals = originals
+        if (renumbered) out.sortedBy { it.number } else out
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Channels and groups you've hidden, to show again from Settings. */
+    data class HiddenItem(val id: String, val label: String, val isGroup: Boolean)
+
+    val hiddenItems: StateFlow<List<HiddenItem>> = combine(repo.channels, overrides) { list, ov ->
+        val groups = ov.values.filter { it.hidden && it.id.startsWith("grp:") }
+            .map { HiddenItem(it.id, groupLabel(it.id.removePrefix("grp:")), true) }
+        val channels = list.filter { ov[channelKey(it.id)]?.hidden == true }
+            .map { HiddenItem(channelKey(it.id), ov[channelKey(it.id)]?.name ?: it.name, false) }
+        groups.sortedBy { it.label.lowercase() } + channels.sortedBy { it.label.lowercase() }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Locked channels, groups and categories, to unlock from Settings. */
+    val lockedItems: StateFlow<List<HiddenItem>> = combine(repo.channels, overrides) { list, ov ->
+        val names = list.associate { channelKey(it.id) to it.name }
+        ov.values.filter { it.locked }.map { o ->
+            when {
+                o.id.startsWith("grp:") -> HiddenItem(o.id, "Group: " + groupLabel(o.id.removePrefix("grp:")), true)
+                o.id.startsWith("vod:") -> HiddenItem(o.id, (if (o.id.startsWith("vod:movie:")) "Movies: " else "TV Shows: ") + o.id.substringAfter(':').substringAfter(':'), true)
+                else -> HiddenItem(o.id, o.name ?: names[o.id] ?: "Channel", false)
+            }
+        }.sortedBy { it.label.lowercase() }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private fun groupLabel(name: String) = if (name == ChannelFilter.UNGROUPED) "Other channels" else name
+
+    private fun edit(id: String, change: (OverrideEntity) -> OverrideEntity) = viewModelScope.launch {
+        repo.putOverrides(listOf(change(overrides.value[id] ?: OverrideEntity(id))))
+    }
+
+    fun renameChannel(ch: ChannelEntity, name: String?) =
+        edit(channelKey(ch.id)) { it.copy(name = name?.trim()?.takeIf { n -> n.isNotEmpty() }) }
+
+    fun setChannelNumber(ch: ChannelEntity, number: Int?) = edit(channelKey(ch.id)) { it.copy(position = number) }
+
+    fun setChannelHidden(ch: ChannelEntity, hidden: Boolean) {
+        edit(channelKey(ch.id)) { it.copy(hidden = hidden) }
+        if (hidden) showToast("${ch.name} hidden – show it again in Settings → Parental controls & hidden")
+    }
+
+    fun renameGroup(shown: String, name: String?) =
+        edit(groupKey(originalGroup(shown))) { it.copy(name = name?.trim()?.takeIf { n -> n.isNotEmpty() }) }
+
+    fun setGroupHidden(shown: String, hidden: Boolean) {
+        edit(groupKey(originalGroup(shown))) { it.copy(hidden = hidden) }
+        if (hidden) showToast("${groupLabel(shown)} hidden – show it again in Settings → Parental controls & hidden")
+    }
+
+    /** Moves a group up (-1) or down (+1) in the groups menu. */
+    fun moveGroup(shown: String, delta: Int) = viewModelScope.launch {
+        val order = menuSections.value.flatMap { it.filters }.filterIsInstance<ChannelFilter.Group>()
+            .map { originalGroup(it.name) }.distinct()
+        val i = order.indexOf(originalGroup(shown))
+        val j = i + delta
+        if (i < 0 || j !in order.indices) return@launch
+        val moved = order.toMutableList().apply { add(j, removeAt(i)) }
+        repo.putOverrides(moved.mapIndexed { index, g ->
+            (overrides.value[groupKey(g)] ?: OverrideEntity(groupKey(g))).copy(position = index)
+        })
+    }
+
+    fun showAgain(item: HiddenItem) = edit(item.id) { it.copy(hidden = false) }
+
+    // ---- Organise: many channels / groups at once ---------------------------------------
+
+    /** A group as the organiser shows it (hidden ones too). [original] is the playlist's name. */
+    data class OrgGroup(val original: String, val shown: String, val count: Int, val hidden: Boolean)
+
+    /** A channel as the organiser shows it (hidden ones too). */
+    data class OrgChannel(val channel: ChannelEntity, val hidden: Boolean, val favorite: Boolean)
+
+    /** Channels of the playlists that are on, with your names – hidden ones included. */
+    private val everyChannel: StateFlow<List<ChannelEntity>> = combine(repo.channels, overrides, c.settings.flow) { saved, ov, s ->
+        val live = s.playlists.filter { it.enabled }.mapTo(HashSet()) { it.id }
+        saved.filter { playlistOf(it) in live }.map { ch ->
+            val o = ov[channelKey(ch.id)]
+            ch.copy(name = o?.name ?: ch.name, number = o?.position ?: ch.number)
+        }
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    /** Every group in menu order, hidden ones included. */
+    val organiseGroups: StateFlow<List<OrgGroup>> = combine(everyChannel, overrides) { list, ov ->
+        val counts = list.groupingBy { it.groupTitle }.eachCount()
+        val names = list.map { it.groupTitle }.distinct()
+        val ordered = names.filter { it != ChannelFilter.UNGROUPED } + names.filter { it == ChannelFilter.UNGROUPED }
+        ordered.sortedBy { ov[groupKey(it)]?.position ?: Int.MAX_VALUE }.map { g ->
+            val o = ov[groupKey(g)]
+            OrgGroup(g, groupLabel(o?.name ?: g), counts[g] ?: 0, o?.hidden == true)
+        }
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    /** Channels of one group ([group] = the playlist's name), or Favourites in your order when null. */
+    fun organiseChannels(group: String?): kotlinx.coroutines.flow.Flow<List<OrgChannel>> =
+        combine(everyChannel, overrides, favoriteOrder) { list, ov, favs ->
+            val favSet = favs.toHashSet()
+            val chosen = if (group == null) {
+                val byId = list.associateBy { it.id }
+                favs.mapNotNull { byId[it] }
+            } else {
+                list.filter { it.groupTitle == group }.sortedBy { it.number }
+            }
+            chosen.map { ch ->
+                OrgChannel(
+                    ch,
+                    hidden = ov[channelKey(ch.id)]?.hidden == true || ov[groupKey(ch.groupTitle)]?.hidden == true,
+                    favorite = ch.id in favSet,
+                )
+            }
+        }
+
+    fun setGroupsHidden(originals: Collection<String>, hidden: Boolean) = viewModelScope.launch {
+        if (originals.isEmpty()) return@launch
+        repo.putOverrides(originals.map { g ->
+            (overrides.value[groupKey(g)] ?: OverrideEntity(groupKey(g))).copy(hidden = hidden)
+        })
+        showToast(if (hidden) "${originals.size} hidden" else "${originals.size} shown again")
+    }
+
+    /** Saves the order of every group (playlist names, top first). */
+    fun setGroupOrder(originals: List<String>) = viewModelScope.launch {
+        repo.putOverrides(originals.mapIndexed { i, g ->
+            (overrides.value[groupKey(g)] ?: OverrideEntity(groupKey(g))).copy(position = i)
+        })
+    }
+
+    fun setChannelsHidden(ids: Collection<String>, hidden: Boolean) = viewModelScope.launch {
+        if (ids.isEmpty()) return@launch
+        repo.putOverrides(ids.map { id ->
+            (overrides.value[channelKey(id)] ?: OverrideEntity(channelKey(id))).copy(hidden = hidden)
+        })
+        showToast(if (hidden) "${ids.size} hidden" else "${ids.size} shown again")
+    }
+
+    fun addFavorites(ids: List<String>) = viewModelScope.launch {
+        val new = ids.filter { it !in favorites.value }
+        repo.addFavorites(new)
+        showToast(if (new.isEmpty()) "Already in Favourites" else "${new.size} added to Favourites")
+    }
+
+    fun removeFavorites(ids: List<String>) = viewModelScope.launch {
+        repo.removeFavorites(ids)
+        showToast("${ids.size} removed from Favourites")
+    }
+
+    fun setFavoriteOrder(ids: List<String>) = viewModelScope.launch { repo.setFavoriteOrder(ids) }
+
+    fun resetEdits() = viewModelScope.launch {
+        repo.resetEdits()
+        showToast("Channel and group changes undone")
+    }
+
+    // ---- Parental PIN ---------------------------------------------------------------------
+
+    /** Something waiting for the PIN. [setup]: choosing a new PIN (asked twice). */
+    data class PinRequest(
+        val title: String,
+        val setup: Boolean = false,
+        /** Asked because a locked channel was chosen (Cancel then opens the menu). */
+        val forChannel: Boolean = false,
+        val onSuccess: () -> Unit,
+    )
+
+    private val _pinRequest = MutableStateFlow<PinRequest?>(null)
+    val pinRequest: StateFlow<PinRequest?> = _pinRequest.asStateFlow()
+
+    /** After the right PIN, locked things stay open for a while (or until "Lock now"). */
+    private var unlockedUntil = 0L
+
+    val hasPin: Boolean get() = settings.value?.pinHash != null
+    val unlocked: Boolean get() = !hasPin || System.currentTimeMillis() < unlockedUntil
+
+    /** Runs [action] straight away, or after the PIN when one is set and things are locked. */
+    fun requirePin(title: String, forChannel: Boolean = false, action: () -> Unit) {
+        if (unlocked) action() else _pinRequest.value = PinRequest(title, forChannel = forChannel, onSuccess = action)
+    }
+
+    /** True if [pin] is right; runs what was waiting. */
+    fun submitPin(pin: String): Boolean {
+        val req = _pinRequest.value ?: return false
+        if (req.setup) {
+            viewModelScope.launch {
+                c.settings.setPinHash(hashPin(pin))
+                showToast("PIN saved")
+            }
+            unlockedUntil = System.currentTimeMillis() + UNLOCK_MS
+            _pinRequest.value = null
+            req.onSuccess()
+            return true
+        }
+        if (hashPin(pin) != settings.value?.pinHash) return false
+        unlockedUntil = System.currentTimeMillis() + UNLOCK_MS
+        _pinRequest.value = null
+        req.onSuccess()
+        return true
+    }
+
+    fun cancelPin() {
+        _pinRequest.value = null
+    }
+
+    /** Choose a new PIN (asks for the old one first). */
+    fun changePin() = requirePin("Enter your current PIN") {
+        _pinRequest.value = PinRequest("Choose a 4-digit PIN", setup = true) {}
+    }
+
+    fun removePin() = requirePin("Enter your PIN to remove it") {
+        viewModelScope.launch {
+            c.settings.setPinHash(null)
+            showToast("PIN removed – nothing is locked any more")
+        }
+    }
+
+    fun setPinForSettings(on: Boolean) = requirePin("Enter your PIN") {
+        viewModelScope.launch { c.settings.setPinForSettings(on) }
+    }
+
+    fun lockNow() {
+        unlockedUntil = 0
+        showToast("Locked")
+    }
+
+    val lockedChannelIds: StateFlow<Set<String>> = combine(allChannels, overrides) { list, ov ->
+        if (ov.values.none { it.locked }) emptySet()
+        else list.filter { isLocked(it) }.map { it.id }.toSet()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    fun isLocked(ch: ChannelEntity): Boolean {
+        val ov = overrides.value
+        return ov[channelKey(ch.id)]?.locked == true || ov[groupKey(originalGroup(ch.groupTitle))]?.locked == true
+    }
+
+    fun isGroupLocked(shown: String) = overrides.value[groupKey(originalGroup(shown))]?.locked == true
+
+    fun isVodCategoryLocked(kind: String, category: String) = overrides.value[vodKey(kind, category)]?.locked == true
+
+    private fun setLocked(id: String, locked: Boolean, label: String) {
+        if (!hasPin) {
+            showToast("Set a PIN first: Settings → Parental controls & hidden")
+            return
+        }
+        requirePin("Enter your PIN") {
+            edit(id) { it.copy(locked = locked) }
+            showToast(if (locked) "$label locked" else "$label unlocked")
+        }
+    }
+
+    fun setChannelLocked(ch: ChannelEntity, locked: Boolean) = setLocked(channelKey(ch.id), locked, ch.name)
+    fun setGroupLocked(shown: String, locked: Boolean) = setLocked(groupKey(originalGroup(shown)), locked, groupLabel(shown))
+    fun setVodCategoryLocked(kind: String, category: String, locked: Boolean) = setLocked(vodKey(kind, category), locked, category)
+    fun unlockItem(item: HiddenItem) = setLocked(item.id, false, item.label)
+
+    /** Favourite channel ids in your order. */
+    val favoriteOrder: StateFlow<List<String>> = repo.favoriteOrder
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val favorites: StateFlow<Set<String>> = favoriteOrder.map { it.toSet() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    private val _filter = MutableStateFlow<ChannelFilter>(ChannelFilter.All)
+    val filter: StateFlow<ChannelFilter> = _filter.asStateFlow()
+
+    /** One section of the groups menu: every playlist, or one playlist with its groups. */
+    data class MenuSection(val key: String, val label: String, val filters: List<ChannelFilter>)
+
+    /** With one playlist: a single untitled section. With several: "All playlists", then one per playlist. */
+    val menuSections: StateFlow<List<MenuSection>> = combine(allChannels, c.settings.flow, overrides) { list, s, _ ->
+        // Playlist order, with channels that have no group collected at the very end.
+        fun groupsOf(channels: List<ChannelEntity>): List<String> {
+            val names = channels.map { it.groupTitle }.distinct()
+            val ordered = names.filter { it != ChannelFilter.UNGROUPED } + names.filter { it == ChannelFilter.UNGROUPED }
+            // Groups you've moved keep your order; the rest follow the playlist.
+            val ov = overrides.value
+            return ordered.sortedBy { ov[groupKey(originalGroup(it))]?.position ?: Int.MAX_VALUE }
+        }
+        val byPlaylist = list.groupBy(::playlistOf)
+        val playlists = s.playlists.filter { it.id in byPlaylist }
+        if (playlists.size <= 1) {
+            listOf(MenuSection(SECTION_ALL, "", listOf(ChannelFilter.All, ChannelFilter.Favorites) + groupsOf(list).map { ChannelFilter.Group(it) }))
+        } else {
+            listOf(MenuSection(SECTION_ALL, "All playlists", listOf(ChannelFilter.Favorites, ChannelFilter.All))) +
+                playlists.map { p ->
+                    MenuSection(
+                        p.id, p.displayName,
+                        listOf(ChannelFilter.Source(p.id, p.displayName)) +
+                            groupsOf(byPlaylist.getValue(p.id)).map { ChannelFilter.Group(it, p.id) },
+                    )
+                }
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Every filter in menu order (Left/Right in the channel list steps through these). */
+    val filters: StateFlow<List<ChannelFilter>> = menuSections
+        .map { sections -> sections.flatMap { it.filters }.ifEmpty { listOf(ChannelFilter.All, ChannelFilter.Favorites) } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, listOf(ChannelFilter.All, ChannelFilter.Favorites))
+
+    /** Playlist sections opened in the groups menu ("All playlists" is always open). */
+    private val _expanded = MutableStateFlow<Set<String>>(emptySet())
+    val expanded: StateFlow<Set<String>> = _expanded.asStateFlow()
+
+    fun toggleSection(key: String) {
+        _expanded.value = if (key in _expanded.value) _expanded.value - key else _expanded.value + key
+    }
+
+    fun setSectionOpen(key: String, open: Boolean) {
+        _expanded.value = if (open) _expanded.value + key else _expanded.value - key
+    }
+
+    /** Rows of the groups menu as shown right now (closed sections show only their heading). */
+    fun menuRows(
+        sections: List<MenuSection> = menuSections.value,
+        open: Set<String> = _expanded.value,
+    ): List<MenuRow> = buildList {
+        sections.forEach { s ->
+            if (s.label.isEmpty()) {
+                s.filters.forEach { add(MenuRow.Item(it, s.key, indented = false)) }
+            } else {
+                val isOpen = s.key == SECTION_ALL || s.key in open
+                add(MenuRow.Header(s.key, s.label, isOpen, collapsible = s.key != SECTION_ALL))
+                if (isOpen) s.filters.forEach { add(MenuRow.Item(it, s.key, indented = true)) }
+            }
+        }
+    }
+
+    /** Opens the section holding [filter] so it can be shown selected; returns the rows then. */
+    fun revealInMenu(filter: ChannelFilter): List<MenuRow> {
+        menuSections.value.firstOrNull { filter in it.filters }?.let { if (it.key != SECTION_ALL) setSectionOpen(it.key, true) }
+        return menuRows()
+    }
+
+    /** Name of [f] for headings; a group says which playlist it's from when there are several. */
+    fun filterTitle(f: ChannelFilter, sections: List<MenuSection> = menuSections.value): String {
+        val playlist = (f as? ChannelFilter.Group)?.playlistId ?: return f.label
+        val name = sections.firstOrNull { it.key == playlist }?.label.orEmpty()
+        return if (name.isEmpty()) f.label else "$name · ${f.label}"
+    }
+
+    /** Number of channels in each group, for the groups menu. */
+    val filterCounts: StateFlow<Map<ChannelFilter, Int>> = combine(filters, allChannels, favorites) { fs, list, favs ->
+        val map = HashMap<ChannelFilter, Int>()
+        map[ChannelFilter.All] = list.size
+        map[ChannelFilter.Favorites] = list.count { it.id in favs }
+        list.groupingBy { it.groupTitle }.eachCount().forEach { (g, n) -> map[ChannelFilter.Group(g)] = n }
+        list.groupingBy { playlistOf(it) to it.groupTitle }.eachCount()
+            .forEach { (k, n) -> map[ChannelFilter.Group(k.second, k.first)] = n }
+        val perSource = list.groupingBy(::playlistOf).eachCount()
+        fs.filterIsInstance<ChannelFilter.Source>().forEach { map[it] = perSource[it.id] ?: 0 }
+        map
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    /** Channels per playlist id, for Settings. */
+    val playlistCounts: StateFlow<Map<String?, Int>> = allChannels
+        .map { list -> list.groupingBy { it.playlistId }.eachCount() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    /** Where recordings are saved, and free space there. */
+    val recordingsFolder: java.io.File get() = c.recorder.directory()
+
+    val visibleChannels: StateFlow<List<ChannelEntity>> =
+        combine(allChannels, favoriteOrder, _filter) { list, favs, f ->
+            when (f) {
+                ChannelFilter.All -> list
+                // In your order.
+                ChannelFilter.Favorites -> list.associateBy { it.id }.let { byId -> favs.mapNotNull { byId[it] } }
+                is ChannelFilter.Group -> list.filter {
+                    it.groupTitle == f.name && (f.playlistId == null || playlistOf(it) == f.playlistId)
+                }
+                is ChannelFilter.Source -> list.filter { playlistOf(it) == f.id }
+            }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Wall clock, ticking every 15 s – drives progress bars and the "now" line. */
+    val now: StateFlow<Long> = flow {
+        while (true) {
+            emit(System.currentTimeMillis())
+            delay(15_000)
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, System.currentTimeMillis())
+
+    /** Programmes from now until +6 h, keyed by epg id. Used by the banner and channel list. */
+    val upcoming: StateFlow<Map<String, List<ProgramEntity>>> = now
+        .map { it / (5 * 60_000L) }
+        .distinctUntilChanged()
+        .flatMapLatest {
+            val t = System.currentTimeMillis()
+            repo.programs(t, t + 6 * HOUR)
+        }
+        .map { list -> list.groupBy { it.epgId } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    private val _guideStart = MutableStateFlow(roundDown(System.currentTimeMillis()))
+    val guideStart: StateFlow<Long> = _guideStart.asStateFlow()
+
+    val guidePrograms: StateFlow<Map<String, List<ProgramEntity>>> = _guideStart
+        .flatMapLatest { start -> repo.programs(start, start + GUIDE_SPAN) }
+        .map { list -> list.groupBy { it.epgId } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    private val _current = MutableStateFlow<ChannelEntity?>(null)
+    val current: StateFlow<ChannelEntity?> = _current.asStateFlow()
+    private var previous: ChannelEntity? = null
+
+    /** Bumped on every channel change so the UI can flash the info banner. */
+    private val _bannerToken = MutableStateFlow(0)
+    val bannerToken: StateFlow<Int> = _bannerToken.asStateFlow()
+
+    /** Short on-screen message ("Recording started…"). */
+    data class Toast(val id: Int, val text: String)
+    private val _toast = MutableStateFlow<Toast?>(null)
+    val toast: StateFlow<Toast?> = _toast.asStateFlow()
+    private var toastId = 0
+
+    fun showToast(text: String) {
+        _toast.value = Toast(++toastId, tr(text))
+    }
+
+    fun clearToast(id: Int) {
+        if (_toast.value?.id == id) _toast.value = null
+    }
+
+    // ---- Updates --------------------------------------------------------------------------
+
+    sealed interface UpdateState {
+        data object Idle : UpdateState
+        data object Checking : UpdateState
+        data object UpToDate : UpdateState
+        data class Available(val release: ReleaseInfo) : UpdateState
+        data class Downloading(val release: ReleaseInfo, val percent: Int) : UpdateState
+        data class Failed(val message: String) : UpdateState
+    }
+
+    private val updater = c.updater
+    val appVersion: String get() = updater.currentVersion
+    private val _update = MutableStateFlow<UpdateState>(UpdateState.Idle)
+    val update: StateFlow<UpdateState> = _update.asStateFlow()
+
+    /** True when the update dialog should be on screen. */
+    private val _updatePrompt = MutableStateFlow(false)
+    val updatePrompt: StateFlow<Boolean> = _updatePrompt.asStateFlow()
+
+    /**
+     * [manual] = the user pressed "Check for updates": always report the result.
+     * Automatic checks stay silent unless there's a new version they haven't skipped.
+     */
+    fun checkForUpdates(manual: Boolean) {
+        if (_update.value is UpdateState.Checking || _update.value is UpdateState.Downloading) return
+        viewModelScope.launch {
+            _update.value = UpdateState.Checking
+            val result = runCatching { updater.latest() }
+            val release = result.getOrNull()
+            _update.value = when {
+                result.isFailure -> UpdateState.Failed(result.exceptionOrNull()?.message ?: "Couldn't reach GitHub")
+                release != null && updater.isNewer(release) -> UpdateState.Available(release)
+                else -> UpdateState.UpToDate
+            }
+            val state = _update.value
+            if (state is UpdateState.Available) {
+                val skipped = c.settings.current().skippedVersion
+                if (manual) _updatePrompt.value = false
+                _updatePrompt.value = manual || state.release.version != skipped
+            } else if (!manual) {
+                _update.value = UpdateState.Idle
+            }
+        }
+    }
+
+    fun startUpdate() {
+        val release = when (val s = _update.value) {
+            is UpdateState.Available -> s.release
+            else -> return
+        }
+        if (!updater.canInstall()) {
+            // Android 8+: the user has to allow Channelbox to install apps (once).
+            // When they come back from that screen, resumePendingUpdate() carries on by itself.
+            if (updater.openInstallPermission()) {
+                pendingInstall = true
+                showToast("Turn on \"Allow\" for Channelbox, then press Back")
+            } else {
+                showToast("Allow \"Install unknown apps\" for Channelbox in Android settings")
+            }
+            return
+        }
+        viewModelScope.launch {
+            _update.value = UpdateState.Downloading(release, 0)
+            try {
+                val apk = updater.download(release) { percent ->
+                    _update.value = UpdateState.Downloading(release, percent)
+                }
+                _update.value = UpdateState.Available(release)
+                _updatePrompt.value = false
+                updater.install(apk)
+            } catch (e: Exception) {
+                _update.value = UpdateState.Failed(e.message ?: "Download failed")
+            }
+        }
+    }
+
+    /** Set while the user is on Android's "install unknown apps" screen. */
+    private var pendingInstall = false
+
+    /** Called when the app comes back to the front: finish an update that was waiting on permission. */
+    fun resumePendingUpdate() {
+        if (!pendingInstall) return
+        pendingInstall = false
+        if (updater.canInstall()) startUpdate()
+        else showToast("Channelbox still isn't allowed to install apps")
+    }
+
+    fun dismissUpdate(skipThisVersion: Boolean) {
+        _updatePrompt.value = false
+        val s = _update.value
+        if (skipThisVersion && s is UpdateState.Available) {
+            viewModelScope.launch { c.settings.setSkippedVersion(s.release.version) }
+        }
+    }
+
+    fun setAutoUpdateCheck(on: Boolean) = viewModelScope.launch { c.settings.setAutoUpdateCheck(on) }
+
+    // ---- Recordings -----------------------------------------------------------------------
+
+    private val recorder = c.recorder
+
+    val recordings: StateFlow<List<RecordingEntity>> = recorder.recordings
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** "channelId@programStart" for every scheduled/running recording – marks programmes in the guide. */
+    val recordingKeys: StateFlow<Set<String>> = recordings
+        .map { list ->
+            list.filter { it.status in RecStatus.ACTIVE }
+                .mapNotNull { r -> r.programStart?.let { recordingKey(r.channelId, it) } }
+                .toSet()
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    /** Channels being recorded right now. */
+    val recordingChannels: StateFlow<Set<String>> = recordings
+        .map { list -> list.filter { it.status == RecStatus.RECORDING }.map { it.channelId }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    /** Record (or stop recording) what's on the current channel now. */
+    /** Smooth Streaming channels can't be recorded yet: say so instead of adding a recording that fails. */
+    private fun canRecord(ch: ChannelEntity): Boolean {
+        if (recorder.canRecord(StreamSpecs.from(ch))) return true
+        showToast("${ch.name} uses Smooth Streaming, which can't be recorded yet")
+        return false
+    }
+
+    fun toggleRecordCurrent() {
+        val ch = _current.value ?: return
+        val running = recordings.value.firstOrNull { it.channelId == ch.id && it.status == RecStatus.RECORDING }
+        if (running != null) {
+            stopRecording(running)
+            return
+        }
+        if (!canRecord(ch)) return
+        val now = System.currentTimeMillis()
+        val program = nowAndNext(ch.epgId?.let { upcoming.value[it] }, now).first
+        viewModelScope.launch {
+            val title = program?.title ?: ch.name
+            recorder.schedule(ch, title, now, program?.stop?.plus(2 * 60_000L) ?: (now + 2 * HOUR), program?.start)
+            showToast("● Recording: $title")
+        }
+    }
+
+    /** Record a programme from the guide, or cancel it if it's already scheduled. */
+    fun toggleRecordProgram(channel: ChannelEntity, program: ProgramEntity) {
+        val existing = recordings.value.firstOrNull {
+            it.channelId == channel.id && it.programStart == program.start && it.status in RecStatus.ACTIVE
+        }
+        if (existing != null) {
+            stopRecording(existing)
+            return
+        }
+        if (!canRecord(channel)) return
+        val now = System.currentTimeMillis()
+        if (program.stop <= now) {
+            showToast("That programme has already finished")
+            return
+        }
+        viewModelScope.launch {
+            recorder.schedule(
+                channel, program.title,
+                start = maxOf(now, program.start - 60_000L),
+                stop = program.stop + 2 * 60_000L,
+                programStart = program.start,
+            )
+            showToast(if (program.start > now) "Recording scheduled: ${program.title}" else "● Recording: ${program.title}")
+        }
+    }
+
+    fun stopRecording(recording: RecordingEntity) {
+        viewModelScope.launch {
+            recorder.stop(recording)
+            showToast(if (recording.status == RecStatus.SCHEDULED) "Recording cancelled" else "Recording stopped")
+        }
+    }
+
+    fun deleteRecording(recording: RecordingEntity) {
+        viewModelScope.launch {
+            recorder.delete(recording)
+            showToast("Recording deleted")
+        }
+    }
+
+    fun playRecording(recording: RecordingEntity) {
+        endShift()
+        val path = recording.filePath ?: return
+        val st = settings.value?.storage ?: StorageSettings()
+        when {
+            // DASH recording (maybe protected): same DRM / licence step as the live channel.
+            path.endsWith(io.github.axon07.channelbox.data.HlsFolderRecorder.INDEX) -> {
+                val live = StreamSpecs.from(recording)
+                player.playOnDemand(
+                    StreamSpec(android.net.Uri.fromFile(java.io.File(path)).toString(), live.headers, live.drm, StreamSpecs.MIME_HLS)
+                )
+            }
+            path.endsWith(io.github.axon07.channelbox.data.DashRecorder.MANIFEST) -> {
+                val live = StreamSpecs.from(recording)
+                player.playOnDemand(
+                    StreamSpec(android.net.Uri.fromFile(java.io.File(path)).toString(), live.headers, live.drm, StreamSpecs.MIME_DASH)
+                )
+            }
+            path.startsWith("/") -> StreamSpecs.from(recording).drm?.let { drm ->
+                // Protected HLS saved still encrypted: needs the channel's licence / key again.
+                player.playOnDemand(StreamSpec(android.net.Uri.fromFile(java.io.File(path)).toString(), emptyMap(), drm, null))
+            } ?: player.playFile(path)
+            path.startsWith("http") -> player.playOnDemand(
+                StreamSpec(path, mapOf("Authorization" to okhttp3.Credentials.basic(st.davUser, st.davPass)), null, null)
+            )
+            else -> player.playOnDemand(StreamSpec(path, emptyMap(), null, null)) // smb://
+        }
+    }
+
+    /** True if [program] on [channel] can be watched from the archive (or from its start, if it's on now). */
+    fun canCatchUp(channel: ChannelEntity, program: ProgramEntity, now: Long = System.currentTimeMillis()): Boolean =
+        Catchup.isAvailable(channel.catchupType, channel.catchupSource, channel.catchupDays) &&
+            program.start < now && program.start >= now - channel.catchupDays * 24 * HOUR
+
+    /** Plays a past (or current, from the start) programme from the provider's archive. */
+    fun playCatchUp(channel: ChannelEntity, program: ProgramEntity): Boolean {
+        endShift()
+        val live = StreamSpecs.from(channel)
+        val url = Catchup.buildUrl(channel.streamUrl, channel.catchupType, channel.catchupSource, program.start, program.stop)
+            ?: return false
+        val archive = StreamSpecs.parse(url, live.headers, channel.drmType, channel.drmKey, null)
+        player.playOnDemand(StreamSpec(archive.url, archive.headers, archive.drm, archive.mime))
+        return true
+    }
+
+    fun setPreferSoftwareAudio(on: Boolean) = viewModelScope.launch {
+        c.settings.setPreferSoftwareAudio(on)
+        showToast("Takes effect the next time Channelbox starts")
+    }
+    fun setSoftwareVideo(on: Boolean) = viewModelScope.launch {
+        c.settings.setSoftwareVideo(on)
+        showToast("Takes effect the next time Channelbox starts")
+    }
+    fun setDolbyVision(mode: String) = viewModelScope.launch {
+        c.settings.setDolbyVision(mode)
+        showToast("Takes effect the next time Channelbox starts")
+    }
+    fun setBufferSize(size: String) = viewModelScope.launch {
+        c.settings.setBufferSize(size)
+        showToast("Takes effect the next time Channelbox starts")
+    }
+    fun setAudioPassthrough(on: Boolean) = viewModelScope.launch {
+        c.settings.setAudioPassthrough(on)
+        showToast("Takes effect the next time Channelbox starts")
+    }
+    fun setAutoFrameRate(on: Boolean) = viewModelScope.launch { c.settings.setAutoFrameRate(on) }
+
+    fun setVideoScale(scale: Int) = viewModelScope.launch { c.settings.setVideoScale(scale) }
+    fun setMaxQuality(height: Int) = viewModelScope.launch { c.settings.setMaxQuality(height) }
+    fun setPipOnLeave(on: Boolean) = viewModelScope.launch { c.settings.setPipOnLeave(on) }
+    fun setIdleClose(seconds: Int) = viewModelScope.launch { c.settings.setIdleClose(seconds) }
+    fun setGuideDays(days: Int) = viewModelScope.launch { c.settings.setGuideDays(days) }
+
+    // ---- Network: VPN, proxy, DNS, user agent ----------------------------------------------
+
+    val vpnState = VpnManager.state
+
+    /** Proxy and DNS are built into the HTTP client at start-up, so changing them needs a restart. */
+    fun networkNeedsRestart(now: NetworkSettings): Boolean {
+        val start = c.startupNetwork
+        return now.dns != start.dns || now.dnsCustomUrl != start.dnsCustomUrl ||
+            now.proxyType != start.proxyType || now.proxyHost != start.proxyHost || now.proxyPort != start.proxyPort ||
+            now.proxyUser != start.proxyUser || now.proxyPass != start.proxyPass
+    }
+
+    fun saveNetwork(n: NetworkSettings) = viewModelScope.launch { c.settings.saveNetwork(n) }
+
+    /** Call after Android's VPN permission has been granted (or if it already was). */
+    fun setVpnEnabled(on: Boolean) = viewModelScope.launch {
+        val n = c.settings.current().network
+        if (on && n.vpnConfig.isBlank()) {
+            showToast("Add a WireGuard config first")
+            return@launch
+        }
+        c.settings.saveNetwork(n.copy(vpnEnabled = on))
+        if (on) {
+            if (VpnManager.connect(getApplication(), n.vpnConfig, n.vpnAllApps)) {
+                showToast("VPN connected")
+                _current.value?.let { player.play(StreamSpecs.from(it)) } // reconnect through the tunnel
+            }
+        } else {
+            VpnManager.disconnect()
+            showToast("VPN off")
+        }
+    }
+
+    /** Saves a WireGuard config (and reconnects if the VPN is on). Returns an error message, or null. */
+    fun saveVpnConfig(config: String, allApps: Boolean): String? {
+        VpnManager.validate(config)?.let { return it }
+        viewModelScope.launch {
+            val n = c.settings.current().network.copy(vpnConfig = config.trim(), vpnAllApps = allApps)
+            c.settings.saveNetwork(n)
+            if (n.vpnEnabled) {
+                VpnManager.disconnect()
+                VpnManager.connect(getApplication(), n.vpnConfig, n.vpnAllApps)
+            }
+        }
+        return null
+    }
+
+    /** Downloads a WireGuard config from a link (e.g. one you uploaded or your provider's). */
+    suspend fun fetchText(url: String): String = c.http.download(url) { it.bufferedReader().readText() }
+
+    // ---- Recording storage ------------------------------------------------------------------
+
+    fun saveStorage(st: StorageSettings) = viewModelScope.launch { c.settings.saveStorage(st) }
+
+    suspend fun testStorage(st: StorageSettings): String? = c.storage.test(st)
+
+    suspend fun describeStorage(st: StorageSettings): String = c.storage.describe(st)
+
+    fun removableDrives(): Int = c.storage.removableDirectories().size
+
+    // ---- Device info for Settings → About --------------------------------------------------
+
+    fun widevineLevel(): String = runCatching {
+        val drm = android.media.MediaDrm(androidx.media3.common.C.WIDEVINE_UUID)
+        try {
+            drm.getPropertyString("securityLevel")
+        } finally {
+            if (android.os.Build.VERSION.SDK_INT >= 28) drm.close() else @Suppress("DEPRECATION") drm.release()
+        }
+    }.getOrDefault("not available")
+
+    /** Back to live TV after watching a recording. */
+    // ---- Movies & TV shows -----------------------------------------------------------------
+
+    /** Re-reads [read] whenever the library changes (after a reload, or when a watch position is saved). */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun <T> library(read: suspend () -> T): Flow<T> = repo.vodVersion.mapLatest { read() }
+
+    val movieCount: StateFlow<Int> = library { repo.vod.count(VodKind.MOVIE) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+    val showCount: StateFlow<Int> = library { repo.vod.count(VodKind.SERIES) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    /** Categories shown in Movies / TV Shows (hidden ones left out). */
+    fun vodCategories(kind: String): Flow<List<VodCategory>> =
+        combine(library { repo.vod.categories(kind) }, overrides) { list, ov ->
+            list.filter { ov[vodKey(kind, it.name)]?.hidden != true }
+        }
+
+    /** Every category, for choosing which ones show (Settings). */
+    fun allVodCategories(kind: String): Flow<List<VodCategory>> = library { repo.vod.categories(kind) }
+
+    fun isVodCategoryHidden(kind: String, category: String) = overrides.value[vodKey(kind, category)]?.hidden == true
+
+    fun setVodCategoriesHidden(kind: String, categories: Collection<String>, hidden: Boolean) = viewModelScope.launch {
+        if (categories.isEmpty()) return@launch
+        repo.putOverrides(categories.map { c ->
+            (overrides.value[vodKey(kind, c)] ?: OverrideEntity(vodKey(kind, c))).copy(hidden = hidden)
+        })
+    }
+    fun vodContinueCount(kind: String): Flow<Int> = library { repo.vod.continueCount(kind) }
+
+    /** [category]: null = all, [VOD_CONTINUE] = started but not finished. */
+    fun vodItems(kind: String, category: String?, query: String): Flow<List<VodEntity>> = libraryRaw(kind, category, query)
+        .map { list ->
+            // Titles from locked categories stay out of "All" and search until the PIN is entered.
+            val browsingOneCategory = query.isBlank() && category != null && category != VOD_CONTINUE
+            // Titles from hidden categories stay out of "All", search and "Continue watching".
+            val shown = if (browsingOneCategory) list else list.filter { overrides.value[vodKey(kind, it.category)]?.hidden != true }
+            if (unlocked || browsingOneCategory) shown
+            else shown.filter { overrides.value[vodKey(kind, it.category)]?.locked != true }
+        }
+
+    private fun libraryRaw(kind: String, category: String?, query: String): Flow<List<VodEntity>> = library {
+        val q = query.trim()
+        when {
+            q.isNotEmpty() -> repo.vod.search(kind, q, VOD_SEARCH_LIMIT)
+            category == VOD_CONTINUE -> repo.vod.continueWatching(kind)
+            category == null -> repo.vod.allItems(kind, VOD_PAGE)
+            else -> repo.vod.categoryItems(kind, category, VOD_PAGE)
+        }
+    }
+
+    val vodProgress: StateFlow<Map<String, VodProgressEntity>> = repo.vod.observeProgress()
+        .map { list -> list.associateBy { it.id } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    /** Episodes of a show; empty list with a message if the provider couldn't be reached. */
+    suspend fun episodes(show: VodEntity): List<VodEntity> =
+        try {
+            repo.episodes(show)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            showToast("Couldn't load the episodes: ${e.message ?: e.javaClass.simpleName}")
+            emptyList()
+        }
+
+    /** Where to resume [item], or null to start from the beginning. */
+    suspend fun vodResumeAt(item: VodEntity): Long? {
+        val p = repo.vod.progress(item.id) ?: return null
+        return p.position.takeIf { it > 60_000 && (p.duration <= 0 || it < p.duration * 0.95) }
+    }
+
+    private var playingVod: Pair<VodEntity, String?>? = null
+
+    /** Plays a movie or episode; [showId] links an episode to its show for "Continue watching". */
+    fun playVod(item: VodEntity, startAt: Long, showId: String? = null) {
+        endShift()
+        val url = item.url ?: return
+        playingVod = item to showId
+        player.playOnDemand(StreamSpec(url, StreamSpecs.decodeHeaders(item.headers), null, null), startAt)
+    }
+
+    /** Remembers how far into the current movie/episode you got (cleared once it's nearly finished). */
+    fun saveVodProgress() {
+        val (item, showId) = playingVod ?: return
+        val exo = player.exo
+        val pos = exo.currentPosition
+        val dur = exo.duration.takeIf { it != androidx.media3.common.C.TIME_UNSET && it > 0 } ?: 0L
+        viewModelScope.launch {
+            when {
+                dur > 0 && pos >= dur * 0.95 -> repo.clearProgress(item.id)
+                pos > 30_000 -> repo.saveProgress(VodProgressEntity(item.id, pos, dur, System.currentTimeMillis(), showId))
+            }
+        }
+    }
+
+    fun stopVod() {
+        saveVodProgress()
+        playingVod = null
+    }
+
+    fun resumeLive() {
+        endShift()
+        libraryOpen = false
+        _current.value?.let { player.play(StreamSpecs.from(it)) }
+    }
+
+    /**
+     * Movies & TV Shows browser open: live TV stops, so nothing streams until you press play on
+     * something (most accounts allow only one or two streams at a time).
+     */
+    private var libraryOpen = false
+
+    fun enterLibrary() {
+        endShift()
+        libraryOpen = true
+        if (player.isLive) player.stop()
+    }
+
+    fun leaveLibrary() {
+        if (libraryOpen) resumeLive()
+    }
+
+    init {
+        // A reload that fails while last time's channels are there: a short note, not a full-screen error.
+        viewModelScope.launch {
+            var wasRunning = false
+            repo.state.collect { st ->
+                if (st is RefreshState.Running) wasRunning = true
+                if (st is RefreshState.Failed && wasRunning && allChannels.value.isNotEmpty()) {
+                    showToast("Couldn't reload the playlist – showing the channels from last time (details in Settings → Playlist & guide)")
+                }
+                if (st !is RefreshState.Running) wasRunning = false
+            }
+        }
+        // After a reload, the channel playing picks up its new details (catch-up, name, logo…)
+        // without having to change channel.
+        viewModelScope.launch {
+            allChannels.collect { list ->
+                val cur = _current.value ?: return@collect
+                val fresh = list.firstOrNull { it.id == cur.id } ?: return@collect
+                if (fresh != cur) _current.value = fresh
+            }
+        }
+        player.storageSettings = { settings.value?.storage ?: StorageSettings() }
+        player.captionsByDefault = { settings.value?.captionsByDefault ?: false }
+        // Settings that apply immediately.
+        viewModelScope.launch {
+            c.settings.flow.collect { s ->
+                UserAgent.apply(s.network.userAgent)
+                player.setMaxQuality(s.maxQuality)
+            }
+        }
+        // Startup update check, a few seconds in so it doesn't slow down tuning the first channel.
+        viewModelScope.launch {
+            delay(8_000)
+            if (c.settings.current().autoUpdateCheck) checkForUpdates(manual = false)
+        }
+        viewModelScope.launch {
+            val s = c.settings.current()
+            // Bring the VPN up first so the playlist and streams go through it.
+            if (s.network.vpnEnabled && s.network.vpnConfig.isNotBlank()) {
+                if (VpnManager.permissionIntent(app) == null) {
+                    if (!VpnManager.connect(app, s.network.vpnConfig, s.network.vpnAllApps)) {
+                        showToast("VPN didn't connect – check Settings → Network")
+                    }
+                } else {
+                    showToast("Allow the VPN in Settings → Network")
+                }
+            }
+            // Clean up after playlists removed in an older version (or while a reload was running).
+            runCatching { repo.dropRemovedPlaylists() }
+            if (!s.hasSource) return@launch
+            val hasChannels = repo.allChannels().isNotEmpty()
+            // "Turn on last channel on app start" off: open on the guide without playing.
+            val autoPlay = s.playLastOnStart
+            if (hasChannels && autoPlay) ensurePlaying()
+            val stale = s.refreshHours > 0 && System.currentTimeMillis() - s.lastRefresh > s.refreshHours * HOUR
+            if (!hasChannels || stale) {
+                val ready: suspend () -> Unit = {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { if (autoPlay) ensurePlaying() }
+                }
+                if (repo.refresh(ready) && autoPlay) ensurePlaying()
+            }
+        }
+    }
+
+    // ---- Guide search ----------------------------------------------------------------------
+
+    data class GuideHit(val channel: ChannelEntity, val program: ProgramEntity)
+
+    /** Programmes whose title contains [query], on your channels (hidden ones left out). */
+    suspend fun searchGuide(query: String): List<GuideHit> {
+        val q = query.trim()
+        if (q.length < 2) return emptyList()
+        val byGuide = allChannels.value.filter { it.epgId != null }.groupBy { it.epgId!! }
+        return repo.searchPrograms(q, System.currentTimeMillis() - 6 * HOUR)
+            .flatMap { p -> byGuide[p.epgId].orEmpty().map { GuideHit(it, p) } }
+            .take(200)
+    }
+
+    // ---- Pause live TV ---------------------------------------------------------------------
+
+    /** Live TV paused or watched behind live. null = watching live. */
+    data class LiveShift(
+        /** Paused right now. */
+        val paused: Boolean,
+        /** The channel is being buffered (false for DRM/DASH: resuming rejoins live). */
+        val buffered: Boolean,
+        /** When the pause started. */
+        val startedAt: Long,
+        /** Playing from the buffer (after the first resume). */
+        val onBuffer: Boolean,
+        /**
+         * Rewound through the provider's archive (catch-up): the wall-clock time the archive
+         * stream playing starts at, and where it ends. Null = the pause buffer on this box.
+         */
+        val archiveFrom: Long? = null,
+        val archiveTo: Long = 0,
+    )
+
+    private val timeshift = Timeshift(java.io.File(app.cacheDir, "timeshift"), c.recorder)
+    private val _shift = MutableStateFlow<LiveShift?>(null)
+    val shift: StateFlow<LiveShift?> = _shift.asStateFlow()
+
+    /** Pause / resume live TV (Play/Pause on the remote). */
+    fun playPauseLive() {
+        val ch = _current.value ?: return
+        val st = _shift.value
+        when {
+            st != null && st.archiveFrom != null -> {
+                if (st.paused) player.exo.play() else player.exo.pause()
+                _shift.value = st.copy(paused = !st.paused)
+            }
+            st == null -> {
+                player.hold()
+                val spec = StreamSpecs.from(ch)
+                val buffered = timeshift.canBuffer(spec)
+                if (buffered) timeshift.start(spec, viewModelScope)
+                _shift.value = LiveShift(paused = true, buffered = buffered, startedAt = System.currentTimeMillis(), onBuffer = false)
+                watchShift()
+            }
+            !st.paused -> {
+                player.exo.pause()
+                _shift.value = st.copy(paused = true)
+            }
+            !st.buffered && canRewind(ch) -> openArchive(ch, st.startedAt, paused = false) // via catch-up
+            !st.buffered -> {
+                showToast("This channel can't be paused – back to live")
+                goLive()
+            }
+            !st.onBuffer -> {
+                _shift.value = st.copy(paused = false)
+                viewModelScope.launch {
+                    // The buffer may only just have started: give it a few seconds.
+                    var waited = 0
+                    while (!timeshift.hasEnough() && timeshift.writing && waited < 8_000) {
+                        delay(250)
+                        waited += 250
+                    }
+                    if (_shift.value?.startedAt != st.startedAt) return@launch // went live meanwhile
+                    val f = timeshift.file
+                    if (f == null || !f.exists() || f.length() == 0L) {
+                        val why = timeshift.lastError
+                        showToast(if (why != null) "Couldn't buffer this channel ($why) – back to live" else "Nothing was buffered – back to live")
+                        goLive()
+                    } else {
+                        if (timeshift.isPlaylist) player.playTimeshiftPlaylist(f)
+                        else player.playTimeshift(f) { timeshift.writing }
+                        _shift.value = st.copy(paused = false, onBuffer = true)
+                    }
+                }
+            }
+            else -> {
+                player.exo.play()
+                _shift.value = st.copy(paused = false)
+            }
+        }
+        showBanner()
+    }
+
+    /** Drop the buffer and jump to what's on now. */
+    fun goLive() {
+        endShift()
+        _current.value?.let { player.play(StreamSpecs.from(it)) }
+        showBanner()
+    }
+
+    /** How far behind live the picture is. */
+    fun behindLiveMs(): Long {
+        val now = System.currentTimeMillis()
+        val st = _shift.value
+        val raw = when {
+            st == null -> 0L
+            st.archiveFrom != null -> now - (st.archiveFrom + player.exo.currentPosition)
+            st.onBuffer -> (now - st.startedAt - player.exo.currentPosition)
+            else -> now - st.startedAt
+        }.coerceAtLeast(0)
+        // While ◀◀ / ▶▶ presses are adding up, show where they'll land.
+        return (raw + rewindPending).coerceAtLeast(0)
+    }
+
+    private fun endShift() {
+        rewindJob?.cancel()
+        rewindPending = 0
+        _rewinding.value = false
+        if (_shift.value == null && !timeshift.active) return
+        timeshift.stop()
+        _shift.value = null
+    }
+
+    private var shiftWatcher: Job? = null
+
+    /**
+     * Reaching the end of a buffer that's no longer growing (2-hour limit, stream lost) rejoins live.
+     * In the provider's archive, the next part is opened until it has caught up with live.
+     */
+    private fun watchShift() {
+        shiftWatcher?.cancel()
+        shiftWatcher = viewModelScope.launch {
+            while (_shift.value != null) {
+                delay(1_000)
+                val st = _shift.value ?: break
+                if (st.onBuffer && !st.paused && player.exo.playbackState == androidx.media3.common.Player.STATE_ENDED) {
+                    val ch = _current.value
+                    if (st.archiveFrom != null && ch != null && System.currentTimeMillis() - st.archiveTo > 90_000) {
+                        openArchive(ch, st.archiveTo, paused = false)
+                    } else {
+                        goLive()
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- Rewinding live TV through the provider's archive (catch-up) ------------------------
+
+    /** True when [channel] (default: the one playing) can be rewound – the provider keeps an archive. */
+    fun canRewind(channel: ChannelEntity? = _current.value): Boolean =
+        channel != null && Catchup.isAvailable(channel.catchupType, channel.catchupSource, channel.catchupDays)
+
+    private var rewindPending = 0L
+    private var rewindJob: Job? = null
+    private val _rewinding = MutableStateFlow(false)
+
+    /** True while ◀◀ / ▶▶ presses are adding up (before the archive opens). */
+    val rewinding: StateFlow<Boolean> = _rewinding.asStateFlow()
+
+    /**
+     * ◀◀ / ▶▶ on live TV: moves [deltaMs] through the provider's archive (negative = back).
+     * Quick presses (or holding the key) add up, and the archive opens once they stop.
+     */
+    fun skipLive(deltaMs: Long) {
+        val ch = _current.value ?: return
+        if (!canRewind(ch)) {
+            if (deltaMs < 0) showToast("This channel can't be rewound – it has no catch-up")
+            return
+        }
+        if (deltaMs > 0 && _shift.value == null) return // already live
+        rewindPending -= deltaMs
+        _rewinding.value = true
+        rewindJob?.cancel()
+        rewindJob = viewModelScope.launch {
+            delay(700)
+            val behind = behindLiveMs().coerceAtMost(ch.catchupDays * 24 * HOUR - 5 * 60_000L)
+            rewindPending = 0
+            _rewinding.value = false
+            playBehindLive(ch, behind)
+        }
+        showBanner()
+    }
+
+    private fun playBehindLive(ch: ChannelEntity, behind: Long) {
+        if (behind < 20_000) {
+            goLive()
+            return
+        }
+        val st = _shift.value
+        val from = System.currentTimeMillis() - behind
+        val start = st?.archiveFrom
+        if (st != null && start != null && from >= start && from < st.archiveTo - 5_000) {
+            player.exo.seekTo(from - start) // inside the part already open: just seek
+            return
+        }
+        openArchive(ch, from, paused = st?.paused == true)
+    }
+
+    /** Plays the channel from the provider's archive, starting at wall-clock time [from]. */
+    private fun openArchive(ch: ChannelEntity, from: Long, paused: Boolean) {
+        // Archive links are per minute on most providers (Xtream): open at the minute, then seek.
+        val start = from - from % 60_000
+        val end = maxOf(System.currentTimeMillis(), start + 60_000)
+        val live = StreamSpecs.from(ch)
+        val url = Catchup.buildUrl(ch.streamUrl, ch.catchupType, ch.catchupSource, start, end)
+        if (url == null) {
+            showToast("Catch-up isn't available for this channel")
+            goLive()
+            return
+        }
+        if (timeshift.active) timeshift.stop()
+        val archive = StreamSpecs.parse(url, live.headers, ch.drmType, ch.drmKey, null)
+        player.playOnDemand(StreamSpec(archive.url, archive.headers, archive.drm, archive.mime), startAt = from - start)
+        if (paused) player.exo.pause()
+        _shift.value = LiveShift(
+            paused = paused, buffered = true, startedAt = from, onBuffer = true,
+            archiveFrom = start, archiveTo = end,
+        )
+        watchShift()
+        showBanner()
+    }
+
+    // ---- Playback -------------------------------------------------------------------------
+
+    /**
+     * Runs [action] straight away, or after the PIN if [channel] is locked – for everything that
+     * shows a channel other than tuning it (multi-view tiles, catch-up, recordings).
+     */
+    fun withChannelAccess(channel: ChannelEntity?, action: () -> Unit) {
+        if (channel != null && isLocked(channel) && !unlocked) {
+            requirePin("Enter your PIN to watch ${channel.name}", forChannel = true, action = action)
+        } else {
+            action()
+        }
+    }
+
+    /** The channel a recording came from, if it's still in the lineup. */
+    suspend fun channelOf(recording: RecordingEntity): ChannelEntity? =
+        repo.allChannels().firstOrNull { it.id == recording.channelId }
+
+    fun tune(channel: ChannelEntity) {
+        if (isLocked(channel) && !unlocked) {
+            requirePin("Enter your PIN to watch ${channel.name}", forChannel = true) { tune(channel) }
+            return
+        }
+        if (_shift.value != null) {
+            endShift()
+            if (_current.value?.id == channel.id) {
+                player.play(StreamSpecs.from(channel)) // same channel: straight back to live
+                showBanner()
+                return
+            }
+        }
+        if (_current.value?.id != channel.id) {
+            previous = _current.value
+            _current.value = channel
+            player.play(StreamSpecs.from(channel))
+            viewModelScope.launch { c.settings.setLastChannel(channel.id) }
+        } else if (!player.isLive) {
+            player.play(StreamSpecs.from(channel))
+        }
+        showBanner()
+    }
+
+    fun showBanner() {
+        _bannerToken.value++
+    }
+
+    /** Channel up/down within the current group, wrapping around. */
+    fun zap(delta: Int) {
+        val visible = visibleChannels.value
+        val list = if (visible.any { it.id == _current.value?.id }) visible else allChannels.value
+        if (list.isEmpty()) return
+        val index = list.indexOfFirst { it.id == _current.value?.id }
+        var next = if (index < 0) 0 else (index + delta).mod(list.size)
+        // Skip locked channels while zapping.
+        if (!unlocked) {
+            var tries = 0
+            while (isLocked(list[next]) && tries++ < list.size) next = (next + delta).mod(list.size)
+        }
+        tune(list[next])
+    }
+
+    fun tuneNumber(number: Int): Boolean {
+        val ch = allChannels.value.firstOrNull { it.number == number } ?: return false
+        tune(ch)
+        return true
+    }
+
+    fun previousChannel() {
+        val p = previous?.let { prev -> allChannels.value.firstOrNull { it.id == prev.id } }
+        if (p == null) {
+            showToast("No previous channel yet")
+            return
+        }
+        tune(p)
+    }
+
+    suspend fun ensurePlaying() {
+        if (_current.value != null) return
+        val list = repo.allChannels()
+        if (list.isEmpty()) return
+        val last = c.settings.current().lastChannelId
+        // Starting up: never open on a locked channel (no PIN prompt for whoever turns the TV on).
+        val usable = if (unlocked) list else list.filter { !isLocked(it) }.ifEmpty { list }
+        tune(usable.firstOrNull { it.id == last } ?: usable.first())
+    }
+
+    fun onForeground() {
+        // Live TV paused (not yet playing the buffer): stay paused – restarting the live stream here
+        // would play live behind the pause and use a second connection.
+        val st = _shift.value
+        if (st != null && !st.onBuffer) return
+        if (!(libraryOpen && player.isLive)) player.resume()
+    }
+    fun onBackground() = player.stop()
+
+    override fun onCleared() {
+        player.release()
+    }
+
+    // ---- Lists, guide, favourites ---------------------------------------------------------
+
+    fun setFilter(filter: ChannelFilter) {
+        _filter.value = filter
+    }
+
+    fun cycleFilter(delta: Int) {
+        val list = filters.value
+        val index = list.indexOf(_filter.value).coerceAtLeast(0)
+        _filter.value = list[(index + delta).mod(list.size)]
+    }
+
+    fun toggleFavorite(channel: ChannelEntity) {
+        val fav = channel.id !in favorites.value
+        viewModelScope.launch { repo.setFavorite(channel.id, fav) }
+    }
+
+    fun setGuideStart(time: Long) {
+        _guideStart.value = roundDown(time)
+    }
+
+    // ---- Settings -------------------------------------------------------------------------
+
+    /** The reload in progress. A newer change cancels it rather than queueing behind it. */
+    private var reloadJob: kotlinx.coroutines.Job? = null
+
+    /** Saves the Jellyfin settings and reloads, so the library appears (or goes) straight away. */
+    fun saveJellyfin(j: io.github.axon07.channelbox.data.JellyfinSettings) = reload { c.settings.saveJellyfin(j) }
+
+    /** Signs in to check the details; returns an error message or null if it works. */
+    suspend fun testJellyfin(j: io.github.axon07.channelbox.data.JellyfinSettings): String? = try {
+        io.github.axon07.channelbox.data.JellyfinClient(c.http, j).signIn()
+        null
+    } catch (e: Exception) {
+        e.message ?: e.javaClass.simpleName
+    }
+
+    private fun reload(change: suspend () -> Unit) {
+        reloadJob?.cancel()
+        reloadJob = viewModelScope.launch {
+            change()
+            reloadAfterSourceChange()
+        }
+    }
+
+    val playlistErrors: StateFlow<Map<String, String>> get() = repo.playlistErrors
+
+    fun refreshNow() = reload { }
+
+    fun savePlaylist(p: Playlist) = reload { c.settings.savePlaylist(p) }
+
+    fun removePlaylist(id: String) = reload {
+        // Finish the clean-up even if another change (e.g. adding a playlist) starts a new reload.
+        kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+            c.settings.removePlaylist(id)
+            repo.forgetPlaylist(id)
+        }
+    }
+
+    /** Throws away every saved channel, movie & show and guide entry, then loads the playlists fresh. */
+    fun clearSavedData() = reload {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { repo.clearSavedData() }
+    }
+
+    fun setPlaylistEnabled(id: String, on: Boolean) = reload { c.settings.setPlaylistEnabled(id, on) }
+
+    fun movePlaylist(id: String, delta: Int) = reload { c.settings.movePlaylist(id, delta) }
+
+    private suspend fun reloadAfterSourceChange() {
+        // Runs once the channels are saved – the guide may still be loading.
+        val channelsReady: suspend () -> Unit = {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                val ids = repo.allChannels().map { it.id }.toSet()
+                // Keep watching the same channel if it's still there (e.g. after adding a second playlist).
+                if (_current.value?.id !in ids) {
+                    if (_current.value != null) player.stop()
+                    _current.value = null
+                    previous = null
+                }
+                if (_filter.value != ChannelFilter.All && _filter.value !in filters.value) _filter.value = ChannelFilter.All
+                ensurePlaying()
+            }
+        }
+        if (repo.refresh(channelsReady)) ensurePlaying()
+    }
+
+    fun setStartOnBoot(on: Boolean) = viewModelScope.launch { c.settings.setStartOnBoot(on) }
+    fun setStartOnWake(on: Boolean) = viewModelScope.launch { c.settings.setStartOnWake(on) }
+    fun setPlayLastOnStart(on: Boolean) = viewModelScope.launch { c.settings.setPlayLastOnStart(on) }
+    fun setShowChannelNumbers(on: Boolean) = viewModelScope.launch { c.settings.setShowChannelNumbers(on) }
+
+    // ---- Backup & restore -------------------------------------------------------------------
+
+    fun backupFileName() = c.backup.suggestedName()
+
+    fun backupTo(uri: android.net.Uri) = viewModelScope.launch {
+        runCatching { c.backup.writeTo(uri, c.backup.create()) }
+            .onSuccess { showToast("Backup saved") }
+            .onFailure { showToast("Backup failed: ${it.message}") }
+    }
+
+    /** No file picker on this box: save to the Download folder instead. */
+    fun backupToDownloads() = viewModelScope.launch {
+        runCatching { c.backup.saveToDownloads(c.backup.create()) }
+            .onSuccess { showToast("Backup saved to $it") }
+            .onFailure { showToast("Backup failed: ${it.message}") }
+    }
+
+    fun restoreFrom(uri: android.net.Uri) = viewModelScope.launch {
+        runCatching { c.backup.restore(c.backup.readFrom(uri)) }
+            .onSuccess { afterRestore() }
+            .onFailure { showToast("Couldn't restore: ${it.message}") }
+    }
+
+    /** No file picker on this box: restore the newest backup in the Download folder. */
+    fun restoreLatest() = viewModelScope.launch {
+        val text = runCatching { c.backup.readLatestFromDownloads() }.getOrNull()
+        if (text == null) {
+            showToast("No backup found in the Download folder")
+            return@launch
+        }
+        runCatching { c.backup.restore(text) }
+            .onSuccess { afterRestore() }
+            .onFailure { showToast("Couldn't restore: ${it.message}") }
+    }
+
+    private fun afterRestore() {
+        showToast("Backup restored – reloading channels")
+        viewModelScope.launch {
+            val code = c.settings.current().language
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { I18n.load(getApplication(), code) }
+        }
+        reload { }
+    }
+    fun setInvertChannelKeys(on: Boolean) = viewModelScope.launch { c.settings.setInvertChannelKeys(on) }
+    fun setCaptionsByDefault(on: Boolean) = viewModelScope.launch { c.settings.setCaptionsByDefault(on) }
+
+    /** Switches the app's language straight away. */
+    fun setLanguage(code: String) = viewModelScope.launch {
+        c.settings.setLanguage(code)
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { I18n.load(getApplication(), code) }
+    }
+    fun setBackAction(action: BackAction) = viewModelScope.launch { c.settings.setBackAction(action) }
+
+    fun setRefreshHours(hours: Int) = viewModelScope.launch {
+        c.settings.setRefreshHours(hours)
+        RefreshWorker.schedule(getApplication<Application>(), hours)
+    }
+
+    /** Steps through 6 h → 12 h → 24 h → 48 h → off. */
+    fun cycleRefreshHours(currentHours: Int) = viewModelScope.launch {
+        val index = REFRESH_CHOICES.indexOf(currentHours)
+        val next = REFRESH_CHOICES[(index + 1).mod(REFRESH_CHOICES.size)]
+        c.settings.setRefreshHours(next)
+        RefreshWorker.schedule(getApplication<Application>(), next)
+    }
+
+    companion object {
+        const val SECTION_ALL = "\u0000all"
+        fun channelKey(id: String) = "ch:$id"
+        fun groupKey(name: String) = "grp:$name"
+        fun vodKey(kind: String, category: String) = "vod:$kind:$category"
+        private fun hashPin(pin: String): String =
+            java.security.MessageDigest.getInstance("SHA-256").digest("channelbox-pin:$pin".toByteArray())
+                .joinToString("") { "%02x".format(it) }
+        /** How long locked things stay open after the right PIN. */
+        const val UNLOCK_MS = 2 * HOUR
+
+        private fun playlistOf(ch: ChannelEntity): String =
+            ch.playlistId ?: io.github.axon07.channelbox.data.SettingsStore.LEGACY_ID
+        fun roundDown(time: Long) = time - time.mod(GUIDE_STEP)
+        fun recordingKey(channelId: String, programStart: Long) = "$channelId@$programStart"
+    }
+}

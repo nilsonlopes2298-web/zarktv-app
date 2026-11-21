@@ -1,0 +1,36 @@
+name: Bug report
+description: Something doesn't work
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: e.g. Onn 4K box, Android 12 / Fire TV Stick 4K / Pixel 7 phone
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Channelbox version
+      placeholder: Settings → About
+  - type: textarea
+    id: stream
+    attributes:
+      label: Playback problem? Stream details
+      description: |
+        The on-screen error (e.g. "Channel unavailable – retrying… (ERROR_CODE_…)") and the kind of link
+        (.ts / .m3u8 / .mpd, any #KODIPROP lines). **Remove usernames, passwords, tokens and license keys.**
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional)
+      description: "`adb logcat -d | findstr -i \"channelbox exoplayer\"` output, if you have it."
+      render: text

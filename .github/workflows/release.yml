@@ -1,0 +1,75 @@
+name: Release
+
+# Publish a release on GitHub (Releases → Draft a new release → tag e.g. v0.2.0 → Publish)
+# and this builds the APK, signed with the permanent release key, and attaches it to that release.
+# The in-app updater then offers it to everyone on an older version.
+#
+# Needs these repository secrets (Settings → Secrets and variables → Actions):
+#   SIGNING_KEYSTORE_BASE64, SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS, SIGNING_KEY_PASSWORD
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+      SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+      SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+      SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history and tags, for the list of changes
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Release signing key
+        run: |
+          if [ -z "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "::error::Signing secrets are missing. Without the permanent key, in-app updates can't install. See README → Releasing."
+            exit 1
+          fi
+          echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        run: ./gradlew --no-daemon assembleRelease -PappVersionName="${GITHUB_REF_NAME#v}"
+
+      - name: Rename APK
+        # A fixed name keeps .../releases/latest/download/channelbox.apk (and Downloader codes) always current.
+        run: cp app/build/outputs/apk/release/app-release.apk channelbox.apk
+
+      - name: List of changes
+        # Every change since the previous release, one line each, from the commit titles only
+        # (no tooling or co-author lines). Housekeeping commits are left out.
+        run: |
+          prev=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          range="${prev:+$prev..}${GITHUB_REF_NAME}"
+          {
+            echo "## What's changed"
+            echo
+            git log "$range" --no-merges --pretty=format:'%s' \
+              | grep -viE 'claude|^readme|^merge|declaration order|build fix|^fix build|^wip' \
+              | sed -E 's/; /\n/g' \
+              | sed -E 's/^[[:space:]]+//; /^$/d; s/^(.)/\U\1/; s/^/- /' \
+              | awk '!seen[$0]++'
+            echo
+            echo "**Install:** Downloader code \`5502923\`, or download \`channelbox.apk\` below. Boxes already running Channelbox will offer the update."
+          } > release-notes.md
+          cat release-notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: channelbox.apk
+          body_path: release-notes.md
+          append_body: true # keeps anything you wrote in the release, adds the list below it
