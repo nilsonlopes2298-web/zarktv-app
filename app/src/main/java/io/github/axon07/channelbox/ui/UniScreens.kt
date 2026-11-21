@@ -145,7 +145,7 @@ fun UniShell(
     novidades: List<String> = emptyList(),
     onAtualizar: () -> Unit = {},
 ) {
-    var sinoAberto by remember { mutableStateOf(false) }
+    var sinoAberto by uniSinoAberto
     var hora by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -237,7 +237,6 @@ fun UniShell(
         }
         // Sino: "Caixa de mensagens" deslizando da esquerda (como na UniTV).
         if (sinoAberto) {
-            androidx.activity.compose.BackHandler { sinoAberto = false }
             val msgs = buildList {
                 versaoNova?.let { add(Triple("Mensagem de atualização", "Nova versão encontrada: atualize para V$it.", "Atualizar" to { sinoAberto = false; onAtualizar() })) }
                 if (dias != null && dias <= 5) add(
@@ -1189,3 +1188,6 @@ private fun AbaExplorar(
         }
     }
 }
+
+/** Caixa de mensagens aberta (fica fora do UniShell para o Voltar do TvApp conseguir fechar). */
+internal val uniSinoAberto = androidx.compose.runtime.mutableStateOf(false)

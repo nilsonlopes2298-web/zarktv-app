@@ -1302,7 +1302,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             }
             Mode.MULTIVIEW -> if (multiPicking && multi.count > 0) multiPicking = false else closeMultiView()
             Mode.SETTINGS -> if (!settings.hasSource) mode = Mode.SETUP else mode = if (settingsSection != null) Mode.PROFILE else Mode.HOME
-            Mode.HOME -> if (jogoAberto != null) jogoAberto = null else askExit(Mode.HOME)
+            Mode.HOME -> if (uniSinoAberto.value) uniSinoAberto.value = false else if (jogoAberto != null) jogoAberto = null else askExit(Mode.HOME)
             Mode.PROFILE -> mode = Mode.HOME
             Mode.LIVE -> mode = Mode.HOME
             Mode.SEARCH -> openGroups(tile = 5)
