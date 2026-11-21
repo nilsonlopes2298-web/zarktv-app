@@ -61,6 +61,7 @@ object AppIcons {
     val Shield = icon("shield", stroke("M12,3L19,6V11.5C19,15.9 16,19.6 12,21C8,19.6 5,15.9 5,11.5V6Z"), stroke("M9,12L11.2,14.2L15.2,10"))
     val Folder = icon("folder", stroke("M3.5,6.5H9.5L11.5,8.5H20.5V18.5H3.5Z"))
     val Home = icon("home", stroke("M4,11L12,4L20,11 M6.5,9V20H17.5V9"))
+    val User = icon("user", stroke("M12,4A4,4 0 1,1 11.99,4Z"), stroke("M4.5,20C5.5,15.8 8.5,14 12,14C15.5,14 18.5,15.8 19.5,20"))
     val Download = icon("download", stroke("M12,4V15 M7.5,10.5L12,15L16.5,10.5 M5,20H19"))
     val Globe = icon("globe", stroke("M12,3A9,9 0 1,1 11.99,3Z M3,12H21 M12,3C9.5,6 9.5,18 12,21 M12,3C14.5,6 14.5,18 12,21"))
     val Lock = icon("lock", stroke("M6,11H18V20H6Z"), stroke("M8.5,11V8A3.5,3.5 0 0,1 15.5,8V11"))

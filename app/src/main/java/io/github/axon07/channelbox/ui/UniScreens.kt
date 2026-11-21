@@ -1,6 +1,8 @@
 package io.github.axon07.channelbox.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -184,7 +186,7 @@ fun UniShell(
                 Spacer(Modifier.width(10.dp))
                 IconeRedondo(AppIcons.History, "Histórico", onHistory)
                 Spacer(Modifier.width(10.dp))
-                IconeRedondo(AppIcons.Home, "Perfil", onProfile)
+                IconeRedondo(AppIcons.User, "Perfil", onProfile)
                 Spacer(Modifier.width(10.dp))
                 Box {
                     IconeRedondo(AppIcons.Bell, "Avisos") { sinoAberto = !sinoAberto }
@@ -354,17 +356,23 @@ private fun AbaItem(nome: String, selecionada: Boolean, modifier: Modifier, comp
 
 @Composable
 private fun IconeRedondo(icone: ImageVector, descricao: String, onClick: () -> Unit) {
+    // Box clicável simples (toque e OK do controle). Com um único caminho de clique o sino não abre e fecha ao mesmo tempo.
     var focused by remember { mutableStateOf(false) }
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.size(40.dp).onFocusChanged { focused = it.isFocused }.tap(onClick = onClick),
-        shape = ClickableSurfaceDefaults.shape(CircleShape),
-        colors = ClickableSurfaceDefaults.colors(containerColor = Color(0x33FFFFFF), focusedContainerColor = Color.White),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+    var ultimo by remember { mutableStateOf(0L) }
+    val clique = {
+        val agora = android.os.SystemClock.uptimeMillis()
+        if (agora - ultimo > 400) { ultimo = agora; onClick() }
+    }
+    Box(
+        Modifier.size(40.dp)
+            .graphicsLayer { val e = if (focused) 1.1f else 1f; scaleX = e; scaleY = e }
+            .clip(CircleShape)
+            .background(if (focused) Color.White else Color(0x33FFFFFF))
+            .onFocusChanged { focused = it.isFocused }
+            .clickable(onClickLabel = descricao) { clique() },
+        contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            AppIcon(icone, tint = if (focused) Palette.Accent else Color.White, size = 20.dp)
-        }
+        AppIcon(icone, tint = if (focused) Palette.Accent else Color.White, size = 20.dp)
     }
 }
 
