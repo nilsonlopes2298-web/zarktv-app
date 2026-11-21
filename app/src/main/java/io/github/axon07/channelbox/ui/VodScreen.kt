@@ -431,7 +431,7 @@ private fun PosterCard(
             border = ClickableSurfaceDefaults.border(
                 focusedBorder = Border(BorderStroke(3.dp, Palette.Accent), shape = RoundedCornerShape(6.dp)),
             ),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.06f)),
         ) {
             Box(Modifier.fillMaxSize()) {
                 PosterImage(item.poster, item.title, Modifier.fillMaxSize())
@@ -818,7 +818,7 @@ private fun BotaoFicha(label: String, principal: Boolean, modifier: Modifier = M
             containerColor = if (principal) Color(0xCCB71C1C) else Color(0x80596273),
             focusedContainerColor = Color(0xFFE53935),
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.04f)),
     ) {
         Box(Modifier.padding(horizontal = 16.dp).fillMaxHeight(), contentAlignment = Alignment.Center) {
             Text(label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
@@ -854,7 +854,7 @@ private fun BotaoNumero(label: String, visto: Boolean, onClick: () -> Unit) {
             containerColor = if (visto) Color(0x55434A57) else Color(0x99596273),
             focusedContainerColor = Color(0xFFE53935),
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.06f)),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
@@ -917,7 +917,7 @@ private fun MiniPlay(b: VodBrowser, imagem: String?, titulo: String, modifier: M
             .tap(onClick = onPlay),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
         colors = ClickableSurfaceDefaults.colors(containerColor = Color.Black, focusedContainerColor = Color.Black),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.02f)),
     ) {
         Box(Modifier.fillMaxSize()) {
             AsyncImage(imagem, titulo, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())

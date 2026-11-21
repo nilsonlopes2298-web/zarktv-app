@@ -382,7 +382,7 @@ fun BotaoCheio(label: String, cor: Color, enabled: Boolean = true, altura: Int =
             containerColor = if (enabled) cor else cor.copy(alpha = 0.4f),
             focusedContainerColor = if (enabled) cor else cor.copy(alpha = 0.4f),
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.02f)),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(label, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -400,7 +400,7 @@ fun BotaoContorno(label: String, cor: Color, texto: Color = Color.White, fundo: 
             .tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         colors = ClickableSurfaceDefaults.colors(containerColor = fundo, focusedContainerColor = fundo),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.02f)),
     ) {
         Box(Modifier.fillMaxSize().padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
             Text(label, color = texto, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -429,13 +429,31 @@ fun ZarkAbertura(versao: String, carregando: Boolean = false) {
             Spacer(Modifier.height(8.dp))
             Text("V $versao", color = Palette.TextDim, fontSize = 14.sp)
             if (carregando) {
-                Spacer(Modifier.height(26.dp))
-                val giro = rememberInfiniteTransition(label = "abertura")
-                val ang by giro.animateFloat(0f, 360f, infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Restart), label = "g")
-                Canvas(Modifier.size(34.dp)) {
-                    drawArc(Palette.Accent, ang, 270f, false, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round))
-                }
+                Spacer(Modifier.height(28.dp))
+                BarrinhaCarregando(Modifier.width(240.dp))
+                Spacer(Modifier.height(12.dp))
+                Text("Baixando os canais, filmes e séries do dia…", color = Palette.TextDim, fontSize = 13.sp)
+                Text("Isso acontece uma vez por dia.", color = Color(0x66FFFFFF), fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
             }
         }
+    }
+}
+
+
+/** Barrinha fina com um trecho vermelho passando (leve até em TV Box fraca). */
+@Composable
+fun BarrinhaCarregando(modifier: Modifier = Modifier) {
+    val t = rememberInfiniteTransition(label = "barra")
+    val x by t.animateFloat(
+        -0.35f, 1f,
+        infiniteRepeatable(tween(if (ZarkLeve.ativo) 1800 else 1200, easing = LinearEasing), RepeatMode.Restart),
+        label = "x",
+    )
+    Canvas(modifier.height(3.dp)) {
+        drawRect(Color(0x33FFFFFF))
+        val w = size.width * 0.35f
+        val ini = (size.width * x).coerceAtLeast(0f)
+        val fim = (size.width * x + w).coerceAtMost(size.width)
+        if (fim > ini) drawRect(Palette.Accent, topLeft = androidx.compose.ui.geometry.Offset(ini, 0f), size = androidx.compose.ui.geometry.Size(fim - ini, size.height))
     }
 }

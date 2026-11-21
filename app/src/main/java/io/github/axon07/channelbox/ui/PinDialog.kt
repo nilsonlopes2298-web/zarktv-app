@@ -163,7 +163,7 @@ fun PinDialog(title: String, setup: Boolean, onSubmit: (String) -> Boolean, onCa
                                 focusedContainerColor = DialogStyle.Focus,
                                 focusedContentColor = DialogStyle.OnFocus,
                             ),
-                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.03f)),
                         ) {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text(k, fontSize = 20.sp, fontWeight = FontWeight.Medium)

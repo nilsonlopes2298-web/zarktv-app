@@ -201,7 +201,7 @@ private fun BlocoTile(b: Bloco, altura: Dp, modifier: Modifier) {
             focusedContainerColor = Color.Transparent,
             focusedContentColor = Palette.Text,
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.05f)),
     ) {
         Box(
             Modifier
@@ -333,7 +333,7 @@ private fun CartaoPerfil(titulo: String, sub: String, c1: Color, c2: Color, onCl
             .tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(shape),
         colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color.Transparent),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.04f)),
     ) {
         Column(
             Modifier.fillMaxSize().background(Brush.linearGradient(listOf(c1, c2)), shape).padding(16.dp),
@@ -354,7 +354,7 @@ private fun AtalhoPerfil(icone: ImageVector, label: String, onClick: () -> Unit,
         modifier = modifier.height(56.dp).onFocusChanged { focused = it.isFocused }.tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(shape),
         colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF17171B), focusedContainerColor = Color(0xFFECECEC)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.03f)),
     ) {
         Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
             AppIcon(icone, tint = Palette.Accent, size = 22.dp)

@@ -199,7 +199,7 @@ fun HeroCatalogo(
     var i by remember(banner) { mutableIntStateOf(0) }
     LaunchedEffect(banner) {
         while (banner.size > 1) {
-            delay(5000)
+            delay(if (ZarkLeve.ativo) 9000 else 5000)
             i = (i + 1) % banner.size
         }
     }
@@ -277,7 +277,7 @@ fun TileImagem(
             .tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(containerColor = cor ?: Color(0xFF2A0A0E), focusedContainerColor = cor ?: Color(0xFF2A0A0E)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.03f)),
     ) {
         Box(Modifier.fillMaxSize()) {
             if (titulo != null && !rotulo && imagem.isNullOrBlank()) {
@@ -459,7 +459,7 @@ private fun BotaoPilula(label: String, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().height(48.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
         colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF55555C), focusedContainerColor = Color(0xFFE53935)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.04f)),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(label, color = Color.White, fontSize = 17.sp)

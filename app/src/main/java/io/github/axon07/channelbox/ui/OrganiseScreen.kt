@@ -261,7 +261,7 @@ private fun ActionBar(actions: List<Pair<String, () -> Unit>>, enabled: List<Boo
                     focusedContainerColor = Color(0xFFECF1F6),
                     focusedContentColor = Color(0xFF0E141B),
                 ),
-                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.04f)),
             ) {
                 Text(
                     label, fontSize = 13.sp, fontWeight = FontWeight.Medium,
@@ -318,7 +318,7 @@ private fun OrgRow(
             focusedContainerColor = if (moving) Palette.Accent else Color(0xFFECF1F6),
             focusedContentColor = Color(0xFF0E141B),
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.01f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.01f)),
     ) {
         val ink = when {
             focused && moving -> Color.White

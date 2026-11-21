@@ -1348,7 +1348,7 @@ private fun CategoryRow(
             focusedContentColor = Rows.OnFocus,
             pressedContainerColor = Rows.Pressed,
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.02f)),
     ) {
         Row(
             Modifier.fillMaxWidth().height(46.dp).padding(end = 12.dp),
@@ -1402,7 +1402,7 @@ private fun SettingCard(
             focusedContentColor = Rows.OnFocus,
             pressedContainerColor = Rows.Pressed,
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.015f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.015f)),
     ) {
         Row(
             Modifier
@@ -1520,7 +1520,7 @@ private fun ChoiceList(
                     focusedContentColor = Rows.OnFocus,
                     pressedContainerColor = Rows.Pressed,
                 ),
-                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.015f),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.015f)),
             ) {
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 54.dp).padding(horizontal = 18.dp, vertical = 10.dp),

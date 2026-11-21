@@ -28,6 +28,7 @@ class App : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        io.github.axon07.channelbox.ui.ZarkLeve.detectar(this)
         val settings = SettingsStore(this)
         // Network options (proxy, DNS, user agent) are read once here; changing them restarts the app.
         val network = runBlocking { settings.current().network }
@@ -71,14 +72,18 @@ class App : Application(), ImageLoaderFactory {
             .okHttpClient {
                 container.http.newBuilder()
                     .dispatcher(okhttp3.Dispatcher().apply {
-                        maxRequests = 64
-                        maxRequestsPerHost = 16
+                        // TV Box fraca: menos imagens baixando ao mesmo tempo (não trava a navegação).
+                        val leve = io.github.axon07.channelbox.ui.ZarkLeve.ativo
+                        maxRequests = if (leve) 16 else 64
+                        maxRequestsPerHost = if (leve) 6 else 16
                     })
                     .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
                     .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
                     .build()
             }
             .respectCacheHeaders(false)
+            .allowRgb565(io.github.axon07.channelbox.ui.ZarkLeve.ativo)
+            .crossfade(!io.github.axon07.channelbox.ui.ZarkLeve.ativo)
             .memoryCache { MemoryCache.Builder(this).maxSizePercent(0.2).build() }
             .diskCache {
                 DiskCache.Builder()

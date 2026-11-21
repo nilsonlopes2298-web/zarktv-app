@@ -159,7 +159,6 @@ fun UniShell(
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val extras = remember { io.github.axon07.channelbox.data.ZarkPainel.extras(ctx) }
     LaunchedEffect(Unit) { ZarkTema.carregar(ctx, extras.tema) }
-    var avisoFechado by remember { mutableStateOf(false) }
     val tabFocus = remember { List(Aba.nomes.size) { FocusRequester() } }
     LaunchedEffect(Unit) {
         delay(150)
@@ -289,28 +288,26 @@ fun UniShell(
         // Aviso no cantinho: vencimento (5, 3, 1 dia, hoje, vencido) e recado do painel.
         val textoVenc = when {
             dias == null || dias > 5 -> null
-            dias < 0 -> "Seu acesso venceu. Renove agora para continuar assistindo."
-            dias == 0 -> "Seu acesso vence HOJE! Renove agora."
+            dias < 0 -> "Seu acesso venceu."
+            dias == 0 -> "Seu acesso vence hoje."
             dias == 1 -> "Falta 1 dia para o seu acesso vencer."
             else -> "Faltam $dias dias para o seu acesso vencer."
         }
-        if (!avisoFechado && (textoVenc != null || extras.aviso != null)) {
+        // Aviso rápido no canto: aparece uns segundos e some sozinho (sem botão), uma vez por abertura do app.
+        if (!avisoMostrado.value && (textoVenc != null || extras.aviso != null)) {
+            LaunchedEffect(Unit) {
+                delay(9000)
+                avisoMostrado.value = true
+            }
             Column(
-                Modifier.align(Alignment.BottomEnd).padding(16.dp).width(330.dp)
-                    .background(Color(0xF0141414), RoundedCornerShape(12.dp))
-                    .border(2.dp, if (textoVenc != null) Color(0xFFFFB300) else Color(0x55FFFFFF), RoundedCornerShape(12.dp))
-                    .padding(14.dp)
+                Modifier.align(Alignment.BottomEnd).padding(16.dp).width(320.dp)
+                    .background(Color(0xE6141414), RoundedCornerShape(10.dp))
+                    .border(1.dp, if (textoVenc != null) Color(0xAAFFB300) else Color(0x44FFFFFF), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (textoVenc != null) "Aviso de vencimento" else "Aviso", color = Color(0xFFFFD54F), fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Text("✕", color = Color.White, fontSize = 16.sp, modifier = Modifier.tap(onClick = { avisoFechado = true }).padding(4.dp))
-                }
-                textoVenc?.let { Text(it, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp)) }
-                extras.aviso?.let { Text(it, color = Color(0xFFDDDDDD), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp)) }
-                if (textoVenc != null) {
-                    Spacer(Modifier.height(10.dp))
-                    PillButton("Renovar agora", primary = true, onClick = onRenew)
-                }
+                Text(if (textoVenc != null) "Aviso de vencimento" else "Aviso", color = Color(0xFFFFD54F), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                textoVenc?.let { Text("$it Renove agora ou fale com seu revendedor.", color = Color.White, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 4.dp)) }
+                extras.aviso?.let { Text(it, color = Color(0xFFDDDDDD), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp)) }
             }
         }
     }
@@ -332,7 +329,7 @@ private fun AbaItem(nome: String, selecionada: Boolean, modifier: Modifier, comp
             containerColor = Color.Transparent,
             focusedContainerColor = Color(0x22FFFFFF),
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.04f)),
     ) {
         Box(
             Modifier
@@ -578,7 +575,7 @@ private fun AbaDestaques(vm: TvViewModel, compacto: Boolean, banners: List<io.gi
                 var i by remember { mutableStateOf(0) }
                 LaunchedEffect(banners.size) {
                     while (true) {
-                        delay(6000)
+                        delay(if (ZarkLeve.ativo) 10000 else 6000)
                         i = (i + 1) % banners.size
                     }
                 }
@@ -702,7 +699,7 @@ private fun Atalho(label: String, cor: Color, modifier: Modifier, compacto: Bool
             .tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(containerColor = cor, focusedContainerColor = cor),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.05f)),
     ) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x33FFFFFF), Color.Transparent))), contentAlignment = Alignment.Center) {
             Text(label, color = texto, fontSize = if (compacto) 14.sp else 18.sp, fontWeight = FontWeight.Bold)
@@ -750,7 +747,7 @@ fun PosterTile(item: VodEntity, w: Dp, h: Dp, mostrarTitulo: Boolean = true, onC
                 .tap(onClick = onClick),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
             colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF2A2A2A), focusedContainerColor = Color(0xFF2A2A2A)),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.06f)),
         ) {
             Box(Modifier.fillMaxSize()) {
                 Text(item.title, color = Color(0x99FFFFFF), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center).padding(8.dp))
@@ -1157,7 +1154,7 @@ private fun BotaoQuadrado(icone: ImageVector, label: String, cor: Color, modifie
                 .tap(onClick = onClick),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
             colors = ClickableSurfaceDefaults.colors(containerColor = cor, focusedContainerColor = cor),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.08f)),
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { AppIcon(icone, tint = Color.White, size = 28.dp) }
         }
@@ -1199,3 +1196,6 @@ private fun AbaExplorar(
 
 /** Caixa de mensagens aberta (fica fora do UniShell para o Voltar do TvApp conseguir fechar). */
 internal val uniSinoAberto = androidx.compose.runtime.mutableStateOf(false)
+
+/** O aviso de vencimento já apareceu nesta abertura do app. */
+internal val avisoMostrado = androidx.compose.runtime.mutableStateOf(false)

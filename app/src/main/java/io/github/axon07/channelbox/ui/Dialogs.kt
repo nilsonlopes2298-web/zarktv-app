@@ -95,7 +95,7 @@ fun DialogRow(
             focusedContainerColor = DialogStyle.Focus,
             focusedContentColor = DialogStyle.OnFocus,
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.01f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.01f)),
     ) {
         Text(
             label,
@@ -127,7 +127,7 @@ fun PillButton(label: String, modifier: Modifier = Modifier, primary: Boolean = 
             focusedContainerColor = DialogStyle.Focus,
             focusedContentColor = DialogStyle.OnFocus,
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.03f)),
     ) {
         Text(
             label, fontSize = 14.sp, fontWeight = FontWeight.Medium,

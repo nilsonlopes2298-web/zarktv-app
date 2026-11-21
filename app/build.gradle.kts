@@ -46,8 +46,9 @@ android {
 
     buildTypes {
         release {
-            // Kept off for the first releases so nothing gets stripped by mistake.
-            isMinifyEnabled = false
+            // ZarkTV: R8 ligado para o app ficar leve e rápido na TV (regras em proguard-rules.pro).
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Official releases are signed with the permanent key so in-app updates install over
             // the old version. Local/CI test builds fall back to the debug key.
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
@@ -123,6 +124,7 @@ dependencies {
     implementation(libs.wireguard.tunnel)
     implementation(libs.smbj)
     implementation(libs.coil.compose)
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1") // telas compiladas já na instalação (abre mais rápido)
     implementation(libs.zxing.core) // QR code for "add a playlist from your phone"
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.gson) // streaming JSON for Stalker portals (huge guides without filling memory)

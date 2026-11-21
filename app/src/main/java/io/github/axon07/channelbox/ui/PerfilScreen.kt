@@ -194,7 +194,7 @@ private fun CardPerfil(titulo: String, sub: String, icone: ImageVector, fundo: B
             .tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color.Transparent),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.03f)),
     ) {
         Column(
             Modifier.fillMaxSize().background(fundo, RoundedCornerShape(8.dp)).padding(12.dp),
@@ -216,7 +216,7 @@ private fun QuadroFuncao(icone: ImageVector, nome: String, modifier: Modifier, o
         modifier = modifier.height(96.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
         colors = ClickableSurfaceDefaults.colors(containerColor = Color(0x33FFFFFF), focusedContainerColor = Color(0xFFE53935)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.04f)),
     ) {
         Column(Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0xDDFFFFFF)), contentAlignment = Alignment.Center) {
@@ -236,7 +236,7 @@ private fun BotaoPilulaPerfil(label: String, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().height(48.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
         colors = ClickableSurfaceDefaults.colors(containerColor = Color(0x66FFFFFF), focusedContainerColor = Color(0xFFE53935)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.03f)),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(label, color = Color.White, fontSize = 16.sp) }
     }
