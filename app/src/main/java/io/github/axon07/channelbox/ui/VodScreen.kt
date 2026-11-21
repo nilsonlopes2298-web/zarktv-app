@@ -29,6 +29,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,6 +80,12 @@ class VodBrowser {
     var movie by mutableStateOf<VodEntity?>(null)
     /** ZarkTV: só as categorias que batem (Anime, Kids, Adulto…); null = todas. */
     var filtroCat by mutableStateOf<Regex?>(null)
+    /** ZarkTV: miniatura que toca na ficha. Onde ela fica, o fundo da ficha e as ações. */
+    var previewRect by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+    var fundoUrl by mutableStateOf<String?>(null)
+    var previewId by mutableStateOf<String?>(null)
+    var acaoPreview: ((VodEntity, VodEntity?) -> Unit)? = null
+    var acaoTelaCheia: (() -> Unit)? = null
     /** Aberto da tela principal: o botão Voltar da ficha volta para ela. */
     var voltarInicio: (() -> Unit)? = null
     var episodes by mutableStateOf<List<VodEntity>?>(null)
@@ -512,8 +521,17 @@ private fun ShowScreen(
         runCatching { primeiro.requestFocus() }
     }
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    Box(Modifier.fillMaxSize().background(Palette.Background)) {
-        (ficha?.fundo ?: show.poster)?.let { FundoFicha(it) }
+    LaunchedEffect(ficha, show.id) { b.fundoUrl = ficha?.fundo ?: show.poster }
+    // Começa a tocar na miniatura assim que os episódios chegam (último assistido ou o primeiro).
+    val retratoAuto = androidx.compose.ui.platform.LocalConfiguration.current.let { it.screenHeightDp > it.screenWidthDp }
+    LaunchedEffect(show.id, episodes != null) {
+        if (!retratoAuto && episodes != null && b.previewId == null) {
+            delay(500)
+            (ultimo ?: episodes.firstOrNull { it.season == b.season } ?: episodes.firstOrNull())?.let { b.acaoPreview?.invoke(it, show) }
+        }
+    }
+    // O fundo é desenhado atrás do vídeo (TvApp), senão cobriria a miniatura.
+    Box(Modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 36.dp, vertical = 24.dp)
         ) {
@@ -528,14 +546,15 @@ private fun ShowScreen(
                 }
                 if (!retratoS) {
                     Spacer(Modifier.width(24.dp))
-                    MiniPlay(ficha?.fundo ?: show.poster, show.title, Modifier.weight(1f), tocarSerie)
+                    MiniPlay(b, ficha?.fundo ?: show.poster, show.title, Modifier.weight(1f), tocarSerie)
                 }
             }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
                 val alvo = ultimo ?: inSeason.firstOrNull()
-                BotaoFicha(if (ultimo != null) "▶  Continuar T${ultimo.season}E${ultimo.episode}" else "▶  Assistir", true, Modifier.focusRequester(primeiro)) {
-                    alvo?.let { b.focusId = it.id; onPlay(it, show) }
+                BotaoFicha(if (ultimo != null) "⛶  Tela cheia · T${ultimo.season}E${ultimo.episode}" else "⛶  Tela cheia", true, Modifier.focusRequester(primeiro)) {
+                    if (b.previewId != null && b.acaoTelaCheia != null) b.acaoTelaCheia?.invoke()
+                    else alvo?.let { b.focusId = it.id; onPlay(it, show) }
                 }
                 BotoesExtras(vm, show, serie = true, episodios = episodes?.size ?: 0)
                 BotaoFicha("Player externo", false) { alvo?.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, show.title) } }
@@ -593,11 +612,13 @@ private fun ShowScreen(
                                 val n = if (ep.episode > 0) ep.episode else inSeason.indexOf(ep) + 1
                                 val p = progress[ep.id]
                                 BotaoNumero(
-                                    if (ep.id == ultimo?.id) "▶" else "$n",
+                                    if (ep.id == b.previewId || (b.previewId == null && ep.id == ultimo?.id)) "▶" else "$n",
                                     visto = p != null && p.duration > 0 && p.position > p.duration * 0.9,
                                 ) {
                                     b.focusId = ep.id
-                                    onPlay(ep, show)
+                                    // Toca na miniatura (para escolher com calma); no celular em pé abre direto.
+                                    val prev = b.acaoPreview
+                                    if (prev != null && !retratoAuto) prev(ep, show) else onPlay(ep, show)
                                 }
                             }
                         }
@@ -693,8 +714,14 @@ private fun MovieDetail(
         b.focusId = movie.id
         onPlay(movie, null)
     }
-    Box(Modifier.fillMaxSize().background(Palette.Background)) {
-        (ficha?.fundo ?: movie.poster)?.let { FundoFicha(it) }
+    LaunchedEffect(ficha, movie.id) { b.fundoUrl = ficha?.fundo ?: movie.poster }
+    LaunchedEffect(movie.id) {
+        if (!retrato) {
+            delay(500)
+            b.acaoPreview?.invoke(movie, null)
+        }
+    }
+    Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = if (retrato) 18.dp else 36.dp, vertical = 24.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1.25f)) {
@@ -702,12 +729,14 @@ private fun MovieDetail(
                 }
                 if (!retrato) {
                     Spacer(Modifier.width(24.dp))
-                    MiniPlay(ficha?.fundo ?: movie.poster, movie.title, Modifier.weight(1f), assistir)
+                    MiniPlay(b, ficha?.fundo ?: movie.poster, movie.title, Modifier.weight(1f), assistir)
                 }
             }
             Spacer(Modifier.height(18.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
-                BotaoFicha(if (progress != null && progress.position > 0) "⛶  Continuar" else "⛶  Tela cheia", true, Modifier.focusRequester(play)) { assistir() }
+                BotaoFicha(if (progress != null && progress.position > 0) "⛶  Continuar" else "⛶  Tela cheia", true, Modifier.focusRequester(play)) {
+                    if (b.previewId == movie.id && b.acaoTelaCheia != null) b.acaoTelaCheia?.invoke() else assistir()
+                }
                 BotoesExtras(vm, movie, serie = false, episodios = 0)
                 BotaoFicha("Player externo", false) { movie.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, movie.title) } }
                 BotaoFicha("‹ Voltar", false) {
@@ -857,8 +886,29 @@ fun nomeCategoria(n: String): String =
 
 /** Miniatura com o botão play vermelho (canto superior direito da ficha, como na UniTV). */
 @Composable
-private fun MiniPlay(imagem: String?, titulo: String, modifier: Modifier, onPlay: () -> Unit) {
+private fun MiniPlay(b: VodBrowser, imagem: String?, titulo: String, modifier: Modifier, onPlay: () -> Unit) {
     var f by remember { mutableStateOf(false) }
+    val tocando = b.previewId != null
+    val clique = { if (tocando && b.acaoTelaCheia != null) b.acaoTelaCheia?.invoke() ?: Unit else onPlay() }
+    DisposableEffect(Unit) { onDispose { b.previewRect = null } }
+    if (tocando) {
+        // Janelinha transparente: o vídeo aparece por trás. Toque/OK = tela cheia.
+        Surface(
+            onClick = clique,
+            modifier = modifier.aspectRatio(16f / 9f).onFocusChanged { f = it.isFocused }
+                .onGloballyPositioned { b.previewRect = it.boundsInRoot() }
+                .border(if (f) 3.dp else 2.dp, if (f) Color(0xFFFFE082) else Color(0x99FFE0B2), RoundedCornerShape(4.dp))
+                .tap(onClick = clique),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+            colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color.Transparent),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                Text("⛶", color = Color.White, fontSize = 18.sp, modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).background(Color(0x88000000), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp))
+            }
+        }
+        return
+    }
     Surface(
         onClick = onPlay,
         modifier = modifier.aspectRatio(16f / 9f).onFocusChanged { f = it.isFocused }

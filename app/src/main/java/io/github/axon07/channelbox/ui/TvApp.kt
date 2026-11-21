@@ -255,6 +255,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var vodDeInicio by remember { mutableStateOf(false) }
     /** Link do filme/episódio tocando agora (para abrir no player externo). */
     var vodUrlAtual by remember { mutableStateOf<String?>(null) }
+    var vodPreviewItem by remember { mutableStateOf<VodEntity?>(null) }
+    var vodPreviewShow by remember { mutableStateOf<VodEntity?>(null) }
     /** ZarkTV: lembrete de jogo que acabou de começar (aviso na tela). */
     var lembreteAviso by remember { mutableStateOf<io.github.axon07.channelbox.data.ZarkLembretes.Lembrete?>(null) }
     var vodPosterAtual by remember { mutableStateOf<String?>(null) }
@@ -670,6 +672,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             vm.stopVod()
             vodBrowser.focusToken++
             vm.player.stop() // back to browsing; live TV resumes when the library is closed
+            vodBrowser.previewId = null
         } else {
             vm.resumeLive()
         }
@@ -692,6 +695,34 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         vm.player.exo.stop()
         vm.zarkAplicarPreferencias()
         vm.playVod(item, at, show?.id)
+        playbackToken++
+        mode = Mode.PLAYBACK
+    }
+
+    /** ZarkTV: toca na miniatura da ficha (sem tela cheia). */
+    fun previewVod(item: VodEntity, show: VodEntity?) {
+        scope.launch {
+            val at = vm.vodResumeAt(item) ?: 0L
+            vodUrlAtual = item.url
+            vodPosterAtual = show?.poster ?: item.poster
+            vodPreviewShow = show
+            vodPreviewItem = item
+            vodBrowser.previewId = item.id
+            vm.player.exo.stop()
+            vm.zarkAplicarPreferencias()
+            vm.playVod(item, at, show?.id)
+        }
+    }
+
+    /** Da miniatura para a tela cheia, continuando de onde está. */
+    fun previewTelaCheia() {
+        val item = vodPreviewItem ?: return
+        val show = vodPreviewShow
+        playbackTitle = show?.title ?: item.title
+        pbSubtitle = if (show != null) {
+            (if (item.season > 0) "Temporada ${item.season} · Episódio ${item.episode} · " else "") + item.title
+        } else listOfNotNull(item.year, item.rating?.let { "★ $it" }).joinToString(" · ").ifEmpty { null }
+        playbackReturn = Mode.VOD
         playbackToken++
         mode = Mode.PLAYBACK
     }
@@ -1367,6 +1398,16 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             if (!inPip && (mode == Mode.HOME || mode == Mode.LIVE)) Modifier.fillMaxSize().background(FundoZark)
             else Modifier.size(0.dp)
         )
+        // Ficha de filme/série: fundo com a imagem, também atrás do vídeo (para a miniatura aparecer).
+        if (!inPip && mode == Mode.VOD && (vodBrowser.movie != null || vodBrowser.show != null)) {
+            Box(Modifier.fillMaxSize().background(Palette.Background)) {
+                vodBrowser.fundoUrl?.let { url ->
+                    coil.compose.AsyncImage(url, null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                }
+                Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color(0xF20A0A0A), Color(0xB30A0A0A), Color(0x660A0A0A)))))
+                Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC0A0A0A)))))
+            }
+        }
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
@@ -1401,6 +1442,13 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 Modifier.fillMaxSize()
             } else if (mode == Mode.MULTIVIEW) {
                 Modifier.size(0.dp)
+            } else if (mode == Mode.VOD) {
+                val r = vodBrowser.previewRect
+                if (r != null && vodBrowser.previewId != null && (vodBrowser.movie != null || vodBrowser.show != null)) {
+                    with(LocalDensity.current) {
+                        Modifier.align(Alignment.TopStart).offset(r.left.toDp(), r.top.toDp()).size(r.width.toDp(), r.height.toDp())
+                    }
+                } else Modifier.size(0.dp)
             } else if (mode == Mode.HOME) {
                 val r = homePreview
                 if ((Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null)) && r != null) {
@@ -1642,6 +1690,19 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 },
             )
             Mode.VOD -> {
+                vodBrowser.acaoPreview = { item, show -> previewVod(item, show) }
+                vodBrowser.acaoTelaCheia = { previewTelaCheia() }
+                // Saiu da ficha: para a miniatura.
+                LaunchedEffect(vodBrowser.movie?.id, vodBrowser.show?.id) {
+                    if (vodBrowser.movie == null && vodBrowser.show == null && vodBrowser.previewId != null) {
+                        vm.stopVod()
+                        vm.player.stop()
+                        vodBrowser.previewId = null
+                        vodPreviewItem = null
+                    } else if (vodBrowser.previewId != null && vodPreviewItem?.let { it.id == vodBrowser.movie?.id || vodPreviewShow?.id == vodBrowser.show?.id } != true) {
+                        vodBrowser.previewId = null
+                    }
+                }
                 VodScreen(vodBrowser, vm, onPlay = { item, show -> playVod(item, show) })
                 vodResume?.let { (item, show, at) ->
                     ActionDialog(
