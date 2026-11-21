@@ -150,7 +150,7 @@ data class AppSettings(
     /** Turn subtitles / closed captions on when a channel or video starts (off unless chosen). */
     val captionsByDefault: Boolean = false,
     /** App language ("en" = English). */
-    val language: String = "en",
+    val language: String = "pt-BR",
     val refreshHours: Int = 12,
     val backAction: BackAction = BackAction.ASK_EXIT,
     val autoUpdateCheck: Boolean = true,
@@ -296,7 +296,7 @@ class SettingsStore(private val context: Context) {
         startOnWake = this[Keys.START_ON_WAKE] ?: false,
         invertChannelKeys = this[Keys.INVERT_KEYS] ?: false,
         captionsByDefault = this[Keys.CAPTIONS_DEFAULT] ?: false,
-        language = this[Keys.LANGUAGE] ?: "en",
+        language = this[Keys.LANGUAGE] ?: "pt-BR",
         refreshHours = this[Keys.REFRESH_HOURS] ?: 12,
         backAction = runCatching { BackAction.valueOf(this[Keys.BACK_ACTION] ?: "") }
             .getOrDefault(BackAction.ASK_EXIT),
