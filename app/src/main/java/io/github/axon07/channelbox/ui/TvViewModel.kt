@@ -1017,15 +1017,23 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     /** Episodes of a show; empty list with a message if the provider couldn't be reached. */
-    suspend fun episodes(show: VodEntity): List<VodEntity> =
-        try {
-            repo.episodes(show)
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            showToast("Couldn't load the episodes: ${e.message ?: e.javaClass.simpleName}")
-            emptyList()
+    suspend fun episodes(show: VodEntity): List<VodEntity> {
+        // ZarkTV: o servidor às vezes responde vazio (série grande / servidor ocupado) → tenta de novo até 3 vezes.
+        var ultimoErro: Exception? = null
+        repeat(3) { tentativa ->
+            try {
+                val lista = repo.episodes(show)
+                if (lista.isNotEmpty() || tentativa == 2) return lista
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                ultimoErro = e
+            }
+            kotlinx.coroutines.delay(800L * (tentativa + 1))
         }
+        if (ultimoErro != null) showToast("O servidor não enviou os episódios desta série agora. Volte e abra de novo em instantes.")
+        return emptyList()
+    }
 
     /** ZarkTV: ficha do filme/série (sinopse, elenco, capa de fundo) direto do servidor. */
     suspend fun zarkFicha(item: VodEntity): io.github.axon07.channelbox.data.ZarkInfo? {
