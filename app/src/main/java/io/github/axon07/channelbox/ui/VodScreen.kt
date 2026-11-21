@@ -225,12 +225,13 @@ private fun LibraryScreen(
             LazyColumn(Modifier.weight(1f)) {
                 val entries = buildList {
                     if (continueCount > 0) add(Triple(VOD_CONTINUE, "Continuar assistindo", continueCount))
+                    add(Triple(VOD_FAVORITOS, "★ Meus favoritos", 0))
                     add(Triple(null, "Todos", total))
                     categories.forEach { add(Triple(it.name, nomeCategoria(it.name), it.count)) }
                 }
                 items(entries, key = { it.first ?: "\u0000all" }) { (id, label, count) ->
                     val selected = b.query.isBlank() && b.category == id
-                    val real = id != null && id != VOD_CONTINUE
+                    val real = id != null && id != VOD_CONTINUE && id != VOD_FAVORITOS
                     val locked = real && overrides[TvViewModel.vodKey(b.kind, id!!)]?.locked == true
                     CategoryEntry(
                         label = label,
@@ -259,6 +260,7 @@ private fun LibraryScreen(
             val heading = (if (movies) "Filmes > " else "Séries > ") + when {
                 b.query.isNotBlank() -> "Busca: “${b.query.trim()}”"
                 b.category == VOD_CONTINUE -> "Continuar assistindo"
+                b.category == VOD_FAVORITOS -> "Meus favoritos"
                 b.category == null -> "Todos"
                 else -> nomeCategoria(b.category.orEmpty())
             }
@@ -525,6 +527,7 @@ private fun ShowScreen(
                 BotaoFicha(if (ultimo != null) "▶  Continuar T${ultimo.season}E${ultimo.episode}" else "▶  Assistir", true, Modifier.focusRequester(primeiro)) {
                     alvo?.let { b.focusId = it.id; onPlay(it, show) }
                 }
+                BotaoExtras(vm, show, serie = true, episodios = episodes?.size ?: 0)
                 BotaoFicha("Player externo", false) { alvo?.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, show.title) } }
                 BotaoFicha("‹ Voltar", false) {
                     b.closeShow()
@@ -695,6 +698,7 @@ private fun MovieDetail(
             Spacer(Modifier.height(18.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
                 BotaoFicha(if (progress != null && progress.position > 0) "⛶  Continuar" else "⛶  Tela cheia", true, Modifier.focusRequester(play)) { assistir() }
+                BotaoExtras(vm, movie, serie = false, episodios = 0)
                 BotaoFicha("Player externo", false) { movie.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, movie.title) } }
                 BotaoFicha("‹ Voltar", false) {
                     b.movie = null
@@ -862,5 +866,27 @@ private fun MiniPlay(imagem: String?, titulo: String, modifier: Modifier, onPlay
                 contentAlignment = Alignment.Center,
             ) { AppIcon(AppIcons.Play, tint = Color.White, size = 30.dp) }
         }
+    }
+}
+
+
+/** Botões da ficha como na UniTV: Idioma, Resolução, Favorito e (séries) Notificações. */
+@Composable
+private fun BotoesExtras(vm: TvViewModel, item: VodEntity, serie: Boolean, episodios: Int) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var idioma by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.idioma(ctx)) }
+    var resol by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.resolucao(ctx)) }
+    var fav by remember(item.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.ehFavorito(ctx, item.id)) }
+    var segue by remember(item.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.segue(ctx, item.id)) }
+    BotaoFicha("Idioma: " + io.github.axon07.channelbox.data.ZarkPrefs.nomeIdioma(idioma), false) {
+        idioma = io.github.axon07.channelbox.data.ZarkPrefs.proximoIdioma(ctx)
+    }
+    BotaoFicha("Resolução: " + io.github.axon07.channelbox.data.ZarkPrefs.nomeResolucao(resol), false) {
+        resol = io.github.axon07.channelbox.data.ZarkPrefs.proximaResolucao(ctx)
+    }
+    BotaoFicha(if (fav) "★ Favorito" else "☆ Favorito", fav) { fav = vm.zarkFavoritar(item) }
+    if (serie) BotaoFicha(if (segue) "Notificações: ligadas" else "Notificações", segue) {
+        segue = io.github.axon07.channelbox.data.ZarkPrefs.alternarSeguir(ctx, item.id, episodios)
+        vm.showToast(if (segue) "Vamos avisar no sininho quando sair episódio novo" else "Notificações desligadas")
     }
 }

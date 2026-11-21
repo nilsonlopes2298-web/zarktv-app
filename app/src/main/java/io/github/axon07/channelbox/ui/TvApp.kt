@@ -688,6 +688,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         } else listOfNotNull(item.year, item.rating?.let { "★ $it" }).joinToString(" · ").ifEmpty { null }
         playbackReturn = Mode.VOD
         vm.player.exo.stop()
+        vm.zarkAplicarPreferencias()
         vm.playVod(item, at, show?.id)
         playbackToken++
         mode = Mode.PLAYBACK
@@ -1652,7 +1653,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
             }
             Mode.HOME, Mode.PROFILE -> {
-                LaunchedEffect(Unit) { vm.zarkConferir() }
+                LaunchedEffect(Unit) {
+                    vm.zarkConferir()
+                    vm.zarkConferirNovidades()
+                }
                 val conta by vm.zarkConta.collectAsStateWithLifecycle()
                 val pl = settings.playlists.firstOrNull { it.enabled } ?: settings.playlists.firstOrNull()
                 val ctx = LocalContext.current
@@ -1763,6 +1767,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onProfile = { mode = Mode.PROFILE },
                     onRenew = pagar,
                     versaoNova = (update as? TvViewModel.UpdateState.Available)?.release?.version,
+                    novidades = vm.zarkNovidades.collectAsStateWithLifecycle().value,
                     onAtualizar = { vm.startUpdate() },
                 ) else ProfileScreen(
                     serverName = pl?.name.orEmpty(),

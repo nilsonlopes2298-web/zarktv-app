@@ -277,3 +277,51 @@ object ZarkPainel {
         return ZarkExtras(o.s("tema"), banners, o.s("aviso") ?: o.s("mensagem"))
     }
 }
+
+
+/** Preferências do cliente no ZarkTV (favoritos de filmes/séries, idioma, resolução, séries seguidas). */
+object ZarkPrefs {
+    private fun p(c: Context) = c.getSharedPreferences("zarktv", Context.MODE_PRIVATE)
+
+    fun favoritos(c: Context): Set<String> = p(c).getStringSet("vod_fav", emptySet()).orEmpty()
+    fun ehFavorito(c: Context, id: String) = id in favoritos(c)
+    fun alternarFavorito(c: Context, id: String): Boolean {
+        val s = favoritos(c).toMutableSet()
+        val on = if (id in s) { s.remove(id); false } else { s.add(id); true }
+        p(c).edit().putStringSet("vod_fav", s).apply()
+        return on
+    }
+
+    /** "auto" (do arquivo), "pt" (dublado) ou "leg" (original legendado). */
+    fun idioma(c: Context) = p(c).getString("idioma", "auto") ?: "auto"
+    fun proximoIdioma(c: Context): String {
+        val n = when (idioma(c)) { "auto" -> "pt"; "pt" -> "leg"; else -> "auto" }
+        p(c).edit().putString("idioma", n).apply()
+        return n
+    }
+    fun nomeIdioma(v: String) = when (v) { "pt" -> "Dublado"; "leg" -> "Legendado"; else -> "Automático" }
+
+    /** 0 = não mexer, -1 = melhor, ou altura máxima (1080, 720, 480). */
+    fun resolucao(c: Context) = p(c).getInt("resolucao", 0)
+    fun proximaResolucao(c: Context): Int {
+        val n = when (resolucao(c)) { 0 -> -1; -1 -> 1080; 1080 -> 720; 720 -> 480; else -> 0 }
+        p(c).edit().putInt("resolucao", n).apply()
+        return n
+    }
+    fun nomeResolucao(v: Int) = when (v) { 0 -> "Automática"; -1 -> "Máxima"; else -> "Até ${v}p" }
+
+    /** Séries seguidas: id -> quantidade de episódios na última conferida. */
+    fun seguidas(c: Context): Map<String, Int> = p(c).getStringSet("seguidas", emptySet()).orEmpty()
+        .mapNotNull { e -> e.split("|").takeIf { it.size == 2 }?.let { it[0] to (it[1].toIntOrNull() ?: 0) } }.toMap()
+    fun segue(c: Context, id: String) = seguidas(c).containsKey(id)
+    fun seguir(c: Context, id: String, episodios: Int) {
+        val m = seguidas(c).toMutableMap(); m[id] = episodios
+        p(c).edit().putStringSet("seguidas", m.map { "${it.key}|${it.value}" }.toSet()).apply()
+    }
+    fun alternarSeguir(c: Context, id: String, episodios: Int): Boolean {
+        val m = seguidas(c).toMutableMap()
+        val on = if (m.containsKey(id)) { m.remove(id); false } else { m[id] = episodios; true }
+        p(c).edit().putStringSet("seguidas", m.map { "${it.key}|${it.value}" }.toSet()).apply()
+        return on
+    }
+}

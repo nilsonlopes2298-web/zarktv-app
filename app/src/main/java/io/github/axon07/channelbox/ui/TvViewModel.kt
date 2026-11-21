@@ -19,6 +19,7 @@ import io.github.axon07.channelbox.data.Playlist
 import io.github.axon07.channelbox.data.SourceType
 import io.github.axon07.channelbox.data.XtreamClient
 import io.github.axon07.channelbox.data.ZarkConfig
+import io.github.axon07.channelbox.data.ZarkPrefs
 import io.github.axon07.channelbox.data.OverrideEntity
 import io.github.axon07.channelbox.player.Timeshift
 import io.github.axon07.channelbox.data.VodCategory
@@ -93,6 +94,9 @@ const val VOD_SEARCH_LIMIT = 300
 
 /** Pseudo-category: movies / shows you've started. */
 const val VOD_CONTINUE = "\u0000continue"
+
+/** ZarkTV: pseudo-categoria "Meus favoritos" (filmes e séries). */
+const val VOD_FAVORITOS = "\u0000favoritos"
 
 /** How much of the timeline the guide shows at once. */
 const val GUIDE_SPAN = 2 * HOUR
@@ -968,6 +972,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         when (category) {
             null -> repo.vod.allItems(kind, n * 3)
             VOD_CONTINUE -> repo.vod.continueWatching(kind)
+            VOD_FAVORITOS -> repo.vod.byIds(ZarkPrefs.favoritos(getApplication()).toList()).filter { it.kind == kind }
             else -> repo.vod.categoryItems(kind, category, n * 3)
         }
     }.map { list ->
@@ -993,6 +998,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         when {
             q.isNotEmpty() -> repo.vod.search(kind, q, VOD_SEARCH_LIMIT)
             category == VOD_CONTINUE -> repo.vod.continueWatching(kind)
+            category == VOD_FAVORITOS -> repo.vod.byIds(ZarkPrefs.favoritos(getApplication()).toList()).filter { it.kind == kind }
             category == null -> repo.vod.allItems(kind, VOD_PAGE)
             else -> repo.vod.categoryItems(kind, category, VOD_PAGE)
         }
@@ -1558,6 +1564,51 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 else -> Unit
             }
+        }
+    }
+
+    /** Liga/desliga favorito de filme/série e atualiza as listas. */
+    fun zarkFavoritar(item: VodEntity): Boolean {
+        val on = ZarkPrefs.alternarFavorito(getApplication(), item.id)
+        repo.vodChanged()
+        showToast(if (on) "Adicionado aos favoritos" else "Removido dos favoritos")
+        return on
+    }
+
+    /** Idioma e resolução escolhidos na ficha (valem para filmes e séries). */
+    fun zarkAplicarPreferencias() {
+        val ctx = getApplication<Application>()
+        val b = player.exo.trackSelectionParameters.buildUpon()
+        when (ZarkPrefs.idioma(ctx)) {
+            "pt" -> b.setPreferredAudioLanguages("pt", "por", "pt-BR").setPreferredTextLanguage(null)
+            "leg" -> b.setPreferredAudioLanguages("en", "eng", "ja", "ko", "es").setPreferredTextLanguages("pt", "por", "pt-BR")
+            else -> b.setPreferredAudioLanguage(null)
+        }
+        player.exo.trackSelectionParameters = b.build()
+        val r = ZarkPrefs.resolucao(ctx)
+        if (r != 0) player.setMaxQuality(if (r < 0) 0 else r)
+    }
+
+    /** Séries seguidas com episódio novo desde a última vez (para o sininho). */
+    val zarkNovidades = MutableStateFlow<List<String>>(emptyList())
+    private var novidadesConferidas = false
+
+    fun zarkConferirNovidades() {
+        if (novidadesConferidas) return
+        novidadesConferidas = true
+        viewModelScope.launch {
+            val ctx = getApplication<Application>()
+            val seguidas = ZarkPrefs.seguidas(ctx)
+            if (seguidas.isEmpty()) return@launch
+            val series = repo.vod.byIds(seguidas.keys.toList())
+            val novas = mutableListOf<String>()
+            for (s in series) {
+                val n = runCatching { repo.episodes(s).size }.getOrDefault(0)
+                val antes = seguidas[s.id] ?: 0
+                if (n > antes && antes > 0) novas += "${s.title}: ${n - antes} episódio(s) novo(s)"
+                if (n > 0) ZarkPrefs.seguir(ctx, s.id, n)
+            }
+            zarkNovidades.value = novas
         }
     }
 

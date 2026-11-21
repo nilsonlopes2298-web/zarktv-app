@@ -138,6 +138,7 @@ fun UniShell(
     onProfile: () -> Unit,
     onRenew: () -> Unit,
     versaoNova: String? = null,
+    novidades: List<String> = emptyList(),
     onAtualizar: () -> Unit = {},
 ) {
     var sinoAberto by remember { mutableStateOf(false) }
@@ -183,7 +184,7 @@ fun UniShell(
                 Spacer(Modifier.width(10.dp))
                 Box {
                     IconeRedondo(AppIcons.Bell, "Avisos") { sinoAberto = !sinoAberto }
-                    val temAviso = versaoNova != null || (dias != null && dias <= 5) || extras.aviso != null
+                    val temAviso = versaoNova != null || (dias != null && dias <= 5) || extras.aviso != null || novidades.isNotEmpty()
                     if (temAviso) Box(Modifier.align(Alignment.TopEnd).size(11.dp).clip(CircleShape).background(Color(0xFFFF1744)))
                 }
                 if (!compacto) {
@@ -246,6 +247,7 @@ fun UniShell(
                     )
                 )
                 extras.aviso?.let { add(Triple("Aviso", it, null)) }
+                novidades.forEach { add(Triple("Episódio novo", it, null)) }
             }
             Box(Modifier.fillMaxSize().background(Color(0x66000000)).tap(onClick = { sinoAberto = false }))
             Column(

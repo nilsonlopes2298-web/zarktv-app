@@ -73,6 +73,10 @@ interface VodDao {
     @Query("SELECT category AS name, COUNT(*) AS count FROM vod WHERE kind = :kind GROUP BY category ORDER BY MAX(sortIndex) DESC")
     suspend fun categories(kind: String): List<VodCategory>
 
+    /** ZarkTV: favoritos de filmes e séries (lista de ids). */
+    @Query("SELECT * FROM vod WHERE id IN (:ids)")
+    suspend fun byIds(ids: List<String>): List<VodEntity>
+
     @Query("SELECT COUNT(*) FROM vod WHERE kind = :kind")
     suspend fun count(kind: String): Int
 
