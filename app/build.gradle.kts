@@ -30,7 +30,7 @@ android {
         versionCode = appVersionCode
         versionName = appVersionName
         // GitHub repo the in-app updater checks for new releases.
-        buildConfigField("String", "UPDATE_REPO", "\"Axon07/Channelbox\"")
+        buildConfigField("String", "UPDATE_REPO", "\"nilsonlopes2298-web/zarktv-app\"")
     }
 
     signingConfigs {

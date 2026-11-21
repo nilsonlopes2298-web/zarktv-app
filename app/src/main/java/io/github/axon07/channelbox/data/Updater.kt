@@ -29,6 +29,8 @@ data class ReleaseInfo(
     val notes: String,
     val apkUrl: String,
     val apkSize: Long,
+    /** ZarkTV: atualização obrigatória (o cliente não pode pular nem deixar para depois). */
+    val forced: Boolean = false,
 )
 
 /** Checks GitHub Releases for a newer APK, downloads it and hands it to Android's installer. */
@@ -36,29 +38,29 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
 
     val currentVersion: String get() = BuildConfig.VERSION_NAME
 
-    /** The newest published release that has an APK attached, or null if there is none. */
+    /**
+     * ZarkTV: a cada envio para a main o GitHub Actions publica, na versão "latest", o APK e um
+     * version.json ({"version":"1.12.0","url":"…/zarktv.apk","obrigatoria":true,"notas":"…"}).
+     */
     suspend fun latest(): ReleaseInfo? = withContext(Dispatchers.IO) {
         val request = Request.Builder()
-            .url("https://api.github.com/repos/${BuildConfig.UPDATE_REPO}/releases/latest")
-            .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "Channelbox/${BuildConfig.VERSION_NAME}")
+            .url("https://github.com/${BuildConfig.UPDATE_REPO}/releases/download/latest/version.json")
+            .header("User-Agent", "ZarkTV/${BuildConfig.VERSION_NAME}")
+            .header("Cache-Control", "no-cache")
             .build()
         http.newCall(request).execute().use { response ->
-            if (response.code == 404) return@withContext null // no releases yet
-            if (!response.isSuccessful) throw IOException("GitHub answered HTTP ${response.code}")
+            if (response.code == 404) return@withContext null // ainda não publicado
+            if (!response.isSuccessful) throw IOException("Não deu para verificar atualização (HTTP ${response.code})")
             val json = Json.parseToJsonElement(response.body?.string().orEmpty()) as? JsonObject
-                ?: throw IOException("Unexpected answer from GitHub")
-            val tag = json.str("tag_name") ?: return@withContext null
-            val apk = (json["assets"] as? JsonArray).orEmpty()
-                .mapNotNull { it as? JsonObject }
-                .firstOrNull { it.str("name")?.endsWith(".apk", ignoreCase = true) == true }
-                ?: return@withContext null
+                ?: throw IOException("Resposta inesperada do servidor de atualização")
+            val version = json.str("version")?.removePrefix("v") ?: return@withContext null
             ReleaseInfo(
-                version = tag.removePrefix("v").removePrefix("V"),
-                title = json.str("name")?.takeIf { it.isNotBlank() } ?: tag,
-                notes = json.str("body").orEmpty().trim(),
-                apkUrl = apk.str("browser_download_url") ?: return@withContext null,
-                apkSize = apk.str("size")?.toLongOrNull() ?: 0L,
+                version = version,
+                title = "ZarkTV $version",
+                notes = json.str("notas").orEmpty().trim(),
+                apkUrl = json.str("url") ?: "https://github.com/${BuildConfig.UPDATE_REPO}/releases/download/latest/zarktv.apk",
+                apkSize = json.str("tamanho")?.toLongOrNull() ?: 0L,
+                forced = json.str("obrigatoria")?.lowercase() != "false",
             )
         }
     }
@@ -75,9 +77,9 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
     suspend fun download(release: ReleaseInfo, onProgress: (Int) -> Unit): File = withContext(Dispatchers.IO) {
         val dir = updatesDir()
         dir.listFiles()?.forEach { it.delete() }
-        val target = File(dir, "channelbox-${release.version}.apk")
+        val target = File(dir, "zarktv-${release.version}.apk")
         val request = Request.Builder().url(release.apkUrl)
-            .header("User-Agent", "Channelbox/${BuildConfig.VERSION_NAME}")
+            .header("User-Agent", "ZarkTV/${BuildConfig.VERSION_NAME}")
             .build()
         http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IOException("Download failed (HTTP ${response.code})")

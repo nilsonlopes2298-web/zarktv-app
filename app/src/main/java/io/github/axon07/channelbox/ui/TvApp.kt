@@ -1620,27 +1620,29 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             Mode.UPDATE -> {
                 when (val u = update) {
                     is TvViewModel.UpdateState.Available -> ActionDialog(
-                        title = "Update available: Channelbox ${u.release.version}",
-                        subtitle = "You have ${vm.appVersion}." +
+                        title = if (u.release.forced) "Nova versão do ZarkTV (${u.release.version})" else "Atualização disponível: ZarkTV ${u.release.version}",
+                        subtitle = (if (u.release.forced) "Esta atualização é obrigatória para continuar usando o app." else "Você está na versão ${vm.appVersion}.") +
                             (u.release.notes.lineSequence().firstOrNull { it.isNotBlank() }
                                 ?.let { "\n" + it.trim().removePrefix("#").removePrefix("-").trim() } ?: ""),
-                        actions = listOf(
-                            DialogAction("Update now") { vm.startUpdate() },
-                            DialogAction("Later") { vm.dismissUpdate(skipThisVersion = false) },
-                            DialogAction("Skip this version") { vm.dismissUpdate(skipThisVersion = true) },
+                        actions = if (u.release.forced) listOf(
+                            DialogAction("Atualizar agora") { vm.startUpdate() },
+                        ) else listOf(
+                            DialogAction("Atualizar agora") { vm.startUpdate() },
+                            DialogAction("Depois") { vm.dismissUpdate(skipThisVersion = false) },
+                            DialogAction("Pular esta versão") { vm.dismissUpdate(skipThisVersion = true) },
                         ),
                     )
                     is TvViewModel.UpdateState.Downloading -> ActionDialog(
-                        title = "Downloading Channelbox ${u.release.version}… ${u.percent}%",
-                        subtitle = "Android will ask you to confirm the update when it's done.",
-                        actions = listOf(DialogAction("Hide") { vm.dismissUpdate(skipThisVersion = false) }),
+                        title = "Baixando ZarkTV ${u.release.version}… ${u.percent}%",
+                        subtitle = "Quando terminar, o Android vai pedir para confirmar a atualização.",
+                        actions = if (u.release.forced) emptyList() else listOf(DialogAction("Esconder") { vm.dismissUpdate(skipThisVersion = false) }),
                     )
                     is TvViewModel.UpdateState.Failed -> ActionDialog(
-                        title = "Update failed",
+                        title = "A atualização falhou",
                         subtitle = u.message,
                         actions = listOf(
-                            DialogAction("Try again") { vm.checkForUpdates(manual = true) },
-                            DialogAction("Close") { vm.dismissUpdate(skipThisVersion = false) },
+                            DialogAction("Tentar de novo") { vm.checkForUpdates(manual = true) },
+                            DialogAction("Fechar") { vm.dismissUpdate(skipThisVersion = false) },
                         ),
                     )
                     else -> Unit

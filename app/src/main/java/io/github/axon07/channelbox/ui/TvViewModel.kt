@@ -636,7 +636,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             if (state is UpdateState.Available) {
                 val skipped = c.settings.current().skippedVersion
                 if (manual) _updatePrompt.value = false
-                _updatePrompt.value = manual || state.release.version != skipped
+                _updatePrompt.value = manual || state.release.forced || state.release.version != skipped
             } else if (!manual) {
                 _update.value = UpdateState.Idle
             }
@@ -653,9 +653,9 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             // When they come back from that screen, resumePendingUpdate() carries on by itself.
             if (updater.openInstallPermission()) {
                 pendingInstall = true
-                showToast("Turn on \"Allow\" for Channelbox, then press Back")
+                showToast("Ative \"Permitir\" para o ZarkTV e aperte Voltar")
             } else {
-                showToast("Allow \"Install unknown apps\" for Channelbox in Android settings")
+                showToast("Permita \"Instalar apps desconhecidos\" para o ZarkTV nas configurações do Android")
             }
             return
         }
@@ -666,7 +666,8 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
                     _update.value = UpdateState.Downloading(release, percent)
                 }
                 _update.value = UpdateState.Available(release)
-                _updatePrompt.value = false
+                // Obrigatória: o aviso continua até instalar (se o cliente cancelar, volta a aparecer).
+                _updatePrompt.value = release.forced
                 updater.install(apk)
             } catch (e: Exception) {
                 _update.value = UpdateState.Failed(e.message ?: "Download failed")
@@ -682,12 +683,16 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         if (!pendingInstall) return
         pendingInstall = false
         if (updater.canInstall()) startUpdate()
-        else showToast("Channelbox still isn't allowed to install apps")
+        else showToast("O ZarkTV ainda não tem permissão para instalar o app")
     }
 
     fun dismissUpdate(skipThisVersion: Boolean) {
-        _updatePrompt.value = false
         val s = _update.value
+        // Atualização obrigatória não pode ser fechada.
+        val forced = (s as? UpdateState.Available)?.release?.forced == true ||
+            (s as? UpdateState.Downloading)?.release?.forced == true
+        if (forced) return
+        _updatePrompt.value = false
         if (skipThisVersion && s is UpdateState.Available) {
             viewModelScope.launch { c.settings.setSkippedVersion(s.release.version) }
         }
@@ -1082,7 +1087,8 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         // Startup update check, a few seconds in so it doesn't slow down tuning the first channel.
         viewModelScope.launch {
             delay(8_000)
-            if (c.settings.current().autoUpdateCheck) checkForUpdates(manual = false)
+            // ZarkTV: sempre confere na abertura (atualização obrigatória).
+            checkForUpdates(manual = false)
         }
         viewModelScope.launch {
             val s = c.settings.current()

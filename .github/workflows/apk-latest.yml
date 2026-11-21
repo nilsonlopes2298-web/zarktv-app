@@ -1,13 +1,16 @@
-name: APK latest (teste)
+name: APK latest (ZarkTV)
 
-# A cada envio pra main, compila o APK e publica como arquivo unico
-# na versao "latest", com link fixo:
-#   https://github.com/nilsonlopes2298-web/zarktv-app/releases/latest/download/zarktv.apk
-# Assim da pra baixar no celular e instalar no tablet/TV pelo Downloader.
+# A cada envio pra main: compila o APK, assina com a chave permanente (se os segredos
+# existirem) e publica na versao "latest", com link fixo:
+#   https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/latest/zarktv.apk
+# Junto vai o version.json que o app le ao abrir: se a versao for mais nova, o app
+# obriga a atualizar.
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'painel-checkout/**'
   workflow_dispatch:
 
 permissions:
@@ -16,6 +19,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+      SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+      SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+      SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -26,24 +34,49 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Compilar APK
-        run: ./gradlew --no-daemon assembleRelease
+      - name: Chave de assinatura
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "Assinando com a chave permanente do ZarkTV."
+          else
+            echo "::warning::Segredos de assinatura nao configurados: o APK sai com chave de teste e a atualizacao automatica NAO instala por cima. Configure SIGNING_KEYSTORE_BASE64, SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS e SIGNING_KEY_PASSWORD."
+          fi
 
-      - name: Renomear para zarktv.apk
+      - name: Versao
+        run: echo "VERSAO=1.${{ github.run_number }}.0" >> "$GITHUB_ENV"
+
+      - name: Compilar APK
+        run: ./gradlew --no-daemon assembleRelease -PappVersionName="$VERSAO"
+
+      - name: Renomear e gerar version.json
         run: |
           APK=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
           echo "APK encontrado: $APK"
           cp "$APK" zarktv.apk
+          NOTAS=$(git log -1 --pretty=%s | sed 's/"/\\"/g')
+          cat > version.json <<JSON
+          {
+            "version": "$VERSAO",
+            "url": "https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/latest/zarktv.apk",
+            "obrigatoria": true,
+            "tamanho": $(stat -c %s zarktv.apk),
+            "notas": "$NOTAS"
+          }
+          JSON
+          cat version.json
 
       - name: Publicar na versao 'latest'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: ZarkTV (versao de teste)
+          name: ZarkTV (versao atual)
           prerelease: true
-          files: zarktv.apk
+          files: |
+            zarktv.apk
+            version.json
           body: |
-            APK de teste do ZarkTV (base Channelbox, GPLv3).
-            Instala no celular e na Android TV / tablet.
+            APK do ZarkTV (base Channelbox, GPLv3). Mesmo APK para celular, tablet e Android TV.
             Link fixo sempre atualizado:
-            https://github.com/nilsonlopes2298-web/zarktv-app/releases/latest/download/zarktv.apk
+            https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/latest/zarktv.apk
