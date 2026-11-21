@@ -1500,7 +1500,15 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             Mode.SETUP -> {
                 // Decided once on entry: saving the first playlist mustn't restart this screen.
                 val firstRun = remember(setupPlaylistId) { !settings.hasSource }
-                key(setupPlaylistId) {
+                var manualSetup by remember { mutableStateOf(false) }
+                if (firstRun && !manualSetup) {
+                    ZarkLoginScreen(
+                        vm = vm,
+                        refreshState = refreshState,
+                        onAdvanced = { manualSetup = true },
+                        onDone = { mode = Mode.PLAYER },
+                    )
+                } else key(setupPlaylistId) {
                     SetupScreen(
                         initial = settings.playlists.firstOrNull { it.id == setupPlaylistId },
                         firstRun = firstRun,

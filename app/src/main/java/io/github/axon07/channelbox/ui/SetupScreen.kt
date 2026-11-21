@@ -531,3 +531,94 @@ fun TvTextField(
         }
     }
 }
+
+/** Entrada do ZarkTV no estilo do webplay: usuário, senha e servidor. */
+@Composable
+fun ZarkLoginScreen(
+    vm: TvViewModel,
+    refreshState: RefreshState,
+    onAdvanced: () -> Unit,
+    onDone: () -> Unit,
+) {
+    val servers = remember {
+        listOf(
+            "Club" to "http://roncb.sytes.net",
+            "Uniplay" to "http://zarktvqx.top",
+            "Five" to "http://imagenshd.top",
+            "Live" to "http://atomm.top",
+        )
+    }
+    var user by rememberSaveable { mutableStateOf("") }
+    var pass by rememberSaveable { mutableStateOf("") }
+    var sel by rememberSaveable { mutableStateOf(0) }
+    var submitted by remember { mutableStateOf(false) }
+    var sawRunning by remember { mutableStateOf(false) }
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+
+    LaunchedEffect(refreshState, submitted) {
+        if (submitted) when (refreshState) {
+            is RefreshState.Running -> sawRunning = true
+            else -> if (sawRunning) onDone()
+        }
+    }
+
+    val busy = submitted && refreshState is RefreshState.Running
+    val canEnter = !busy && user.isNotBlank() && pass.isNotBlank()
+    val entrar = {
+        if (canEnter) {
+            submitted = true
+            sawRunning = false
+            vm.savePlaylist(
+                Playlist(
+                    id = Playlist.newId(),
+                    name = servers[sel].first,
+                    type = SourceType.XTREAM,
+                    xtServer = servers[sel].second,
+                    xtUser = user.trim(),
+                    xtPass = pass.trim(),
+                )
+            )
+        }
+    }
+
+    Box(Modifier.fillMaxSize().background(Palette.Background), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.widthIn(max = 420.dp).padding(24.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("▶ ", color = Palette.Accent, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Text("Zark", color = Palette.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Text("TV", color = Palette.Accent, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            }
+            Text("Login na sua conta", color = Palette.Text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+
+            TvTextField("Usuário", user, { user = it })
+            TvTextField("Senha", pass, { pass = it }, password = true)
+
+            Text("Servidor", color = Palette.TextDim, fontSize = 12.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                servers.forEachIndexed { i, s ->
+                    PillButton(s.first, primary = (i == sel)) { sel = i }
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+            PrimaryButton(if (busy) "Entrando…" else "Entrar", enabled = canEnter, onClick = entrar)
+
+            if (submitted && refreshState is RefreshState.Failed) {
+                Text(
+                    (refreshState as RefreshState.Failed).message,
+                    color = Palette.Error, fontSize = 12.sp, maxLines = 4, overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            QuietButton("Ver planos") { uri.openUri("https://wa.me/558587890473") }
+            QuietButton("Opções avançadas (M3U, MAC, outro servidor)") { onAdvanced() }
+        }
+    }
+}
