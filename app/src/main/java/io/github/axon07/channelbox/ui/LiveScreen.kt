@@ -46,7 +46,7 @@ import io.github.axon07.channelbox.data.ProgramEntity
 import kotlinx.coroutines.delay
 
 /** Onde fica a prévia do canal na tela de TV ao vivo (a mesma conta é usada para posicionar o vídeo). */
-data class LiveGeom(val portrait: Boolean, val x: Dp, val y: Dp, val w: Dp, val h: Dp, val listW: Dp)
+data class LiveGeom(val portrait: Boolean, val x: Dp, val y: Dp, val w: Dp, val h: Dp, val listW: Dp, val gruposW: Dp = 0.dp)
 
 @Composable
 fun liveGeom(): LiveGeom {
@@ -56,6 +56,16 @@ fun liveGeom(): LiveGeom {
     return if (c.screenHeightDp > c.screenWidthDp) {
         val w = sw - 24.dp
         LiveGeom(true, 12.dp, 64.dp, w, w * 9f / 16f, sw)
+    } else if (ZarkLayout.leve.value) {
+        // Layout leve: grupos | canais | prévia (3 colunas, como no Zplay 2).
+        val gruposW = sw * 0.22f
+        val listW = sw * 0.30f
+        val x = 12.dp + gruposW + 8.dp + listW + 10.dp
+        var w = sw - x - 12.dp
+        var h = w * 9f / 16f
+        val maxH = (sh - 64.dp) * 0.55f
+        if (h > maxH) { h = maxH; w = h * 16f / 9f }
+        LiveGeom(false, x, 64.dp, w, h, listW, gruposW)
     } else {
         val listW = sw * 0.36f
         var w = sw - listW - 52.dp
@@ -88,6 +98,8 @@ fun LiveScreen(
     onFull: () -> Unit,
     onFavorite: (ChannelEntity) -> Unit,
     onBack: () -> Unit,
+    /** Quantos canais tem cada grupo (layout leve mostra ao lado do nome). */
+    contagem: (ChannelFilter) -> Int? = { null },
 ) {
     val g = liveGeom()
     var showGroups by remember { mutableStateOf(false) }
@@ -137,23 +149,55 @@ fun LiveScreen(
             val progs = current?.epgId?.let { upcoming[it] }.orEmpty()
             val atual = progs.firstOrNull { it.start <= now && it.stop > now }
             val proximo = progs.firstOrNull { it.start > now }
-            atual?.let { Text("Agora: ${timeFormat(it.start)}  ${it.title}", color = Color(0xFFFFD34D), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-            proximo?.let { Text("Depois: ${timeFormat(it.start)}  ${it.title}", color = Palette.TextDim, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            if (g.gruposW > 0.dp) {
+                // Programação em lista (agora em amarelo, próximos abaixo).
+                progs.filter { it.stop > now }.take(6).forEach { p ->
+                    val agora = p.start <= now
+                    Text(
+                        "${timeFormat(p.start)} – ${timeFormat(p.stop)}   ${p.title}",
+                        color = if (agora) Color(0xFFFFD34D) else Color(0xCCFFFFFF), fontSize = 13.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            } else {
+                atual?.let { Text("Agora: ${timeFormat(it.start)}  ${it.title}", color = Color(0xFFFFD34D), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                proximo?.let { Text("Depois: ${timeFormat(it.start)}  ${it.title}", color = Palette.TextDim, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            }
             if (current != null && atual == null) Text("Toque de novo no canal (ou OK) para tela cheia", color = Palette.TextDim, fontSize = 12.sp)
+        }
+
+        // Layout leve: coluna fixa de grupos à esquerda, com a contagem de canais.
+        if (g.gruposW > 0.dp) {
+            Column(
+                Modifier.offset(12.dp, 64.dp).width(g.gruposW).fillMaxHeight().padding(bottom = 72.dp)
+                    .background(Color(0x66000000), RoundedCornerShape(10.dp))
+            ) {
+                LazyColumn(Modifier.fillMaxWidth()) {
+                    itemsIndexed(groups) { _, (f, label) ->
+                        LinhaFocavel(selecionado = f == currentGroup, onClick = { onGroup(f) }) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(label, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                contagem(f)?.let { Text("$it", color = Palette.TextDim, fontSize = 12.sp) }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Lista de canais.
         val listTop = if (g.portrait) g.y + g.h + 64.dp else 64.dp
         Column(
             Modifier
-                .offset(if (g.portrait) 0.dp else 12.dp, listTop)
+                .offset(if (g.portrait) 0.dp else 12.dp + (if (g.gruposW > 0.dp) g.gruposW + 8.dp else 0.dp), listTop)
                 .width(if (g.portrait) g.listW else g.listW)
                 .fillMaxHeight()
                 .padding(bottom = listTop + 8.dp, start = if (g.portrait) 12.dp else 0.dp, end = if (g.portrait) 12.dp else 0.dp)
                 .background(Color(0x66000000), RoundedCornerShape(10.dp))
         ) {
-            // Grupo: ◀ nome ▶ (tocar no nome abre a lista de grupos).
-            Row(Modifier.fillMaxWidth().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Grupo: ◀ nome ▶ (tocar no nome abre a lista de grupos). No layout leve os grupos já ficam à esquerda.
+            if (g.gruposW > 0.dp) Text(groupLabel, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(12.dp))
+            else Row(Modifier.fillMaxWidth().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 PillButton("◀", onClick = onPrevGroup)
                 Box(Modifier.weight(1f).padding(horizontal = 6.dp)) {
                     LinhaFocavel(onClick = { showGroups = !showGroups }) {

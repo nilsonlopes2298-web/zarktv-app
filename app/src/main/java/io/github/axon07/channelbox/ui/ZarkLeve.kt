@@ -25,3 +25,38 @@ object ZarkLeve {
     /** Zoom do foco: no modo leve fica parado (sem animação). */
     fun escala(f: Float): Float = if (ativo) 1f else f
 }
+
+/**
+ * Layout da tela inicial: "unitv" (abas, prévia, catálogo) ou "leve" (4 cartões e canais em 3 colunas,
+ * estilo Zplay 2). Vem do painel (campo "layout" no config.json: unitv, leve ou auto) e o cliente pode
+ * trocar no Perfil. "auto" = leve só em aparelho fraco.
+ */
+object ZarkLayout {
+    val leve = androidx.compose.runtime.mutableStateOf(false)
+    private fun p(c: Context) = c.getSharedPreferences("zarktv", Context.MODE_PRIVATE)
+
+    fun escolha(c: Context): String =
+        p(c).getString("layout_local", null) ?: io.github.axon07.channelbox.data.ZarkPainel.extras(c).layout ?: "auto"
+
+    fun atualizar(c: Context) {
+        leve.value = when (escolha(c).lowercase()) {
+            "leve", "lite", "lista", "zplay", "simples" -> true
+            "unitv", "uni", "completo", "padrao", "padrão" -> false
+            else -> ZarkLeve.ativo
+        }
+    }
+
+    /** Perfil: Automático → Leve → Completo → Automático. */
+    fun proximo(c: Context) {
+        val atual = p(c).getString("layout_local", null) ?: "auto"
+        val novo = when (atual) { "auto" -> "leve"; "leve" -> "unitv"; else -> "auto" }
+        p(c).edit().putString("layout_local", novo).apply()
+        atualizar(c)
+    }
+
+    fun nome(c: Context): String = when (p(c).getString("layout_local", null) ?: "auto") {
+        "leve" -> "Leve"
+        "unitv" -> "Completo"
+        else -> "Automático"
+    }
+}

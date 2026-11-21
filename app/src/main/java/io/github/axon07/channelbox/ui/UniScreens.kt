@@ -189,7 +189,7 @@ fun UniShell(
                 Spacer(Modifier.width(10.dp))
                 Box {
                     IconeRedondo(AppIcons.Bell, "Avisos") { sinoAberto = !sinoAberto }
-                    val temAviso = versaoNova != null || (dias != null && dias <= 5) || extras.aviso != null || novidades.isNotEmpty()
+                    val temAviso = versaoNova != null || (dias != null && dias <= 5) || extras.aviso != null || novidades.isNotEmpty() || extras.recados.containsKey(userName.trim().lowercase())
                     if (temAviso) Box(Modifier.align(Alignment.TopEnd).size(11.dp).clip(CircleShape).background(Color(0xFFFF1744)))
                 }
                 if (!compacto) {
@@ -252,6 +252,7 @@ fun UniShell(
                     )
                 )
                 extras.aviso?.let { add(Triple("Aviso", it, null)) }
+                extras.recados[userName.trim().lowercase()]?.let { add(Triple("Recado para você", it, null)) }
                 novidades.forEach { add(Triple("Episódio novo", it, null)) }
             }
             Box(Modifier.fillMaxSize().background(Color(0x66000000)).tap(onClick = { sinoAberto = false }))

@@ -29,6 +29,7 @@ class App : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         io.github.axon07.channelbox.ui.ZarkLeve.detectar(this)
+        io.github.axon07.channelbox.ui.ZarkLayout.atualizar(this)
         val settings = SettingsStore(this)
         // Network options (proxy, DNS, user agent) are read once here; changing them restarts the app.
         val network = runBlocking { settings.current().network }

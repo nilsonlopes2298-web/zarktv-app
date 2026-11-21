@@ -121,12 +121,18 @@ fun PerfilUni(
                 Spacer(Modifier.height(18.dp))
                 Text("Funções mais usadas", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(8.dp))
+                var layoutNome by remember { mutableStateOf(ZarkLayout.nome(ctx)) }
                 val funcoes = listOf(
                     Triple(AppIcons.Settings, "Configurações", onConfiguracoes),
                     Triple(AppIcons.Lock, "Controle parental", onControleParental),
                     Triple(AppIcons.Refresh, "Atualizar versão", onAtualizar),
                     Triple(AppIcons.Captions, "Áudio e player", onPlayer),
                     Triple(AppIcons.Grid, "Tema: $temaNome", onTema),
+                    Triple(AppIcons.Tv, "Tela inicial: $layoutNome", {
+                        ZarkLayout.proximo(ctx)
+                        layoutNome = ZarkLayout.nome(ctx)
+                        vm.showToast(if (ZarkLayout.leve.value) "Tela inicial leve (4 cartões)" else "Tela inicial completa (abas)")
+                    }),
                     Triple(AppIcons.Film, "Player: $playerFilmes", onPlayerFilmes),
                     Triple(AppIcons.Info, "Centro de ajuda", onSuporte),
                     Triple(AppIcons.Close, "Limpar cache", {

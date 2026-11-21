@@ -258,7 +258,18 @@ object ZarkFicha {
  *   "checkout": "https://painel.zarktvqx.cfd/checkout"
  */
 data class ZarkBanner(val imagem: String, val link: String?, val titulo: String?)
-data class ZarkExtras(val tema: String?, val banners: List<ZarkBanner>, val aviso: String?)
+data class ZarkExtras(
+    val tema: String?,
+    val banners: List<ZarkBanner>,
+    val aviso: String?,
+    /** "unitv", "leve" ou "auto" (painel). */
+    val layout: String? = null,
+    /** Logo e imagem de fundo trocados pelo painel (URLs). */
+    val logo: String? = null,
+    val fundo: String? = null,
+    /** Recado para um cliente só: usuário → texto (aparece no sininho dele). */
+    val recados: Map<String, String> = emptyMap(),
+)
 
 object ZarkPainel {
     fun extras(context: Context): ZarkExtras {
@@ -274,7 +285,16 @@ object ZarkPainel {
                 else -> null
             }
         }
-        return ZarkExtras(o.s("tema"), banners, o.s("aviso") ?: o.s("mensagem"))
+        val recados = (o["recados"] as? JsonObject)?.mapNotNull { (u, v) ->
+            (v as? JsonPrimitive)?.content?.trim()?.takeIf { it.isNotBlank() }?.let { u.trim().lowercase() to it }
+        }?.toMap().orEmpty()
+        return ZarkExtras(
+            o.s("tema"), banners, o.s("aviso") ?: o.s("mensagem"),
+            layout = o.s("layout"),
+            logo = o.s("logo")?.takeIf { it.startsWith("http") },
+            fundo = o.s("fundo")?.takeIf { it.startsWith("http") },
+            recados = recados,
+        )
     }
 }
 

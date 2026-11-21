@@ -1189,10 +1189,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     LaunchedEffect(mode) { if (mode != Mode.SETTINGS) settingsFromSetup = false }
     LaunchedEffect(mode) { if (mode != Mode.CHANNEL_LIST) gruposAbertos = false }
     // Live TV doesn't play behind Movies & TV Shows; it comes back when you leave them.
-    LaunchedEffect(mode, homeTab, jogoAberto != null) {
+    LaunchedEffect(mode, homeTab, jogoAberto != null, ZarkLayout.leve.value) {
         when (mode) {
             Mode.VOD, Mode.PROFILE -> vm.enterLibrary()
-            Mode.HOME -> if (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null)) vm.leaveLibrary() else vm.enterLibrary()
+            Mode.HOME -> if (!ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null))) vm.leaveLibrary() else vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
             // Audio & subtitles opened from a movie, episode or recording is still part of playback.
             Mode.OPTIONS -> if (optionsReturn != Mode.PLAYBACK) vm.leaveLibrary()
@@ -1283,7 +1283,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 digits.isNotEmpty() -> digits = ""
                 touchBar -> touchBar = false
                 bannerVisible -> bannerVisible = false
-                else -> { if (jogoAberto == null) homeTab = Aba.TV; mode = Mode.HOME } // ZarkTV: volta para a lista de canais (ou para o jogo)
+                else -> if (ZarkLayout.leve.value) mode = Mode.LIVE else { if (jogoAberto == null) homeTab = Aba.TV; mode = Mode.HOME } // ZarkTV: volta para a lista de canais (ou para o jogo)
             }
             Mode.CHANNEL_LIST -> if (gruposAbertos) gruposAbertos = false else mode = Mode.PLAYER
             Mode.GUIDE -> openGroups()
@@ -1457,7 +1457,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 } else Modifier.size(0.dp)
             } else if (mode == Mode.HOME) {
                 val r = homePreview
-                if ((Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null)) && r != null) {
+                if (!ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null)) && r != null) {
                     val d = LocalDensity.current
                     with(d) {
                         Modifier.align(Alignment.TopStart)
@@ -1765,7 +1765,45 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     setupPlaylistId = null
                     mode = Mode.SETUP
                 }
+                LaunchedEffect(Unit) { ZarkLayout.atualizar(zarkCtx) }
+                val extrasPainel = remember(conta) { io.github.axon07.channelbox.data.ZarkPainel.extras(zarkCtx) }
                 if (mode == Mode.HOME && allChannels.isEmpty() && refreshState is RefreshState.Running) ZarkCarregando(refreshState)
+                else if (mode == Mode.HOME && ZarkLayout.leve.value) InicioLeve(
+                    usuario = pl?.xtUser.orEmpty(),
+                    vencimento = conta?.expira?.let { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(it)) },
+                    versao = io.github.axon07.channelbox.BuildConfig.VERSION_NAME,
+                    logoUrl = extrasPainel.logo,
+                    fundoUrl = extrasPainel.fundo,
+                    atualizando = refreshState is RefreshState.Running,
+                    avisoVencimento = textoVencimento(conta?.expira?.let { io.github.axon07.channelbox.data.ZarkConfig.diasRestantes(it) }),
+                    onCanais = aoVivo,
+                    onFilmes = {
+                        vodBrowser.open(VodKind.MOVIE)
+                        vodDeInicio = false
+                        vodBrowser.voltarInicio = null
+                        mode = Mode.VOD
+                    },
+                    onSeries = {
+                        vodBrowser.open(VodKind.SERIES)
+                        vodDeInicio = false
+                        vodBrowser.voltarInicio = null
+                        mode = Mode.VOD
+                    },
+                    onAtualizar = {
+                        if (refreshState !is RefreshState.Running) {
+                            vm.refreshNow()
+                            vm.showToast("Atualizando canais, filmes e séries…")
+                        }
+                    },
+                    onBuscar = {
+                        vodBrowser.open(VodKind.MOVIE)
+                        vodDeInicio = false
+                        vodBrowser.voltarInicio = null
+                        mode = Mode.VOD
+                    },
+                    onPerfil = { mode = Mode.PROFILE },
+                    onAjustes = { settingsSection = null; openSettings() },
+                )
                 else if (mode == Mode.HOME) UniShell(
                     vm = vm,
                     tab = homeTab,
@@ -1894,7 +1932,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onVoltar = { mode = Mode.HOME },
                 )
                 // Tutorial da primeira vez (como o "Otimizada a operação…" da UniTV).
-                if (mode == Mode.HOME && !tutorialVisto && allChannels.isNotEmpty()) {
+                if (mode == Mode.HOME && !ZarkLayout.leve.value && !tutorialVisto && allChannels.isNotEmpty()) {
                     ZarkTutorial {
                         tutorialVisto = true
                         zarkCtx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).edit().putBoolean("tutorial_visto", true).apply()
@@ -1903,6 +1941,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             }
             Mode.LIVE -> {
                 val filtros by vm.filters.collectAsStateWithLifecycle()
+                val contagemGrupos = remember(allChannels) { allChannels.groupingBy { it.groupTitle }.eachCount() }
                 LiveScreen(
                     channels = visible,
                     groupLabel = vm.filterTitle(filter, menuSections),
@@ -1920,6 +1959,14 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onFull = { mode = Mode.PLAYER },
                     onFavorite = { vm.toggleFavorite(it) },
                     onBack = { mode = Mode.HOME },
+                    contagem = { f ->
+                        when (f) {
+                            ChannelFilter.All -> allChannels.size
+                            ChannelFilter.Favorites -> favorites.size
+                            is ChannelFilter.Group -> contagemGrupos[f.name]
+                            else -> null
+                        }
+                    },
                 )
             }
             Mode.ORGANISE -> OrganiseScreen(vm, start = organiseStart, onExit = { mode = organiseReturn })
