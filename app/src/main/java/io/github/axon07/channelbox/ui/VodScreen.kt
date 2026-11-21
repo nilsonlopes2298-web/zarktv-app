@@ -60,6 +60,7 @@ import io.github.axon07.channelbox.data.VodEntity
 import io.github.axon07.channelbox.data.VodKind
 import io.github.axon07.channelbox.data.VodProgressEntity
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.conflate
 
 /** What the Movies / TV Shows screens are showing. Kept outside the screen so it survives playback. */
@@ -188,7 +189,8 @@ private fun LibraryScreen(
         if (key != b.listKey) {
             if (b.listKey.isNotEmpty()) b.items = null
             b.listKey = key
-            runCatching { b.grid.scrollToItem(0) }
+            // Em paralelo: a grade ainda não está na tela, e esperar por ela travava o carregamento.
+            launch { runCatching { b.grid.scrollToItem(0) } }
         }
         if (b.query.isNotBlank()) delay(300) // wait for typing to pause
         // Search needs 2+ letters; Room re-runs the query as new titles are saved during a reload.
