@@ -1053,7 +1053,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     /** Where to resume [item], or null to start from the beginning. */
     suspend fun vodResumeAt(item: VodEntity): Long? {
         val p = repo.vod.progress(item.id) ?: return null
-        return p.position.takeIf { it > 60_000 && (p.duration <= 0 || it < p.duration * 0.95) }
+        return p.position.takeIf { it > 20_000 && (p.duration <= 0 || it < p.duration * 0.95) }
     }
 
     private var playingVod: Pair<VodEntity, String?>? = null
@@ -1062,6 +1062,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     fun playVod(item: VodEntity, startAt: Long, showId: String? = null) {
         endShift()
         val url = item.url ?: return
+        if (playingVod != null && playingVod?.first?.id != item.id) saveVodProgress() // guarda o anterior antes de trocar
         playingVod = item to showId
         player.playOnDemand(StreamSpec(url, StreamSpecs.decodeHeaders(item.headers), null, null), startAt)
     }
@@ -1075,7 +1076,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             when {
                 dur > 0 && pos >= dur * 0.95 -> repo.clearProgress(item.id)
-                pos > 30_000 -> repo.saveProgress(VodProgressEntity(item.id, pos, dur, System.currentTimeMillis(), showId))
+                pos > 15_000 -> repo.saveProgress(VodProgressEntity(item.id, pos, dur, System.currentTimeMillis(), showId))
             }
         }
     }
@@ -1126,6 +1127,13 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     private val jaTentados = mutableSetOf<String>()
 
     init {
+        // ZarkTV: enquanto um filme/episódio toca, guarda a posição a cada 15 s (mesmo que o app feche de repente).
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(15_000)
+                if (playingVod != null && player.exo.isPlaying) saveVodProgress()
+            }
+        }
         player.aoDesistir = {
             val ch = _current.value
             if (ch != null) {
@@ -1519,7 +1527,10 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         if (st != null && !st.onBuffer) return
         if (!(libraryOpen && player.isLive)) player.resume()
     }
-    fun onBackground() = player.stop()
+    fun onBackground() {
+        saveVodProgress() // saiu do app no meio do filme: guarda onde parou
+        player.stop()
+    }
 
     override fun onCleared() {
         player.release()
