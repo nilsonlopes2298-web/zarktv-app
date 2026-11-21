@@ -194,6 +194,8 @@ class TvPlayer(
         .setLoadControl(loadControl(options.buffer))
         .build()
         .apply {
+            // ZarkTV: registro do que o player recebe (formato, codec, erros) para diagnosticar canais que não abrem.
+            addAnalyticsListener(androidx.media3.exoplayer.util.EventLogger("ZarkPlayer"))
             setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
