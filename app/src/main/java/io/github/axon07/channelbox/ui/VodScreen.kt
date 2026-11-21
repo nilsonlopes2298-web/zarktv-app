@@ -211,30 +211,22 @@ private fun LibraryScreen(
         }
     }
 
-    Row(Modifier.fillMaxSize().background(Palette.Background)) {
+    Row(Modifier.fillMaxSize().background(FundoZark)) {
         // ---- Left: title, search, categories ----
         Column(
             Modifier
-                .width(290.dp)
+                .width(260.dp)
                 .fillMaxHeight()
-                .background(Brush.verticalGradient(listOf(Color(0xFF111821), Color(0xFF0B1016))))
+                .background(Color(0x55000000))
                 .padding(top = 24.dp, start = 16.dp, end = 16.dp, bottom = 12.dp)
         ) {
-            Text(
-                if (movies) "Movies" else "TV Shows", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Palette.Text,
-                modifier = Modifier.padding(start = 8.dp),
-            )
-            Text(
-                "$total ${if (movies) "movies" else "shows"}", fontSize = 12.sp, color = Palette.TextDim,
-                modifier = Modifier.padding(start = 8.dp, top = 2.dp, bottom = 12.dp),
-            )
-            TvTextField("Search", b.query, { b.query = it })
+            TvTextField("Buscar", b.query, { b.query = it })
             Spacer(Modifier.height(10.dp))
             LazyColumn(Modifier.weight(1f)) {
                 val entries = buildList {
-                    if (continueCount > 0) add(Triple(VOD_CONTINUE, "Continue watching", continueCount))
-                    add(Triple(null, if (movies) "All movies" else "All shows", total))
-                    categories.forEach { add(Triple(it.name, it.name, it.count)) }
+                    if (continueCount > 0) add(Triple(VOD_CONTINUE, "Continuar assistindo", continueCount))
+                    add(Triple(null, "Todos", total))
+                    categories.forEach { add(Triple(it.name, nomeCategoria(it.name), it.count)) }
                 }
                 items(entries, key = { it.first ?: "\u0000all" }) { (id, label, count) ->
                     val selected = b.query.isBlank() && b.category == id
@@ -264,39 +256,20 @@ private fun LibraryScreen(
         // ---- Right: posters ----
         Column(Modifier.weight(1f).fillMaxHeight().padding(top = 24.dp, start = 24.dp, end = 16.dp)) {
             val items = b.items
-            val heading = when {
-                b.query.isNotBlank() -> "Results for “${b.query.trim()}”"
-                b.category == VOD_CONTINUE -> "Continue watching"
-                b.category == null -> if (movies) "All movies" else "All shows"
-                else -> b.category.orEmpty()
+            val heading = (if (movies) "Filmes > " else "Séries > ") + when {
+                b.query.isNotBlank() -> "Busca: “${b.query.trim()}”"
+                b.category == VOD_CONTINUE -> "Continuar assistindo"
+                b.category == null -> "Todos"
+                else -> nomeCategoria(b.category.orEmpty())
             }
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(heading, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (items != null) {
                     val more = items.size >= (if (b.query.isNotBlank()) VOD_SEARCH_LIMIT else VOD_PAGE)
                     Text(
-                        if (more) "  newest ${items.size} – search to find more" else "  ${items.size}",
+                        if (more) "" else "",
                         fontSize = 13.sp, color = Palette.TextDim,
                     )
-                }
-            }
-            // ZarkTV: atalhos das plataformas (Netflix, Prime Video…) e Lançamentos.
-            val plataformas = remember(categories) {
-                listOf("Lançamentos", "Netflix", "Prime Video", "Disney", "HBO", "Max", "Globoplay", "Apple", "Paramount", "Star", "Legendados", "4K")
-                    .mapNotNull { p ->
-                        val rx = Regex(if (p == "Lançamentos") "lan[cç]amento" else Regex.escape(p), RegexOption.IGNORE_CASE)
-                        categories.firstOrNull { rx.containsMatchIn(it.name) }?.let { p to it.name }
-                    }.distinctBy { it.second }
-            }
-            if (plataformas.isNotEmpty()) {
-                Spacer(Modifier.height(10.dp))
-                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(plataformas) { (nome, cat) ->
-                        PillButton(nome, primary = b.category == cat) {
-                            b.query = ""
-                            b.category = cat
-                        }
-                    }
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -319,10 +292,10 @@ private fun LibraryScreen(
                     }
             }
             when {
-                items == null -> Text("Loading…", color = Palette.TextDim, fontSize = 14.sp)
-                b.query.isNotBlank() && b.query.trim().length < 2 -> Text("Type at least 2 letters", color = Palette.TextDim, fontSize = 14.sp)
+                items == null -> Text("Carregando…", color = Palette.TextDim, fontSize = 14.sp)
+                b.query.isNotBlank() && b.query.trim().length < 2 -> Text("Digite pelo menos 2 letras", color = Palette.TextDim, fontSize = 14.sp)
                 items.isEmpty() -> Text(
-                    if (b.query.isNotBlank()) "Nothing matches your search" else "Nothing here yet",
+                    if (b.query.isNotBlank()) "Nada encontrado" else "Nada aqui ainda",
                     color = Palette.TextDim, fontSize = 14.sp,
                 )
                 else -> LazyVerticalGrid(
@@ -849,3 +822,8 @@ private fun Recomendados(vm: TvViewModel, kind: String, atual: VodEntity, onOpen
         items(parecidos, key = { it.id }) { p -> PosterTile(p, 120.dp, 180.dp) { onOpen(p) } }
     }
 }
+
+
+/** Nome curto da categoria: tira "Filmes |", "Séries /" etc. do começo. */
+fun nomeCategoria(n: String): String =
+    n.replace(Regex("""^\s*(filmes|s[ée]ries|movies|series)\s*[|/:\-]+\s*""", RegexOption.IGNORE_CASE), "").trim().ifEmpty { n }

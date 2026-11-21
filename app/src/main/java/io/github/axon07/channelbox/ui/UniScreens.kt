@@ -599,26 +599,32 @@ private fun AbaCatalogo(
             }
         }
     }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val alturaHero = if (compacto) 260.dp else (maxHeight - 8.dp).coerceAtLeast(260.dp)
     LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
         if (kind != null) item {
             // Topo igual à UniTV: banner que troca sozinho, blocos coloridos e capas altas.
             val cats = if (kind == VodKind.MOVIE) catsFilmes else catsSeries
-            val lanc = cats.firstOrNull { Regex("lan[cç]amento|2026|novidade|cinema|no ar", RegexOption.IGNORE_CASE).containsMatchIn(it.name) }?.name
+            val ano = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+            val lanc = cats.firstOrNull { Regex("lan[cç]amento.*$ano|$ano", RegexOption.IGNORE_CASE).containsMatchIn(it.name) }?.name
+                ?: cats.firstOrNull { Regex("lan[cç]amento|novidade|no ar", RegexOption.IGNORE_CASE).containsMatchIn(it.name) }?.name
+            val cinema = cats.firstOrNull { Regex("cinema|lan[cç]amento", RegexOption.IGNORE_CASE).containsMatchIn(it.name) }?.name ?: lanc
+            val top = cats.firstOrNull { Regex("netflix|top|popular", RegexOption.IGNORE_CASE).containsMatchIn(it.name) }?.name
             val nacional = cats.firstOrNull { Regex("nacion|brasil|globoplay", RegexOption.IGNORE_CASE).containsMatchIn(it.name) }?.name
             val topo by remember(kind, lanc) { vm.vodTop(kind, lanc, 10) }.collectAsState(initial = emptyList())
             val img = { k: Int -> topo.getOrNull(k)?.poster }
             val blocos = if (kind == VodKind.MOVIE) listOf(
                 BlocoCor("Gênero", Color(0xFF2E7D32), img(6)) { onLibrary(kind, null) },
-                BlocoCor("Lançamentos", Color(0xFFC62828), img(7)) { onLibrary(kind, lanc) },
-                BlocoCor("Continuar", Color(0xFFF9A825), img(8)) { onLibrary(kind, VOD_CONTINUE) },
+                BlocoCor("$ano", Color(0xFFC62828), img(7)) { onLibrary(kind, lanc) },
+                BlocoCor("No Cinema", Color(0xFFF9A825), img(8)) { onLibrary(kind, cinema) },
                 BlocoCor("Todos", Color(0xFF0288D1), img(9)) { onLibrary(kind, null) },
             ) else listOf(
                 BlocoCor("Gênero", Color(0xFF1565C0), img(6)) { onLibrary(kind, null) },
                 BlocoCor("Nacional", Color(0xFFF9A825), img(7)) { onLibrary(kind, nacional) },
                 BlocoCor("No ar", Color(0xFF2E7D32), img(8)) { onLibrary(kind, lanc) },
-                BlocoCor("Continuar", Color(0xFFC62828), img(9)) { onLibrary(kind, VOD_CONTINUE) },
+                BlocoCor("Top", Color(0xFFC62828), img(9)) { onLibrary(kind, top) },
             )
-            if (topo.isNotEmpty()) HeroCatalogo(vm, topo, blocos, if (compacto) 240.dp else 340.dp, onOpen = onOpen)
+            if (topo.isNotEmpty()) HeroCatalogo(vm, topo, blocos, alturaHero, onOpen = onOpen)
         }
         if (filtro != null) item {
             // Kids / Anime: mosaico com as capas das categorias encontradas.
@@ -640,9 +646,11 @@ private fun AbaCatalogo(
                 PillButton("Atualizar conteúdo agora", primary = true) { vm.refreshNow() }
             }
         }
-        items(fileiras, key = { "${it.first}|${it.second}" }) { (t, cat, titulo) ->
+        // Filmes e Séries: só o destaque em cima (como na UniTV); o resto fica em "Todos".
+        if (kind == null) items(fileiras, key = { "${it.first}|${it.second}" }) { (t, cat, titulo) ->
             Fileira(vm, t, cat, titulo, compacto, onOpen) { onLibrary(t, cat) }
         }
+    }
     }
 }
 
