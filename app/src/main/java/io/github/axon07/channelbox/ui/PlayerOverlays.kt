@@ -138,6 +138,23 @@ fun BoxScope.NumberEntry(digits: String, match: ChannelEntity?) {
 
 @Composable
 fun BoxScope.StatusMessage(status: PlayerStatus, channel: ChannelEntity?, fallback: String?) {
+    // ZarkTV: carregando = rodinha azul pequena no meio (sem texto), como nos apps de IPTV.
+    if (channel != null && status is PlayerStatus.Buffering) {
+        val giro = androidx.compose.animation.core.rememberInfiniteTransition(label = "carregando")
+        val ang by giro.animateFloat(
+            0f, 360f,
+            androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(900, easing = androidx.compose.animation.core.LinearEasing)),
+            label = "ang",
+        )
+        androidx.compose.foundation.Canvas(Modifier.align(Alignment.Center).size(46.dp)) {
+            drawCircle(Color(0x33FFFFFF), style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx()))
+            drawArc(
+                Color(0xFF2F8CFF), ang, 100f, false,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
+            )
+        }
+        return
+    }
     val text = when {
         channel == null -> fallback
         status is PlayerStatus.Error -> status.message

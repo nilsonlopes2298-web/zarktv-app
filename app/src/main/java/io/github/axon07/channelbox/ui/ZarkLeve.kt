@@ -36,27 +36,29 @@ object ZarkLayout {
     private fun p(c: Context) = c.getSharedPreferences("zarktv", Context.MODE_PRIVATE)
 
     fun escolha(c: Context): String =
-        p(c).getString("layout_local", null) ?: io.github.axon07.channelbox.data.ZarkPainel.extras(c).layout ?: "auto"
+        p(c).getString("layout_local", null) ?: io.github.axon07.channelbox.data.ZarkPainel.extras(c).layout ?: "padrao"
 
     fun atualizar(c: Context) {
         leve.value = when (escolha(c).lowercase()) {
             "leve", "lite", "lista", "zplay", "simples" -> true
-            "unitv", "uni", "completo", "padrao", "padrão" -> false
-            else -> ZarkLeve.ativo
+            "unitv", "uni", "completo" -> false
+            "auto" -> ZarkLeve.ativo
+            // Padrão (sem nada no painel): visual de TV leve — 4 cartões e canais em 3 colunas.
+            else -> true
         }
     }
 
     /** Perfil: Automático → Leve → Completo → Automático. */
     fun proximo(c: Context) {
-        val atual = p(c).getString("layout_local", null) ?: "auto"
-        val novo = when (atual) { "auto" -> "leve"; "leve" -> "unitv"; else -> "auto" }
+        val atual = p(c).getString("layout_local", null) ?: "padrao"
+        val novo = when (atual) { "padrao" -> "unitv"; "unitv" -> "auto"; else -> "padrao" }
         p(c).edit().putString("layout_local", novo).apply()
         atualizar(c)
     }
 
-    fun nome(c: Context): String = when (p(c).getString("layout_local", null) ?: "auto") {
-        "leve" -> "Leve"
+    fun nome(c: Context): String = when (p(c).getString("layout_local", null) ?: "padrao") {
         "unitv" -> "Completo"
-        else -> "Automático"
+        "auto" -> "Automático"
+        else -> "TV (padrão)"
     }
 }
