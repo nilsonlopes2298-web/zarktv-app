@@ -1,0 +1,13 @@
+[Unit]
+Description=ZarkTV Cloud - Checkout Pix
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/zarktv-checkout
+ExecStart=/usr/bin/node /opt/zarktv-checkout/server.js
+EnvironmentFile=/opt/zarktv-checkout/.env
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
