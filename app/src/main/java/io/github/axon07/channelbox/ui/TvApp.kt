@@ -220,6 +220,21 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     /** ZarkTV: "Trocar de conta"/"Sair" no perfil – volta para a tela de login. */
     var zarkTrocarConta by remember { mutableStateOf(false) }
     /** ZarkTV: aba aberta na tela principal (TV, Destaques, Filmes…) e onde fica a prévia do canal. */
+    /** Muda toda vez que o app volta para a frente (para religar o vídeo). */
+    var voltouToken by remember { mutableIntStateOf(0) }
+    val donoCiclo = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(donoCiclo) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, ev ->
+            if (ev == androidx.lifecycle.Lifecycle.Event.ON_START) {
+                voltouToken++
+                // Ao vivo: pede um quadro novo ao decodificador.
+                val exo = vm.player.exo
+                if (exo.isCurrentMediaItemLive) exo.seekToDefaultPosition() else if (exo.playbackState != androidx.media3.common.Player.STATE_IDLE) exo.seekTo(exo.currentPosition)
+            }
+        }
+        donoCiclo.lifecycle.addObserver(obs)
+        onDispose { donoCiclo.lifecycle.removeObserver(obs) }
+    }
     var homeTab by remember { mutableIntStateOf(Aba.TV) }
     /** ZarkTV: jogo aberto dentro da aba Jogos, os canais que podem passar ele e qual está tocando. */
     var jogoAberto by remember { mutableStateOf<io.github.axon07.channelbox.data.ZarkJogos.Jogo?>(null) }
@@ -1363,6 +1378,12 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
             },
             update = { view ->
+                // ZarkTV: ao voltar do app minimizado, religa o vídeo na tela (senão só tocava o som).
+                if (view.tag != voltouToken) {
+                    view.tag = voltouToken
+                    view.player = null
+                    view.player = vm.player.exo
+                }
                 view.resizeMode = when (settings.videoScale) {
                     1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
@@ -1677,7 +1698,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     channels = visible,
                     favChannels = emptyList(),
                     groupLabel = vm.filterTitle(filter, menuSections),
-                    groups = filtrosLista.map { f -> f to (Aba.rotulo(f, vm.filterTitle(f, menuSections)) + (filterCounts[f]?.let { "  ($it)" } ?: "")) },
+                    groups = filtrosLista.map { f -> f to (Aba.rotulo(f, vm.filterTitle(f, menuSections))) },
                     currentGroup = filter,
                     onGroup = { vm.setFilter(it) },
                     jogoAberto = jogoAberto,
@@ -1780,7 +1801,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 LiveScreen(
                     channels = visible,
                     groupLabel = vm.filterTitle(filter, menuSections),
-                    groups = filtros.map { f -> f to (vm.filterTitle(f, menuSections) + (filterCounts[f]?.let { "  ($it)" } ?: "")) },
+                    groups = filtros.map { f -> f to (vm.filterTitle(f, menuSections)) },
                     currentGroup = filter,
                     current = current,
                     favorites = favorites,
@@ -2017,7 +2038,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     playingId = cur?.id,
                     upcoming = upcoming,
                     now = now,
-                    grupos = filtrosLista.map { f -> Aba.rotulo(f, vm.filterTitle(f, menuSections)) + (filterCounts[f]?.let { "  ($it)" } ?: "") },
+                    grupos = filtrosLista.map { f -> Aba.rotulo(f, vm.filterTitle(f, menuSections)) },
                     grupoSel = if (gruposAbertos) grupoIndex else -1,
                     grupoAtual = filtrosLista.indexOf(filter),
                     gruposAbertos = gruposAbertos,

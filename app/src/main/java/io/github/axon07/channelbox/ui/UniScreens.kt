@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -60,6 +62,7 @@ import io.github.axon07.channelbox.data.ProgramEntity
 import io.github.axon07.channelbox.data.VodEntity
 import io.github.axon07.channelbox.data.VodKind
 import io.github.axon07.channelbox.data.ZarkConfig
+import io.github.axon07.channelbox.container
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 
@@ -210,7 +213,7 @@ fun UniShell(
                         groups, currentGroup, onGroup,
                     )
                     Aba.JOGOS -> if (jogoAberto != null) JogoAberto(
-                        jogoAberto, canalJogo, canalJogoInfo, compacto, onPreviewRect, onFull, onMudarCanalJogo, onFecharJogo,
+                        vm, jogoAberto, canalJogo, canalJogoInfo, compacto, onPreviewRect, onFull, onMudarCanalJogo, onFecharJogo,
                     ) else AbaJogos(vm, compacto, onAbrirJogo)
                     Aba.DESTAQUES -> AbaDestaques(vm, compacto, extras.banners, onOpenItem)
                     Aba.FILMES -> AbaCatalogo(vm, VodKind.MOVIE, compacto, null, onOpenItem, onOpenLibrary)
@@ -398,9 +401,26 @@ private fun AbaTv(
                 Column {
                     Text(current?.name ?: "", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val progs = current?.epgId?.let { upcoming[it] }.orEmpty()
-                    progs.firstOrNull { it.start <= now && it.stop > now }?.let {
-                        Text("${timeFormat(it.start)} – ${timeFormat(it.stop)}  ${it.title}", color = Color(0xFFFFD34D), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val ctxEpg = androidx.compose.ui.platform.LocalContext.current
+                    var curto by remember(current?.id) { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkEpg.Prog>>(emptyList()) }
+                    LaunchedEffect(current?.id) {
+                        if (current != null && progs.none { it.stop > now }) {
+                            curto = io.github.axon07.channelbox.data.ZarkEpg.curto(ctxEpg.container.http, current.streamUrl)
+                        }
                     }
+                    val agoraP = progs.firstOrNull { it.start <= now && it.stop > now }?.let { Triple(it.title, it.start, it.stop) }
+                        ?: curto.firstOrNull { it.inicio <= now && it.fim > now }?.let { Triple(it.titulo, it.inicio, it.fim) }
+                    val depoisP = progs.firstOrNull { it.start > now }?.let { Triple(it.title, it.start, it.stop) }
+                        ?: curto.firstOrNull { it.inicio > now }?.let { Triple(it.titulo, it.inicio, it.fim) }
+                    agoraP?.let { (t, i, f) ->
+                        Text("Agora  ${timeFormat(i)} – ${timeFormat(f)}  $t", color = Color(0xFFFFD34D), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        val total = (f - i).coerceAtLeast(1)
+                        Box(Modifier.padding(vertical = 4.dp).fillMaxWidth().height(3.dp).background(Color(0x33FFFFFF))) {
+                            Box(Modifier.fillMaxWidth(((now - i).toFloat() / total).coerceIn(0f, 1f)).height(3.dp).background(Palette.Accent))
+                        }
+                    }
+                    depoisP?.let { (t, i, _) -> Text("Depois  ${timeFormat(i)}  $t", color = Color(0xCCFFFFFF), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    if (agoraP == null && depoisP == null && current != null) Text("Sem programação para este canal", color = Color(0x99FFFFFF), fontSize = 12.sp)
                 }
             }
         }
@@ -709,6 +729,7 @@ fun PosterTile(item: VodEntity, w: Dp, h: Dp, mostrarTitulo: Boolean = true, onC
 private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: (io.github.axon07.channelbox.data.ZarkJogos.Jogo) -> Unit) {
     var jogos by remember { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkJogos.Jogo>?>(null) }
     var filtro by remember { mutableStateOf(0) } // 0 todos, 1 ao vivo, 2 encerrados
+    val ctxJogos = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(Unit) {
         while (true) {
             jogos = io.github.axon07.channelbox.data.ZarkJogos.hoje(vm.zarkHttp)
@@ -757,7 +778,12 @@ private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: (io.github.
                                     color = Color.White, fontSize = if (compacto) 18.sp else 26.sp, fontWeight = FontWeight.Bold,
                                 )
                                 Text(
-                                    when (j.estado) { "in" -> "Em andamento · ${j.detalhe}"; "post" -> "Encerrado"; else -> "Hoje" },
+                                    when (j.estado) {
+                                        "in" -> "Em andamento"
+                                        "post" -> "Encerrado"
+                                        else -> java.text.SimpleDateFormat("dd/MM", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio)) +
+                                            if (io.github.axon07.channelbox.data.ZarkLembretes.tem(ctxJogos, j.id)) "  ⏰" else ""
+                                    },
                                     color = if (j.estado == "in") Color(0xFFFF5252) else Color(0xCCFFFFFF), fontSize = 11.sp, maxLines = 1,
                                 )
                             }
@@ -775,9 +801,10 @@ private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: (io.github.
 }
 
 
-/** Jogo aberto dentro da aba Jogos: telinha do canal, placar e botões (como na UniTV). */
+/** Jogo aberto dentro da aba Jogos (como na UniTV): telinha, placar, botões e as abas de detalhes. */
 @Composable
 private fun JogoAberto(
+    vm: TvViewModel,
     j: io.github.axon07.channelbox.data.ZarkJogos.Jogo,
     canal: ChannelEntity?,
     canalInfo: String,
@@ -787,71 +814,280 @@ private fun JogoAberto(
     onMudar: () -> Unit,
     onVoltar: () -> Unit,
 ) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     val foco = remember { FocusRequester() }
     LaunchedEffect(Unit) {
         delay(150)
         runCatching { foco.requestFocus() }
     }
+    var agora by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) { while (true) { delay(30_000); agora = System.currentTimeMillis() } }
+    var lembrete by remember(j.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkLembretes.tem(ctx, j.id)) }
+    var detalhes by remember(j.id) { mutableStateOf<io.github.axon07.channelbox.data.ZarkJogoDetalhes.Detalhes?>(null) }
+    var carregou by remember(j.id) { mutableStateOf(false) }
+    LaunchedEffect(j.id) {
+        while (true) {
+            detalhes = io.github.axon07.channelbox.data.ZarkJogoDetalhes.buscar(vm.zarkHttp, j) ?: detalhes
+            carregou = true
+            delay(60_000)
+        }
+    }
+    var aba by remember { mutableIntStateOf(0) }
+    val naoComecou = j.estado == "pre" && j.inicio > agora
+    val falta = (j.inicio - agora).coerceAtLeast(0) / 60_000
     val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
     val data = java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
-    val previa: @Composable (Modifier) -> Unit = { mod ->
-        Box(
-            mod.aspectRatio(16f / 9f)
-                .border(2.dp, Color(0x55FFFFFF), RoundedCornerShape(6.dp))
-                .onGloballyPositioned { onPreviewRect(it.boundsInRoot()) }
-                .tap(onClick = { if (canal != null) onFull() })
-        ) {
-            if (canal == null) Text(
-                "Nenhum canal encontrado para este jogo.\nUse \"Mudar de canal\".", color = Color.White, fontSize = 14.sp,
-                textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center).padding(12.dp),
-            )
-            else Text(
-                canal.name, color = Color.White, fontSize = 12.sp,
-                modifier = Modifier.align(Alignment.BottomEnd).background(Color(0x99000000), RoundedCornerShape(topStart = 6.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
-            )
-        }
-    }
-    val info: @Composable (Modifier) -> Unit = { mod ->
-        Column(mod, horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(j.liga, color = Color.White, fontSize = if (compacto) 18.sp else 24.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Box(Modifier.padding(vertical = 10.dp).fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                TimeJogo(j.casa, Modifier.weight(1f))
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    Text(
-                        if (j.estado == "pre") hora else "${j.casa.placar ?: 0} - ${j.fora.placar ?: 0}",
-                        color = Color.White, fontSize = if (compacto) 26.sp else 34.sp, fontWeight = FontWeight.Bold,
-                    )
-                    Text(data, color = Color(0xCCFFFFFF), fontSize = 12.sp)
-                    Text(
-                        when (j.estado) { "in" -> "Em andamento"; "post" -> "Encerrado"; else -> "Não começou" },
-                        color = Color.White, fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 4.dp).border(1.dp, Color(0x66FFFFFF), RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 2.dp),
-                    )
+
+    Column(
+        Modifier.fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFF1A2128), Color(0xFF10161B), Color(0xFF1B0B0D))), RoundedCornerShape(8.dp))
+            .verticalScroll(androidx.compose.foundation.rememberScrollState())
+            .padding(if (compacto) 8.dp else 18.dp)
+    ) {
+        val previa: @Composable (Modifier) -> Unit = { mod ->
+            Box(
+                mod.aspectRatio(16f / 9f)
+                    .onGloballyPositioned { onPreviewRect(it.boundsInRoot()) }
+                    .tap(onClick = { if (canal != null) onFull() })
+            ) {
+                if (naoComecou) {
+                    Column(
+                        Modifier.align(Alignment.Center).background(Color(0xCC000000), RoundedCornerShape(8.dp)).padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("A transmissão ainda não começou", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            if (falta >= 60) "Faltam ${falta / 60}h${(falta % 60).toString().padStart(2, '0')}" else "Faltam $falta min",
+                            color = Color(0xFFFFD54F), fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                } else if (canal == null) {
+                    Text("Nenhum canal encontrado.\nUse \"Mudar de canal\".", color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center))
                 }
-                TimeJogo(j.fora, Modifier.weight(1f))
+                if (canal != null) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(canal.name, color = Color.White, fontSize = 13.sp, modifier = Modifier.background(Color(0x88000000), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("⛶", color = Color.White, fontSize = 16.sp)
+                }
             }
-            Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                BotaoQuadrado(AppIcons.Grid, "Tela cheia", Color(0xFFD32F2F), Modifier.focusRequester(foco)) { if (canal != null) onFull() }
-                BotaoQuadrado(AppIcons.Refresh, "Mudar de canal", Color(0x55FFFFFF), Modifier, onMudar)
-                BotaoQuadrado(AppIcons.Close, "Voltar", Color(0x55FFFFFF), Modifier, onVoltar)
-            }
-            if (canalInfo.isNotBlank()) Text(canalInfo, color = Color(0xCCFFFFFF), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-            if (j.canais.isNotEmpty()) Text("Transmissão: " + j.canais.take(3).joinToString(", "), color = Color(0xFFFFD54F), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
         }
-    }
-    if (compacto) {
-        Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+        val info: @Composable (Modifier) -> Unit = { mod ->
+            Column(mod, horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(j.liga, color = Color.White, fontSize = if (compacto) 18.sp else 24.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Box(Modifier.padding(vertical = 10.dp).fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    TimeJogo(j.casa, Modifier.weight(1f))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                        Text(if (j.estado == "pre") hora else "${j.casa.placar ?: 0} - ${j.fora.placar ?: 0}", color = Color.White, fontSize = if (compacto) 26.sp else 34.sp, fontWeight = FontWeight.Bold)
+                        Text(data, color = Color(0xCCFFFFFF), fontSize = 12.sp)
+                        Text(
+                            when (j.estado) { "in" -> "Em andamento"; "post" -> "Encerrado"; else -> "Não começou" },
+                            color = Color.White, fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 4.dp).border(1.dp, Color(0x66FFFFFF), RoundedCornerShape(50)).padding(horizontal = 12.dp, vertical = 2.dp),
+                        )
+                    }
+                    TimeJogo(j.fora, Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                    BotaoQuadrado(AppIcons.Grid, "Tela cheia", Color(0xFFD32F2F), Modifier.focusRequester(foco)) { if (canal != null) onFull() }
+                    BotaoQuadrado(AppIcons.Refresh, "Mudar de canal", Color(0x55FFFFFF), Modifier, onMudar)
+                    if (j.estado == "pre") BotaoQuadrado(AppIcons.History, if (lembrete) "Lembrete ligado" else "Lembrete", if (lembrete) Color(0xFFF9A825) else Color(0x55FFFFFF), Modifier) {
+                        lembrete = io.github.axon07.channelbox.data.ZarkLembretes.alternar(ctx, j.id, j.inicio, "${j.casa.nome} x ${j.fora.nome}")
+                        vm.showToast(if (lembrete) "Vamos te avisar quando o jogo começar" else "Lembrete removido")
+                    }
+                    BotaoQuadrado(AppIcons.Close, "Voltar", Color(0x55FFFFFF), Modifier, onVoltar)
+                }
+                if (canalInfo.isNotBlank()) Text(canalInfo, color = Color(0xCCFFFFFF), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            }
+        }
+        if (compacto) {
             previa(Modifier.fillMaxWidth())
             Spacer(Modifier.height(12.dp))
             info(Modifier.fillMaxWidth())
+        } else {
+            Row(verticalAlignment = Alignment.Top) {
+                previa(Modifier.weight(1f))
+                Spacer(Modifier.width(28.dp))
+                info(Modifier.weight(1f))
+            }
         }
-    } else {
-        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.Top) {
-            previa(Modifier.weight(1f))
-            Spacer(Modifier.width(28.dp))
-            info(Modifier.weight(1f))
+
+        // Abas: Detalhes, Escalação do time, Estatísticas, Classificação.
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Detalhes", "Escalação do time", "Estatísticas", "Classificação").forEachIndexed { i, nome ->
+                var f by remember { mutableStateOf(false) }
+                Surface(
+                    onClick = { aba = i },
+                    modifier = Modifier.onFocusChanged { f = it.isFocused; if (it.isFocused) aba = i }.tap(onClick = { aba = i }),
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
+                    colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color(0xFFD32F2F)),
+                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+                ) {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(nome, color = if (aba == i && !f) Color(0xFFFF5252) else Color.White, fontSize = 17.sp)
+                        if (aba == i && !f) Box(Modifier.padding(top = 3.dp).size(width = 26.dp, height = 3.dp).background(Color(0xFFFF5252), RoundedCornerShape(2.dp)))
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Box(
+            Modifier.fillMaxWidth().heightIn(min = 260.dp)
+                .background(Brush.verticalGradient(listOf(Color(0xFF1E6B2A), Color(0xFF17591F))), RoundedCornerShape(6.dp))
+                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(6.dp))
+                .padding(16.dp)
+        ) {
+            val d = detalhes
+            when {
+                d == null -> Text(if (carregou) "Sem informações para este jogo." else "Carregando…", color = Color.White, fontSize = 15.sp)
+                aba == 0 -> AbaLances(j, d)
+                aba == 1 -> AbaEscalacao(j, d)
+                aba == 2 -> AbaEstatisticas(j, d)
+                else -> AbaClassificacao(j, d)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AbaLances(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, d: io.github.axon07.channelbox.data.ZarkJogoDetalhes.Detalhes) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.align(Alignment.End)) {
+            Legenda(Color.White, "Gol")
+            Legenda(Color(0xFFE53935), "Cartão vermelho")
+            Legenda(Color(0xFFFDD835), "Cartão amarelo")
+            Legenda(Color(0xFF66BB6A), "Substituição")
+        }
+        Spacer(Modifier.height(12.dp))
+        if (d.lances.isEmpty()) Text(if (j.estado == "pre") "O jogo ainda não começou." else "Nenhum lance registrado ainda.", color = Color.White, fontSize = 15.sp)
+        d.lances.forEach { l ->
+            val cor = when (l.tipo) { "Gol" -> Color.White; "Cartão vermelho" -> Color(0xFFE53935); "Cartão amarelo" -> Color(0xFFFDD835); else -> Color(0xFF66BB6A) }
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                horizontalArrangement = if (l.casa) Arrangement.Start else Arrangement.End,
+            ) {
+                Row(
+                    Modifier.background(Color(0x55FFFFFF), RoundedCornerShape(4.dp)).padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(width = 10.dp, height = 14.dp).background(cor, RoundedCornerShape(2.dp)))
+                    Spacer(Modifier.width(8.dp))
+                    Text("${l.minuto}  ${l.tipo} · ${l.jogador}", color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Legenda(cor: Color, nome: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(width = 12.dp, height = 16.dp).background(cor, RoundedCornerShape(2.dp)))
+        Spacer(Modifier.width(6.dp))
+        Text(nome, color = Color.White, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun AbaEscalacao(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, d: io.github.axon07.channelbox.data.ZarkJogoDetalhes.Detalhes) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            j.casa.logo?.let { AsyncImage(it, null, modifier = Modifier.size(36.dp)) }
+            Text("  ${j.casa.nome}" + (d.casa?.esquema?.takeIf { it.isNotBlank() }?.let { "  ($it)" } ?: ""), color = Color.White, fontSize = 17.sp, modifier = Modifier.weight(1f))
+            Text("VS", color = Color(0xFFFF5252), fontSize = 22.sp, fontWeight = FontWeight.Black)
+            Text((d.fora?.esquema?.takeIf { it.isNotBlank() }?.let { "($it)  " } ?: "") + "${j.fora.nome}  ", color = Color.White, fontSize = 17.sp, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+            j.fora.logo?.let { AsyncImage(it, null, modifier = Modifier.size(36.dp)) }
+        }
+        Spacer(Modifier.height(14.dp))
+        if (d.casa == null && d.fora == null) {
+            Text("A escalação sai perto do início do jogo.", color = Color.White, fontSize = 15.sp)
+            return@Column
+        }
+        Row(Modifier.fillMaxWidth()) {
+            ListaTime(d.casa, Modifier.weight(1f), Alignment.Start)
+            Box(Modifier.width(1.dp).height(320.dp).background(Color(0x55FFFFFF)))
+            ListaTime(d.fora, Modifier.weight(1f), Alignment.End)
+        }
+    }
+}
+
+@Composable
+private fun ListaTime(e: io.github.axon07.channelbox.data.ZarkJogoDetalhes.Escalacao?, modifier: Modifier, lado: Alignment.Horizontal) {
+    Column(modifier.padding(horizontal = 10.dp), horizontalAlignment = lado) {
+        val titulares = e?.jogadores?.filter { it.titular }.orEmpty().ifEmpty { e?.jogadores?.take(11).orEmpty() }
+        titulares.forEach { p ->
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 3.dp)) {
+                Box(Modifier.size(28.dp).clip(CircleShape).background(Color(0xFF1B1B1B)), contentAlignment = Alignment.Center) {
+                    Text(p.numero, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(p.nome + if (p.posicao.isNotBlank()) "  · ${p.posicao}" else "", color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AbaEstatisticas(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, d: io.github.axon07.channelbox.data.ZarkJogoDetalhes.Detalhes) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth()) {
+            Text(j.casa.nome, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            Text(j.fora.nome, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(10.dp))
+        if (d.estat.isEmpty()) Text("As estatísticas aparecem com o jogo em andamento.", color = Color.White, fontSize = 15.sp)
+        d.estat.forEach { e ->
+            val c = e.casa.replace("%", "").toFloatOrNull() ?: 0f
+            val f = e.fora.replace("%", "").toFloatOrNull() ?: 0f
+            val total = (c + f).takeIf { it > 0 } ?: 1f
+            Column(Modifier.padding(vertical = 5.dp)) {
+                Row(Modifier.fillMaxWidth()) {
+                    Text(e.casa, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(60.dp))
+                    Text(e.nome, color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                    Text(e.fora, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.width(60.dp))
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 4.dp).height(6.dp)) {
+                    Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.CenterEnd) {
+                        Box(Modifier.fillMaxWidth(c / total).fillMaxHeight().background(Color(0xFFFF5252), RoundedCornerShape(3.dp)))
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    Box(Modifier.weight(1f).fillMaxHeight()) {
+                        Box(Modifier.fillMaxWidth(f / total).fillMaxHeight().background(Color(0xFF42A5F5), RoundedCornerShape(3.dp)))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AbaClassificacao(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, d: io.github.axon07.channelbox.data.ZarkJogoDetalhes.Detalhes) {
+    Column(Modifier.fillMaxWidth()) {
+        if (d.tabela.isEmpty()) {
+            Text("Classificação não disponível para este campeonato.", color = Color.White, fontSize = 15.sp)
+            return@Column
+        }
+        val cab = listOf("J", "V", "E", "D", "SG", "PTS")
+        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+            Text("#", color = Color(0xCCFFFFFF), fontSize = 13.sp, modifier = Modifier.width(30.dp))
+            Text("Time", color = Color(0xCCFFFFFF), fontSize = 13.sp, modifier = Modifier.weight(1f))
+            cab.forEach { Text(it, color = Color(0xCCFFFFFF), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.width(44.dp)) }
+        }
+        d.tabela.forEach { l ->
+            val destaque = l.time.contains(j.casa.nome, true) || l.time.contains(j.fora.nome, true) || j.casa.nome.contains(l.time, true) || j.fora.nome.contains(l.time, true)
+            Row(
+                Modifier.fillMaxWidth().background(if (destaque) Color(0x44FFFFFF) else Color.Transparent, RoundedCornerShape(4.dp)).padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("${l.pos}", color = Color.White, fontSize = 14.sp, modifier = Modifier.width(30.dp))
+                l.logo?.let { AsyncImage(it, null, modifier = Modifier.size(20.dp)) }
+                Text("  ${l.time}", color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                listOf(l.j, l.v, l.e, l.d, l.sg, l.pts).forEachIndexed { i, v ->
+                    Text(v, color = Color.White, fontSize = 14.sp, fontWeight = if (i == 5) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.Center, modifier = Modifier.width(44.dp))
+                }
+            }
         }
     }
 }
