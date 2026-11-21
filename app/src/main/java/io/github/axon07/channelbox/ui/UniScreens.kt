@@ -407,9 +407,12 @@ private fun AbaTv(
     onGroup: (ChannelFilter) -> Unit,
 ) {
     val previa: @Composable (Modifier) -> Unit = { mod ->
-        Column(mod) {
+        // A prévia nunca ocupa mais que ~58% da altura: sempre sobra espaço para a programação (EPG) embaixo.
+        BoxWithConstraints(mod) {
+        val altPrev = minOf(maxWidth * 9f / 16f, maxHeight * 0.58f)
+        Column(Modifier.fillMaxSize()) {
             Box(
-                Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+                Modifier.width(altPrev * 16f / 9f).height(altPrev)
                     .border(2.dp, Color(0x55FFFFFF), RoundedCornerShape(4.dp))
                     .onGloballyPositioned { onPreviewRect(it.boundsInRoot()) }
                     .tap(onClick = { if (current != null) onFull() })
@@ -467,6 +470,7 @@ private fun AbaTv(
                     }
                 }
             }
+        }
         }
     }
     val lista: @Composable (Modifier) -> Unit = { mod ->

@@ -241,13 +241,18 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var candidatosJogo by remember { mutableStateOf<List<ChannelEntity>>(emptyList()) }
     var jogoCanalIdx by remember { mutableIntStateOf(0) }
     fun canaisDoJogo(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo): List<ChannelEntity> {
+        // Canais de filme nunca entram (ex.: transmissão "Max" não pode abrir o Cinemax / HBO Max).
+        val filme = Regex("""cinemax|hbo|telecine|megapix|warner|tnt series|space|universal|sony|axn|amc|tcm|cine|filmes|series|séries|novela""", RegexOption.IGNORE_CASE)
+        fun ehFilme(ch: ChannelEntity) = filme.containsMatchIn(ch.name) || filme.containsMatchIn(ch.groupTitle)
+        fun palavra(t: String) = Regex("""(^|[^a-z0-9])""" + Regex.escape(t.lowercase().trim()) + """($|[^a-z0-9])""")
+        val genericos = setOf("max", "star", "star+", "paramount", "paramount+", "prime", "prime video", "globoplay", "youtube", "app")
+        val transmissao = j.canais.map { it.trim() }.filter { it.length >= 3 && it.lowercase() !in genericos }
+        val porTransmissao = allChannels.filter { ch -> !ehFilme(ch) && transmissao.any { palavra(it).containsMatchIn(ch.name.lowercase()) } }
         fun limpa(t: String) = t.lowercase().replace(Regex("[^a-z0-9]"), "")
-        val transmissao = j.canais.map(::limpa).filter { it.length >= 3 }
-        val porTransmissao = allChannels.filter { ch -> transmissao.any { limpa(ch.name).contains(it) } }
         val times = listOf(j.casa.nome, j.fora.nome).map(::limpa).filter { it.length >= 4 }
-        val porTime = allChannels.filter { ch -> times.any { limpa(ch.name).contains(it) } }
-        val esporte = Regex("premiere|espn|sportv|tnt ?sports|band ?sports|combate|caz[eé]|disney|star|max|paramount|goat|nosso futebol|futebol|sport", RegexOption.IGNORE_CASE)
-        val esportes = allChannels.filter { esporte.containsMatchIn(it.name) || esporte.containsMatchIn(it.groupTitle) }
+        val porTime = allChannels.filter { ch -> !ehFilme(ch) && times.any { limpa(ch.name).contains(it) } }
+        val esporte = Regex("""premiere|espn|sportv|tnt ?sports|band ?sports|combate|caz[eé] ?tv|disney ?\+|goat|nosso futebol|onefootball|dazn|eleven|\bsports?\b|futebol|ppv|pay-per-view|jogos""", RegexOption.IGNORE_CASE)
+        val esportes = allChannels.filter { !ehFilme(it) && (esporte.containsMatchIn(it.name) || esporte.containsMatchIn(it.groupTitle)) }
         return (porTime + porTransmissao + esportes).distinctBy { it.id }.take(60)
     }
     var homePreview by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
