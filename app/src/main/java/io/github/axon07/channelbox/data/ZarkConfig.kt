@@ -232,3 +232,31 @@ object ZarkFicha {
             ).also { cache[chave] = it }
         }
 }
+
+/**
+ * O que o painel manda junto no config.json, além dos servidores:
+ *   "tema": "vermelho" | "preto" | "roxo" | "azul"   (tema padrão do app)
+ *   "banners": [{"imagem": "https://…", "link": "https://…", "titulo": "…"}]
+ *   "aviso": "texto que aparece para todos os clientes"
+ *   "checkout": "https://painel.zarktvqx.cfd/checkout"
+ */
+data class ZarkBanner(val imagem: String, val link: String?, val titulo: String?)
+data class ZarkExtras(val tema: String?, val banners: List<ZarkBanner>, val aviso: String?)
+
+object ZarkPainel {
+    fun extras(context: Context): ZarkExtras {
+        val txt = context.getSharedPreferences("zarktv", Context.MODE_PRIVATE).getString("config_json", null)
+            ?: return ZarkExtras(null, emptyList(), null)
+        val o = runCatching { Json.parseToJsonElement(txt) as? JsonObject }.getOrNull() ?: return ZarkExtras(null, emptyList(), null)
+        fun JsonObject.s(k: String) = (this[k] as? JsonPrimitive)?.content?.trim()?.takeIf { it.isNotBlank() && it != "null" }
+        val banners = (o["banners"] as? JsonArray).orEmpty().mapNotNull { e ->
+            when (e) {
+                is JsonPrimitive -> e.content.takeIf { it.startsWith("http") }?.let { ZarkBanner(it, null, null) }
+                is JsonObject -> (e.s("imagem") ?: e.s("image") ?: e.s("url"))?.takeIf { it.startsWith("http") }
+                    ?.let { ZarkBanner(it, e.s("link"), e.s("titulo") ?: e.s("title")) }
+                else -> null
+            }
+        }
+        return ZarkExtras(o.s("tema"), banners, o.s("aviso") ?: o.s("mensagem"))
+    }
+}

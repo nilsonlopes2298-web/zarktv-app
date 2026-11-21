@@ -211,6 +211,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var settingsSection by remember { mutableStateOf<String?>(null) }
     /** ZarkTV: "Trocar de conta"/"Sair" no perfil – volta para a tela de login. */
     var zarkTrocarConta by remember { mutableStateOf(false) }
+    /** ZarkTV: aba aberta na tela principal (TV, Destaques, Filmes…) e onde fica a prévia do canal. */
+    var homeTab by remember { mutableIntStateOf(Aba.TV) }
+    var homePreview by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    /** Filme/série aberto direto da tela principal: Voltar retorna para ela. */
+    var vodDeInicio by remember { mutableStateOf(false) }
     /** When the groups menu was opened (for [groupsBack]). */
     var groupsOpenedAt by remember { mutableLongStateOf(0L) }
     /** When Back was pressed on the side menu: a second Back soon after exits. */
@@ -1072,9 +1077,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     }
     LaunchedEffect(mode) { if (mode != Mode.SETTINGS) settingsFromSetup = false }
     // Live TV doesn't play behind Movies & TV Shows; it comes back when you leave them.
-    LaunchedEffect(mode) {
+    LaunchedEffect(mode, homeTab) {
         when (mode) {
-            Mode.VOD, Mode.HOME, Mode.PROFILE -> vm.enterLibrary()
+            Mode.VOD, Mode.PROFILE -> vm.enterLibrary()
+            Mode.HOME -> if (homeTab == Aba.TV) vm.leaveLibrary() else vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
             // Audio & subtitles opened from a movie, episode or recording is still part of playback.
             Mode.OPTIONS -> if (optionsReturn != Mode.PLAYBACK) vm.leaveLibrary()
@@ -1164,7 +1170,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 digits.isNotEmpty() -> digits = ""
                 touchBar -> touchBar = false
                 bannerVisible -> bannerVisible = false
-                else -> mode = Mode.LIVE // ZarkTV: da tela cheia volta para a lista de canais
+                else -> { homeTab = Aba.TV; mode = Mode.HOME } // ZarkTV: da tela cheia volta para a lista de canais
             }
             Mode.CHANNEL_LIST -> mode = Mode.PLAYER
             Mode.GUIDE -> openGroups()
@@ -1196,8 +1202,12 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 vodBrowser.movie != null -> {
                     vodBrowser.movie = null
                     vodBrowser.focusToken++
+                    if (vodDeInicio) { vodDeInicio = false; mode = Mode.HOME }
                 }
-                vodBrowser.show != null -> vodBrowser.closeShow()
+                vodBrowser.show != null -> {
+                    vodBrowser.closeShow()
+                    if (vodDeInicio) { vodDeInicio = false; mode = Mode.HOME }
+                }
                 vodBrowser.query.isNotEmpty() -> vodBrowser.query = ""
                 else -> mode = Mode.HOME
             }
@@ -1301,6 +1311,16 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 Modifier.fillMaxSize()
             } else if (mode == Mode.MULTIVIEW) {
                 Modifier.size(0.dp)
+            } else if (mode == Mode.HOME) {
+                val r = homePreview
+                if (homeTab == Aba.TV && r != null) {
+                    val d = LocalDensity.current
+                    with(d) {
+                        Modifier.align(Alignment.TopStart)
+                            .offset(r.left.toDp(), r.top.toDp())
+                            .size(r.width.toDp(), r.height.toDp())
+                    }
+                } else Modifier.size(0.dp)
             } else if (mode == Mode.LIVE) {
                 val g = liveGeom()
                 Modifier
@@ -1559,25 +1579,54 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     mode = Mode.SETUP
                 }
                 if (mode == Mode.HOME && allChannels.isEmpty() && refreshState is RefreshState.Running) ZarkCarregando(refreshState)
-                else if (mode == Mode.HOME) HomeScreen(
-                    serverName = pl?.name.orEmpty(),
+                else if (mode == Mode.HOME) UniShell(
+                    vm = vm,
+                    tab = homeTab,
+                    onTab = { homeTab = it },
                     userName = pl?.xtUser.orEmpty(),
                     conta = conta,
-                    channelCount = allChannels.size,
-                    movieCount = movieCount,
-                    showCount = showCount,
-                    onLive = aoVivo,
-                    onMovies = { openVod(VodKind.MOVIE) },
-                    onSeries = { openVod(VodKind.SERIES) },
-                    onSettings = { settingsSection = null; openSettings() },
-                    onProfile = { mode = Mode.PROFILE },
-                    onFavorites = {
-                        vm.setFilter(ChannelFilter.Favorites)
-                        mode = Mode.LIVE
+                    channels = visible,
+                    groupLabel = vm.filterTitle(filter, menuSections),
+                    current = current,
+                    favorites = favorites,
+                    upcoming = upcoming,
+                    now = now,
+                    timeFormat = timeFormat,
+                    onPrevGroup = { vm.cycleFilter(-1) },
+                    onNextGroup = { vm.cycleFilter(1) },
+                    onPickChannel = { ch -> vm.withChannelAccess(ch) { vm.tune(ch) } },
+                    onFull = { mode = Mode.PLAYER },
+                    onFavorite = { vm.toggleFavorite(it) },
+                    onPreviewRect = { homePreview = it },
+                    onOpenItem = { item ->
+                        vodBrowser.open(item.kind)
+                        vodDeInicio = true
+                        vodBrowser.voltarInicio = { vodDeInicio = false; mode = Mode.HOME }
+                        if (item.kind == VodKind.SERIES) vodBrowser.openShow(item) else vodBrowser.movie = item
+                        mode = Mode.VOD
                     },
-                    onPay = pagar,
-                    onSupport = suporte,
-                    onExit = { askExit(Mode.HOME) },
+                    onOpenLibrary = { kind, cat ->
+                        vodBrowser.open(kind)
+                        vodBrowser.category = cat
+                        vodDeInicio = false
+                        vodBrowser.voltarInicio = null
+                        mode = Mode.VOD
+                    },
+                    onSearch = {
+                        vodBrowser.open(VodKind.MOVIE)
+                        vodDeInicio = false
+                        vodBrowser.voltarInicio = null
+                        mode = Mode.VOD
+                    },
+                    onHistory = {
+                        vodBrowser.open(VodKind.MOVIE)
+                        vodBrowser.category = VOD_CONTINUE
+                        vodDeInicio = false
+                        vodBrowser.voltarInicio = null
+                        mode = Mode.VOD
+                    },
+                    onProfile = { mode = Mode.PROFILE },
+                    onRenew = pagar,
                 ) else ProfileScreen(
                     serverName = pl?.name.orEmpty(),
                     userName = pl?.xtUser.orEmpty(),
@@ -1598,6 +1647,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onSettings = { settingsSection = null; openSettings() },
                     onShare = { compartilhar("Baixe o ZarkTV: celular https://zark.zarktvqx.cfd/celular · TV Box https://zark.zarktvqx.cfd/tv (Downloader 5366466)") },
                     onBack = { mode = Mode.HOME },
+                    temaNome = ZarkTema.atual.nome,
+                    onTema = { ZarkTema.proximo(ctx) },
                 )
             }
             Mode.LIVE -> {
@@ -1784,7 +1835,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         Box(
                             Modifier.align(Alignment.TopStart).padding(16.dp)
                                 .background(Color(0xCC000000), androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
-                                .tap(onClick = { touchBar = false; mode = Mode.LIVE })
+                                .tap(onClick = { touchBar = false; homeTab = Aba.TV; mode = Mode.HOME })
                                 .padding(horizontal = 16.dp, vertical = 10.dp)
                         ) { Text("‹ Voltar", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
                     }

@@ -240,6 +240,8 @@ fun ProfileScreen(
     onSettings: () -> Unit,
     onShare: () -> Unit,
     onBack: () -> Unit,
+    temaNome: String = ZarkTema.atual.nome,
+    onTema: () -> Unit = {},
 ) {
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) {
@@ -254,7 +256,7 @@ fun ProfileScreen(
         else -> java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(conta.expira))
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF0E0E10))) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(FundoZark)) {
         val largura = if (maxWidth > 760.dp) 720.dp else maxWidth
         Column(
             Modifier
@@ -309,6 +311,7 @@ fun ProfileScreen(
                 LinhaPerfil(AppIcons.Shield, "Conteúdo adulto", if (adultoBloqueado) "Bloqueado com senha" else "Criar senha", onParental)
                 LinhaPerfil(AppIcons.Captions, "Áudio, legenda e player", null, onPlayer)
                 LinhaPerfil(AppIcons.Info, "Ajuda e suporte", "WhatsApp", onSupport)
+                LinhaPerfil(AppIcons.Grid, "Tema do app", temaNome, onTema)
                 LinhaPerfil(AppIcons.Settings, "Configurações", null, onSettings)
                 LinhaPerfil(AppIcons.Globe, "Compartilhar o app", null, onShare)
             }

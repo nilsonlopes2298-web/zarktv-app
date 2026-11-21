@@ -72,6 +72,8 @@ class VodBrowser {
     var show by mutableStateOf<VodEntity?>(null)
     /** ZarkTV: filme aberto na ficha (sinopse, elenco, Assistir). */
     var movie by mutableStateOf<VodEntity?>(null)
+    /** Aberto da tela principal: o botão Voltar da ficha volta para ela. */
+    var voltarInicio: (() -> Unit)? = null
     var episodes by mutableStateOf<List<VodEntity>?>(null)
     var season by mutableStateOf<Int?>(null)
     val grid = LazyGridState()
@@ -693,7 +695,25 @@ private fun MovieDetail(
                     }
                 }
                 Box(Modifier.width(160.dp)) {
-                    BotaoContorno("‹ Voltar", cor = Color(0x55FFFFFF)) { b.movie = null; b.focusToken++ }
+                    BotaoContorno("‹ Voltar", cor = Color(0x55FFFFFF)) {
+                        b.movie = null
+                        b.focusToken++
+                        b.voltarInicio?.invoke()
+                    }
+                }
+            }
+            // Você também pode gostar (mesma categoria).
+            val parecidos by remember(movie.id) {
+                vm.vodItems(VodKind.MOVIE, movie.category, "").let { f ->
+                    kotlinx.coroutines.flow.flow { f.collect { l -> emit(l.filter { it.id != movie.id }.take(15)) } }
+                }
+            }.collectAsState(initial = emptyList())
+            if (parecidos.isNotEmpty()) {
+                Spacer(Modifier.height(18.dp))
+                Text("Você também pode gostar", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(parecidos, key = { it.id }) { p -> PosterTile(p, 110.dp, 165.dp) { b.movie = p } }
                 }
             }
         }
@@ -709,7 +729,7 @@ private fun MovieDetail(
             Row(Modifier.fillMaxSize().padding(36.dp), verticalAlignment = Alignment.Top) {
                 PosterImage(ficha?.capa ?: movie.poster, movie.title, Modifier.width(230.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(10.dp)))
                 Spacer(Modifier.width(30.dp))
-                Column(Modifier.weight(1f)) { conteudo() }
+                Column(Modifier.weight(1f).verticalScroll(androidx.compose.foundation.rememberScrollState())) { conteudo() }
             }
         }
     }
