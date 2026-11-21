@@ -847,8 +847,8 @@ private fun JogoAberto(
     val data = java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
 
     Column(
+        // Sem fundo aqui: o vídeo é desenhado por trás e o fundo cobriria a janelinha.
         Modifier.fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF1A2128), Color(0xFF10161B), Color(0xFF1B0B0D))), RoundedCornerShape(8.dp))
             .verticalScroll(androidx.compose.foundation.rememberScrollState())
             .padding(if (compacto) 8.dp else 18.dp)
     ) {
