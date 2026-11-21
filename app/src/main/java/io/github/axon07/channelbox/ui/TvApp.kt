@@ -1744,6 +1744,16 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         if (item.kind == VodKind.SERIES) vodBrowser.openShow(item) else vodBrowser.movie = item
                         mode = Mode.VOD
                     },
+                    onOpenFiltrado = { kind, rx ->
+                        vodBrowser.open(kind)
+                        vodBrowser.filtroCat = rx
+                        vodBrowser.category = null
+                        vodDeInicio = false
+                        vodBrowser.voltarInicio = null
+                        mode = Mode.VOD
+                    },
+                    adultoLiberado = vm.zarkAdulto.collectAsStateWithLifecycle().value,
+                    onAdulto = { vm.zarkAlternarAdulto() },
                     onOpenLibrary = { kind, cat ->
                         vodBrowser.open(kind)
                         vodBrowser.category = cat

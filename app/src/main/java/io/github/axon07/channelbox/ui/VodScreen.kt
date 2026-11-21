@@ -75,6 +75,8 @@ class VodBrowser {
     var show by mutableStateOf<VodEntity?>(null)
     /** ZarkTV: filme aberto na ficha (sinopse, elenco, Assistir). */
     var movie by mutableStateOf<VodEntity?>(null)
+    /** ZarkTV: só as categorias que batem (Anime, Kids, Adulto…); null = todas. */
+    var filtroCat by mutableStateOf<Regex?>(null)
     /** Aberto da tela principal: o botão Voltar da ficha volta para ela. */
     var voltarInicio: (() -> Unit)? = null
     var episodes by mutableStateOf<List<VodEntity>?>(null)
@@ -87,6 +89,7 @@ class VodBrowser {
     internal var listKey = ""
 
     fun open(kind: String) {
+        if (filtroCat != null) { filtroCat = null; category = null; items = null }
         if (this.kind != kind) {
             this.kind = kind
             category = null
@@ -180,7 +183,12 @@ private fun LibraryScreen(
 ) {
     val movies = b.kind == VodKind.MOVIE
     val total by (if (movies) vm.movieCount else vm.showCount).collectAsStateWithLifecycle()
-    val categories by remember(b.kind) { vm.vodCategories(b.kind) }.collectAsState(initial = emptyList())
+    val todasCats by remember(b.kind) { vm.vodCategories(b.kind) }.collectAsState(initial = emptyList())
+    val categories = remember(todasCats, b.filtroCat) { b.filtroCat?.let { r -> todasCats.filter { r.containsMatchIn(it.name) } } ?: todasCats }
+    // Com filtro (Anime, Kids…) "Todos" mostraria o catálogo inteiro: abre na primeira categoria filtrada.
+    LaunchedEffect(categories, b.filtroCat) {
+        if (b.filtroCat != null && b.category == null && b.query.isBlank()) categories.firstOrNull()?.let { b.category = it.name }
+    }
     val continueCount by remember(b.kind) { vm.vodContinueCount(b.kind) }.collectAsState(initial = 0)
     val overrides by vm.overrides.collectAsStateWithLifecycle()
 
@@ -224,9 +232,11 @@ private fun LibraryScreen(
             Spacer(Modifier.height(10.dp))
             LazyColumn(Modifier.weight(1f)) {
                 val entries = buildList {
-                    if (continueCount > 0) add(Triple(VOD_CONTINUE, "Continuar assistindo", continueCount))
-                    add(Triple(VOD_FAVORITOS, "★ Meus favoritos", 0))
-                    add(Triple(null, "Todos", total))
+                    if (b.filtroCat == null) {
+                        if (continueCount > 0) add(Triple(VOD_CONTINUE, "Continuar assistindo", continueCount))
+                        add(Triple(VOD_FAVORITOS, "★ Meus favoritos", 0))
+                        add(Triple(null, "Todos", total))
+                    }
                     categories.forEach { add(Triple(it.name, nomeCategoria(it.name), it.count)) }
                 }
                 items(entries, key = { it.first ?: "\u0000all" }) { (id, label, count) ->

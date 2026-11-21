@@ -483,3 +483,17 @@ fun DestaquesGrade(itens: List<VodEntity>, altura: Dp, onOpen: (VodEntity) -> Un
         }
     }
 }
+
+
+/** Anime (como na UniTV): 3 capas altas + 2 empilhadas, a de cima é "Todos". */
+@Composable
+fun GradeComTodos(itens: List<VodEntity>, altura: Dp, rotuloTodos: String, onOpen: (VodEntity) -> Unit, onTodos: () -> Unit) {
+    if (itens.isEmpty()) return
+    Row(Modifier.fillMaxWidth().height(altura), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        itens.take(3).forEach { a -> TileImagem(a.poster, a.title, Modifier.weight(1f).fillMaxHeight()) { onOpen(a) } }
+        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            TileImagem(itens.getOrNull(3)?.poster, rotuloTodos, Modifier.fillMaxWidth().weight(1f), rotulo = true) { onTodos() }
+            itens.getOrNull(4)?.let { a -> TileImagem(a.poster, a.title, Modifier.fillMaxWidth().weight(1f)) { onOpen(a) } }
+        }
+    }
+}

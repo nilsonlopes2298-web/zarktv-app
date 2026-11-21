@@ -78,7 +78,8 @@ object Aba {
     const val SERIES = 4
     const val KIDS = 5
     const val ANIME = 6
-    val nomes = listOf("TV", "JOGOS", "DESTAQUES", "FILMES", "SÉRIES", "KIDS", "ANIME")
+    const val EXPLORAR = 7
+    val nomes = listOf("TV", "JOGOS", "DESTAQUES", "FILMES", "SÉRIES", "KIDS", "ANIME", "EXPLORAR")
 
     /** Abas com a prévia do canal (o vídeo fica ligado). Favoritos é um grupo dentro da TV. */
     fun temPrevia(tab: Int) = tab == TV
@@ -132,6 +133,9 @@ fun UniShell(
     // Filmes / séries
     onOpenItem: (VodEntity) -> Unit,
     onOpenLibrary: (kind: String, category: String?) -> Unit,
+    onOpenFiltrado: (kind: String, filtro: Regex) -> Unit = { k, _ -> onOpenLibrary(k, null) },
+    adultoLiberado: Boolean = false,
+    onAdulto: () -> Unit = {},
     // Topo
     onSearch: () -> Unit,
     onHistory: () -> Unit,
@@ -219,8 +223,9 @@ fun UniShell(
                     Aba.DESTAQUES -> AbaDestaques(vm, compacto, extras.banners, onOpenItem)
                     Aba.FILMES -> AbaCatalogo(vm, VodKind.MOVIE, compacto, null, onOpenItem, onOpenLibrary)
                     Aba.SERIES -> AbaCatalogo(vm, VodKind.SERIES, compacto, null, onOpenItem, onOpenLibrary)
-                    Aba.KIDS -> AbaCatalogo(vm, null, compacto, REGEX_KIDS, onOpenItem, onOpenLibrary)
-                    Aba.ANIME -> AbaCatalogo(vm, null, compacto, REGEX_ANIME, onOpenItem, onOpenLibrary)
+                    Aba.KIDS -> AbaCatalogo(vm, null, compacto, REGEX_KIDS, onOpenItem, onOpenLibrary, onOpenFiltrado)
+                    Aba.ANIME -> AbaCatalogo(vm, null, compacto, REGEX_ANIME, onOpenItem, onOpenLibrary, onOpenFiltrado)
+                    Aba.EXPLORAR -> AbaExplorar(vm, compacto, adultoLiberado, onOpenItem, onOpenFiltrado, onAdulto)
                 }
             }
             if (userName.isNotBlank() && !compacto) {
@@ -607,6 +612,7 @@ private fun AbaCatalogo(
     filtro: Regex?,
     onOpen: (VodEntity) -> Unit,
     onLibrary: (String, String?) -> Unit,
+    onFiltrado: (String, Regex) -> Unit = { k, _ -> onLibrary(k, null) },
 ) {
     val tipos = if (kind != null) listOf(kind) else listOf(VodKind.MOVIE, VodKind.SERIES)
     val catsFilmes by remember { vm.vodCategories(VodKind.MOVIE) }.collectAsState(initial = emptyList())
@@ -656,7 +662,8 @@ private fun AbaCatalogo(
                 .firstOrNull { filtro.containsMatchIn(it.second) }
             if (primeira != null) {
                 val itens by remember(primeira) { vm.vodTop(primeira.first, primeira.second, 9) }.collectAsState(initial = emptyList())
-                Mosaico(itens, alturaHero, onOpen = onOpen, onMais = { onLibrary(primeira.first, primeira.second) })
+                if (filtro == REGEX_ANIME) GradeComTodos(itens, alturaHero, "Todos", onOpen) { onFiltrado(primeira.first, filtro) }
+                else Mosaico(itens, alturaHero, onOpen = onOpen, onMais = { onFiltrado(primeira.first, filtro) })
             }
         }
         if (fileiras.isEmpty()) item {
@@ -1148,5 +1155,33 @@ private fun BotaoQuadrado(icone: ImageVector, label: String, cor: Color, modifie
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { AppIcon(icone, tint = Color.White, size = 28.dp) }
         }
         Text(label, color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+
+/** Explorar (como na UniTV): 3 capas em destaque + "Séries Curtas" e "Adulto" (com senha). */
+@Composable
+private fun AbaExplorar(
+    vm: TvViewModel,
+    compacto: Boolean,
+    adultoLiberado: Boolean,
+    onOpen: (VodEntity) -> Unit,
+    onFiltrado: (String, Regex) -> Unit,
+    onAdulto: () -> Unit,
+) {
+    val itens by remember { vm.vodTop(VodKind.MOVIE, null, 3) }.collectAsState(initial = emptyList())
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val altura = if (compacto) 300.dp else maxHeight - 8.dp
+        Row(Modifier.fillMaxWidth().height(altura), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            itens.take(3).forEach { a -> TileImagem(a.poster, a.title, Modifier.weight(1f).fillMaxHeight()) { onOpen(a) } }
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                TileImagem(null, "Séries Curtas", Modifier.fillMaxWidth().weight(1f), cor = Color(0xFF43A047), rotulo = true) {
+                    onFiltrado(VodKind.SERIES, Regex("curt|mini|novelinha|dorama", RegexOption.IGNORE_CASE))
+                }
+                TileImagem(null, if (adultoLiberado) "Adulto" else "Adulto (senha)", Modifier.fillMaxWidth().weight(1f), cor = Color(0xFFE57373), rotulo = true) {
+                    if (adultoLiberado) onFiltrado(VodKind.MOVIE, io.github.axon07.channelbox.data.ZarkPrefs.ADULTO) else onAdulto()
+                }
+            }
+        }
     }
 }
