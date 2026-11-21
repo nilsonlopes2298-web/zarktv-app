@@ -227,6 +227,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var grupoIndex by remember { mutableIntStateOf(0) }
     val filtrosLista by vm.filters.collectAsStateWithLifecycle()
     val zarkCtx = LocalContext.current
+    var tutorialVisto by remember { mutableStateOf(zarkCtx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getBoolean("tutorial_visto", false)) }
     var playerExterno by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkConfig.playerExterno(zarkCtx)) }
     /** When the groups menu was opened (for [groupsBack]). */
     var groupsOpenedAt by remember { mutableLongStateOf(0L) }
@@ -1695,6 +1696,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     },
                     onProfile = { mode = Mode.PROFILE },
                     onRenew = pagar,
+                    versaoNova = (update as? TvViewModel.UpdateState.Available)?.release?.version,
+                    onAtualizar = { vm.startUpdate() },
                 ) else ProfileScreen(
                     serverName = pl?.name.orEmpty(),
                     userName = pl?.xtUser.orEmpty(),
@@ -1723,6 +1726,13 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         io.github.axon07.channelbox.data.ZarkConfig.setPlayerExterno(zarkCtx, playerExterno)
                     },
                 )
+                // Tutorial da primeira vez (como o "Otimizada a operação…" da UniTV).
+                if (mode == Mode.HOME && !tutorialVisto && allChannels.isNotEmpty()) {
+                    ZarkTutorial {
+                        tutorialVisto = true
+                        zarkCtx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).edit().putBoolean("tutorial_visto", true).apply()
+                    }
+                }
             }
             Mode.LIVE -> {
                 val filtros by vm.filters.collectAsStateWithLifecycle()
@@ -1966,41 +1976,37 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         )
                     }
                 }
-                if (mode == Mode.CHANNEL_LIST) Row(Modifier.fillMaxHeight()) {
-                    run {
-                        GruposPanel(
-                            foco = gruposAbertos,
-                            grupos = filtrosLista.map { f -> vm.filterTitle(f, menuSections) + (filterCounts[f]?.let { "  ($it)" } ?: "") },
-                            selecionado = grupoIndex,
-                            atual = filtrosLista.indexOf(filter),
-                            onEscolher = { i ->
-                                filtrosLista.getOrNull(i)?.let { vm.setFilter(it) }
-                                listIndex = 0
-                                gruposAbertos = false
-                            },
-                        )
-                    }
-                    ChannelListPanel(
-                        channels = visible,
-                        selected = listIndex,
-                        listState = listState,
-                        filterLabel = vm.filterTitle(filter, menuSections),
-                        favorites = favorites,
-                        playingId = cur?.id,
-                        upcoming = upcoming,
-                        now = now,
-                        onSelect = { i -> visible.getOrNull(i)?.let { tuneAndWatch(it) } },
-                        onFavorite = { i -> visible.getOrNull(i)?.let { vm.toggleFavorite(it) } },
-                        onGroup = { d ->
-                            vm.cycleFilter(d)
-                            listIndex = 0
-                        },
-                    )
-                    // Toque: botão para voltar ao início.
-                    Column(Modifier.padding(12.dp)) {
-                        PillButton("‹ Voltar") { homeTab = Aba.TV; mode = Mode.HOME }
-                    }
-                }
+                if (mode == Mode.CHANNEL_LIST) CanaisOverlay(
+                    titulo = vm.filterTitle(filter, menuSections),
+                    channels = visible,
+                    selected = listIndex,
+                    listState = listState,
+                    playingId = cur?.id,
+                    upcoming = upcoming,
+                    now = now,
+                    grupos = filtrosLista.map { f -> vm.filterTitle(f, menuSections) + (filterCounts[f]?.let { "  ($it)" } ?: "") },
+                    grupoSel = if (gruposAbertos) grupoIndex else -1,
+                    grupoAtual = filtrosLista.indexOf(filter),
+                    gruposAbertos = gruposAbertos,
+                    onCanal = { i -> visible.getOrNull(i)?.let { tuneAndWatch(it) } },
+                    onFavoritar = { i -> visible.getOrNull(i)?.let { vm.toggleFavorite(it) } },
+                    onGrupo = { i ->
+                        filtrosLista.getOrNull(i)?.let { vm.setFilter(it) }
+                        listIndex = 0
+                        gruposAbertos = false
+                    },
+                    onAbrirGrupos = {
+                        grupoIndex = filtrosLista.indexOf(filter).coerceAtLeast(0)
+                        gruposAbertos = !gruposAbertos
+                    },
+                    onFavoritos = {
+                        vm.setFilter(ChannelFilter.Favorites)
+                        listIndex = 0
+                        gruposAbertos = false
+                    },
+                    onBuscar = { gruposAbertos = false; openSearch() },
+                    onVoltar = { homeTab = Aba.TV; mode = Mode.HOME },
+                )
             }
         }
         if (digits.isNotEmpty() && !inPip) {

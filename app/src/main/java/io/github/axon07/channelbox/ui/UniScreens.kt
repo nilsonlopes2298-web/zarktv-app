@@ -117,7 +117,10 @@ fun UniShell(
     onHistory: () -> Unit,
     onProfile: () -> Unit,
     onRenew: () -> Unit,
+    versaoNova: String? = null,
+    onAtualizar: () -> Unit = {},
 ) {
+    var sinoAberto by remember { mutableStateOf(false) }
     var hora by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -157,6 +160,12 @@ fun UniShell(
                 IconeRedondo(AppIcons.History, "Histórico", onHistory)
                 Spacer(Modifier.width(10.dp))
                 IconeRedondo(AppIcons.Home, "Perfil", onProfile)
+                Spacer(Modifier.width(10.dp))
+                Box {
+                    IconeRedondo(AppIcons.Bell, "Avisos") { sinoAberto = !sinoAberto }
+                    val temAviso = versaoNova != null || (dias != null && dias <= 5) || extras.aviso != null
+                    if (temAviso) Box(Modifier.align(Alignment.TopEnd).size(11.dp).clip(CircleShape).background(Color(0xFFFF1744)))
+                }
                 if (!compacto) {
                     Spacer(Modifier.width(16.dp))
                     Text(
@@ -198,6 +207,48 @@ fun UniShell(
                     "Conta: $userName" + (conta?.expira?.let { " · vence em " + java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(it)) } ?: ""),
                     color = Color(0x99FFFFFF), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp),
                 )
+            }
+        }
+        // Sino: informativos (atualização do app, vencimento e recado do painel).
+        if (sinoAberto) {
+            androidx.activity.compose.BackHandler { sinoAberto = false }
+            Column(
+                Modifier.align(Alignment.TopEnd).padding(top = 64.dp, end = 20.dp).width(360.dp)
+                    .background(Color(0xF5141414), RoundedCornerShape(12.dp))
+                    .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(12.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("🔔 Informativos", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Text("✕", color = Color.White, fontSize = 16.sp, modifier = Modifier.tap(onClick = { sinoAberto = false }).padding(4.dp))
+                }
+                var algum = false
+                if (versaoNova != null) {
+                    algum = true
+                    Column {
+                        Text("Nova versão do ZarkTV disponível: $versaoNova", color = Color(0xFF81C784), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(6.dp))
+                        PillButton("Atualizar agora", primary = true) { sinoAberto = false; onAtualizar() }
+                    }
+                }
+                if (dias != null && dias <= 5) {
+                    algum = true
+                    Column {
+                        Text(
+                            when {
+                                dias < 0 -> "Seu acesso venceu."
+                                dias == 0 -> "Seu acesso vence hoje."
+                                else -> "Faltam $dias dia(s) para o seu acesso vencer."
+                            },
+                            color = Color(0xFFFFD54F), fontSize = 14.sp,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        PillButton("Renovar agora", primary = true) { sinoAberto = false; onRenew() }
+                    }
+                }
+                extras.aviso?.let { algum = true; Text(it, color = Color(0xFFDDDDDD), fontSize = 14.sp) }
+                if (!algum) Text("Nenhum aviso no momento. Seu app está atualizado. ✅", color = Color(0xFFBBBBBB), fontSize = 14.sp)
             }
         }
         // Aviso no cantinho: vencimento (5, 3, 1 dia, hoje, vencido) e recado do painel.
@@ -444,12 +495,8 @@ private fun AbaDestaques(vm: TvViewModel, compacto: Boolean, banners: List<io.gi
             if (todos.isEmpty()) {
                 Text("Carregando destaques…", color = Color.White, fontSize = 16.sp)
             } else {
-                val altura = if (compacto) 200.dp else (alturaTotal - (if (temBanner) alturaBanner + 10.dp else 0.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(todos, key = { it.id }) { item ->
-                        PosterTile(item, altura * (2f / 3f), altura, mostrarTitulo = false) { onOpen(item) }
-                    }
-                }
+                val altura = if (compacto) 300.dp else (alturaTotal - (if (temBanner) alturaBanner + 10.dp else 0.dp))
+                Mosaico(todos, altura, onOpen = onOpen)
             }
         }
     }
@@ -483,14 +530,32 @@ private fun AbaCatalogo(
     }
     LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
         if (kind != null) item {
-            // Atalhos coloridos (como Gênero / 2026 / No cinema / Todos na UniTV).
-            val lanc = (if (kind == VodKind.MOVIE) catsFilmes else catsSeries)
-                .firstOrNull { Regex("lan[cç]amento|2026|novidade|cinema", RegexOption.IGNORE_CASE).containsMatchIn(it.name) }?.name
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                Atalho("Todos", Color(0xFF1E88E5), Modifier.weight(1f), compacto) { onLibrary(kind, null) }
-                Atalho("Lançamentos", Color(0xFFE53935), Modifier.weight(1f), compacto) { onLibrary(kind, lanc) }
-                Atalho("Continuar", Color(0xFFFDD835), Modifier.weight(1f), compacto, texto = Color(0xFF222222)) { onLibrary(kind, VOD_CONTINUE) }
-                Atalho("Gêneros", Color(0xFF43A047), Modifier.weight(1f), compacto) { onLibrary(kind, null) }
+            // Topo igual à UniTV: banner que troca sozinho, blocos coloridos e capas altas.
+            val cats = if (kind == VodKind.MOVIE) catsFilmes else catsSeries
+            val lanc = cats.firstOrNull { Regex("lan[cç]amento|2026|novidade|cinema|no ar", RegexOption.IGNORE_CASE).containsMatchIn(it.name) }?.name
+            val nacional = cats.firstOrNull { Regex("nacion|brasil|globoplay", RegexOption.IGNORE_CASE).containsMatchIn(it.name) }?.name
+            val topo by remember(kind, lanc) { vm.vodTop(kind, lanc, 10) }.collectAsState(initial = emptyList())
+            val img = { k: Int -> topo.getOrNull(k)?.poster }
+            val blocos = if (kind == VodKind.MOVIE) listOf(
+                BlocoCor("Gênero", Color(0xFF2E7D32), img(6)) { onLibrary(kind, null) },
+                BlocoCor("Lançamentos", Color(0xFFC62828), img(7)) { onLibrary(kind, lanc) },
+                BlocoCor("Continuar", Color(0xFFF9A825), img(8)) { onLibrary(kind, VOD_CONTINUE) },
+                BlocoCor("Todos", Color(0xFF0288D1), img(9)) { onLibrary(kind, null) },
+            ) else listOf(
+                BlocoCor("Gênero", Color(0xFF1565C0), img(6)) { onLibrary(kind, null) },
+                BlocoCor("Nacional", Color(0xFFF9A825), img(7)) { onLibrary(kind, nacional) },
+                BlocoCor("No ar", Color(0xFF2E7D32), img(8)) { onLibrary(kind, lanc) },
+                BlocoCor("Continuar", Color(0xFFC62828), img(9)) { onLibrary(kind, VOD_CONTINUE) },
+            )
+            if (topo.isNotEmpty()) HeroCatalogo(vm, topo, blocos, if (compacto) 240.dp else 340.dp, onOpen = onOpen)
+        }
+        if (filtro != null) item {
+            // Kids / Anime: mosaico com as capas das categorias encontradas.
+            val primeira = (catsFilmes.map { VodKind.MOVIE to it.name } + catsSeries.map { VodKind.SERIES to it.name })
+                .firstOrNull { filtro.containsMatchIn(it.second) }
+            if (primeira != null) {
+                val itens by remember(primeira) { vm.vodTop(primeira.first, primeira.second, 10) }.collectAsState(initial = emptyList())
+                Mosaico(itens, if (compacto) 260.dp else 340.dp, onOpen = onOpen)
             }
         }
         if (fileiras.isEmpty()) item {
