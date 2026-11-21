@@ -1,0 +1,49 @@
+name: APK latest (teste)
+
+# A cada envio pra main, compila o APK e publica como arquivo unico
+# na versao "latest", com link fixo:
+#   https://github.com/nilsonlopes2298-web/zarktv-app/releases/latest/download/zarktv.apk
+# Assim da pra baixar no celular e instalar no tablet/TV pelo Downloader.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compilar APK
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Renomear para zarktv.apk
+        run: |
+          APK=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          echo "APK encontrado: $APK"
+          cp "$APK" zarktv.apk
+
+      - name: Publicar na versao 'latest'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: ZarkTV (versao de teste)
+          prerelease: true
+          files: zarktv.apk
+          body: |
+            APK de teste do ZarkTV (base Channelbox, GPLv3).
+            Instala no celular e na Android TV / tablet.
+            Link fixo sempre atualizado:
+            https://github.com/nilsonlopes2298-web/zarktv-app/releases/latest/download/zarktv.apk
