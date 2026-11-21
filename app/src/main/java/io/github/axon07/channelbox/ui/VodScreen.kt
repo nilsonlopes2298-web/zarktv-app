@@ -505,7 +505,20 @@ private fun ShowScreen(
         Column(
             Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 36.dp, vertical = 24.dp)
         ) {
-            FichaCabecalho(show.title, ficha, show.plot, show.rating, show.year, ultimo?.let { "T${it.season} - E${it.episode}" })
+            val retratoS = androidx.compose.ui.platform.LocalConfiguration.current.let { it.screenHeightDp > it.screenWidthDp }
+            val tocarSerie = {
+                (ultimo ?: inSeason.firstOrNull())?.let { b.focusId = it.id; onPlay(it, show) }
+                Unit
+            }
+            Row(verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1.25f)) {
+                    FichaCabecalho(show.title, ficha, show.plot, show.rating, show.year, ultimo?.let { "T${it.season} - E${it.episode}" })
+                }
+                if (!retratoS) {
+                    Spacer(Modifier.width(24.dp))
+                    MiniPlay(ficha?.fundo ?: show.poster, show.title, Modifier.weight(1f), tocarSerie)
+                }
+            }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
                 val alvo = ultimo ?: inSeason.firstOrNull()
@@ -676,26 +689,7 @@ private fun MovieDetail(
                 }
                 if (!retrato) {
                     Spacer(Modifier.width(24.dp))
-                    // Prévia com o botão play vermelho (como na UniTV).
-                    var f by remember { mutableStateOf(false) }
-                    Surface(
-                        onClick = assistir,
-                        modifier = Modifier.weight(1f).aspectRatio(16f / 9f).onFocusChanged { f = it.isFocused }
-                            .border(if (f) 3.dp else 2.dp, if (f) Color(0xFFFFE082) else Color(0x99FFE0B2), RoundedCornerShape(4.dp))
-                            .tap(onClick = assistir),
-                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
-                        colors = ClickableSurfaceDefaults.colors(containerColor = Color.Black, focusedContainerColor = Color.Black),
-                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
-                    ) {
-                        Box(Modifier.fillMaxSize()) {
-                            AsyncImage(ficha?.fundo ?: movie.poster, movie.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                            Box(
-                                Modifier.align(Alignment.Center).size(64.dp).clip(androidx.compose.foundation.shape.CircleShape)
-                                    .background(Brush.radialGradient(listOf(Color(0xFFFF5252), Color(0xFFC62828)))),
-                                contentAlignment = Alignment.Center,
-                            ) { AppIcon(AppIcons.Play, tint = Color.White, size = 30.dp) }
-                        }
-                    }
+                    MiniPlay(ficha?.fundo ?: movie.poster, movie.title, Modifier.weight(1f), assistir)
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -845,3 +839,28 @@ private fun Recomendados(vm: TvViewModel, kind: String, atual: VodEntity, onOpen
 /** Nome curto da categoria: tira "Filmes |", "Séries /" etc. do começo. */
 fun nomeCategoria(n: String): String =
     n.replace(Regex("""^\s*(filmes|s[ée]ries|movies|series)\s*[|/:\-]+\s*""", RegexOption.IGNORE_CASE), "").trim().ifEmpty { n }
+
+
+/** Miniatura com o botão play vermelho (canto superior direito da ficha, como na UniTV). */
+@Composable
+private fun MiniPlay(imagem: String?, titulo: String, modifier: Modifier, onPlay: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onPlay,
+        modifier = modifier.aspectRatio(16f / 9f).onFocusChanged { f = it.isFocused }
+            .border(if (f) 3.dp else 2.dp, if (f) Color(0xFFFFE082) else Color(0x99FFE0B2), RoundedCornerShape(4.dp))
+            .tap(onClick = onPlay),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+        colors = ClickableSurfaceDefaults.colors(containerColor = Color.Black, focusedContainerColor = Color.Black),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            AsyncImage(imagem, titulo, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(
+                Modifier.align(Alignment.Center).size(64.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(Brush.radialGradient(listOf(Color(0xFFFF5252), Color(0xFFC62828)))),
+                contentAlignment = Alignment.Center,
+            ) { AppIcon(AppIcons.Play, tint = Color.White, size = 30.dp) }
+        }
+    }
+}
