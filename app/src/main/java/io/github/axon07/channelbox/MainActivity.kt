@@ -71,9 +71,7 @@ class MainActivity : ComponentActivity() {
     /** Home pressed while watching: keep playing in a small window if that's switched on. */
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (vm.settings.value?.pipOnLeave == true && vm.current.value != null && vm.player.exo.isPlaying) {
-            SetTopBox.enterPip(this)
-        }
+        // ZarkTV: ao sair do app nada continua tocando (nem em janelinha). Ao voltar, volta a tocar.
     }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
@@ -91,6 +89,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         // Stop the stream when the user leaves (Home, screensaver) so it doesn't keep downloading.
         onScreen = false
+        runCatching { vm.player.exo.playWhenReady = false; vm.player.exo.pause() }
         vm.onBackground()
         super.onStop()
     }

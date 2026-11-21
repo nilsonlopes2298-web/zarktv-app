@@ -1188,6 +1188,15 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     }
     LaunchedEffect(mode) { if (mode != Mode.SETTINGS) settingsFromSetup = false }
     LaunchedEffect(mode) { if (mode != Mode.CHANNEL_LIST) gruposAbertos = false }
+    // ZarkTV: saiu dos filmes/séries (por qualquer caminho) = o filme/miniatura para de tocar.
+    LaunchedEffect(mode) {
+        if (mode != Mode.VOD && mode != Mode.PLAYBACK && mode != Mode.OPTIONS && mode != Mode.UPDATE && vodBrowser.previewId != null) {
+            vm.stopVod()
+            vm.player.stop()
+            vodBrowser.previewId = null
+            vodPreviewItem = null
+        }
+    }
     // Live TV doesn't play behind Movies & TV Shows; it comes back when you leave them.
     LaunchedEffect(mode, homeTab, jogoAberto != null, ZarkLayout.leve.value) {
         when (mode) {

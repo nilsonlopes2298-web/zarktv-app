@@ -328,7 +328,7 @@ class TvPlayer(
 
     /** Called when the app comes back to the foreground. */
     fun resume() {
-        if (onDemand) exo.prepare() // keeps the position
+        if (onDemand) { exo.prepare(); exo.playWhenReady = true } // keeps the position
         else if (spec != null) start()
     }
 
