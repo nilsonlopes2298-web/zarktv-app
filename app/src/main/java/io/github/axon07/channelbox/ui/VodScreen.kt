@@ -524,12 +524,30 @@ private fun ShowScreen(
                 episodes.isEmpty() -> Text("Nenhum episódio encontrado", color = Color.White, fontSize = 16.sp)
                 else -> {
                     // Seletor de temporada (abre a lista ao clicar) e o intervalo de episódios.
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        BotaoFicha((if (b.season == 0) "Episódios" else "Temporada ${b.season}") + if (listaTemporadas) "  ▲" else "  ▼", false) {
-                            listaTemporadas = !listaTemporadas
+                    // Temporada + faixas de episódios (1-10, 11-20…) para não virar uma lista enorme.
+                    val faixas = inSeason.chunked(10)
+                    var faixa by remember(b.season) { mutableStateOf(faixas.indexOfFirst { l -> l.any { it.id == ultimo?.id } }.coerceAtLeast(0)) }
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
+                        if (seasons.size > 1) {
+                            BotaoFicha((if (b.season == 0) "Episódios" else "Temporada ${b.season}") + if (listaTemporadas) "  ▲" else "  ▼", false) {
+                                listaTemporadas = !listaTemporadas
+                            }
+                            Spacer(Modifier.width(20.dp))
                         }
-                        Spacer(Modifier.width(24.dp))
-                        Text("1-${inSeason.size}", color = Color(0xFFFF5252), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        faixas.forEachIndexed { i, l ->
+                            val ini = inSeason.indexOf(l.first()) + 1
+                            val fim = ini + l.size - 1
+                            var ff by remember { mutableStateOf(false) }
+                            Surface(
+                                onClick = { faixa = i },
+                                modifier = Modifier.padding(end = 6.dp).onFocusChanged { ff = it.isFocused; if (it.isFocused) faixa = i }.tap(onClick = { faixa = i }),
+                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+                                colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color(0x33FFFFFF)),
+                                scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+                            ) {
+                                Text("$ini-$fim", color = if (i == faixa) Color(0xFFFF5252) else Color.White, fontSize = 20.sp, fontWeight = if (i == faixa) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                            }
+                        }
                     }
                     if (listaTemporadas) {
                         Column(Modifier.padding(top = 4.dp).width(260.dp).background(Color(0xF2FFFFFF))) {
@@ -543,8 +561,8 @@ private fun ShowScreen(
                     }
                     Spacer(Modifier.height(12.dp))
                     // Episódios em botões numerados (como na UniTV).
-                    inSeason.chunked(10).forEach { linha ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                    listOfNotNull(faixas.getOrNull(faixa)).forEach { linha ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp).horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
                             linha.forEach { ep ->
                                 val n = if (ep.episode > 0) ep.episode else inSeason.indexOf(ep) + 1
                                 val p = progress[ep.id]
