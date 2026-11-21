@@ -106,6 +106,9 @@ class TvPlayer(
     private var spec: StreamSpec? = null
     /** Quantas alternativas (formato/identificação) já tentou neste canal. */
     private var tentativaAlternativa = 0
+    private var avisouDesistencia = false
+    /** Chamado quando um canal ao vivo esgota todas as tentativas. */
+    var aoDesistir: (() -> Unit)? = null
     private var candidates: List<String?> = listOf(null)
     private var attempt = 0
     private var confirmed = false // the current type has played at least once
@@ -317,6 +320,7 @@ class TvPlayer(
         }
         attempt = 0
         tentativaAlternativa = 0
+        avisouDesistencia = false
         confirmed = false
         retries = 0
         refusals = 0
@@ -562,6 +566,8 @@ class TvPlayer(
             _status.value = PlayerStatus.Error("Não foi possível reproduzir ($reason)")
             return
         }
+        // Avisa uma vez (por canal) que esgotou as tentativas: o app pode abrir outra versão do mesmo canal.
+        if (!avisouDesistencia) { avisouDesistencia = true; aoDesistir?.invoke() }
         scheduleRetry("Canal fora do ar no momento – tentando de novo… ($reason)")
     }
 

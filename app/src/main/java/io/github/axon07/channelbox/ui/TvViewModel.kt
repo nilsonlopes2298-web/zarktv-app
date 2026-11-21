@@ -1099,7 +1099,36 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         if (libraryOpen) resumeLive()
     }
 
+    /**
+     * ZarkTV: canal fora do ar (ex.: "Rede TV Gospel FHD²") → abre sozinho outra versão do mesmo canal
+     * (FHD, HD, SD…) no mesmo grupo, e avisa.
+     */
+    private fun versaoAlternativa(ch: ChannelEntity): ChannelEntity? {
+        fun raiz(n: String) = n.lowercase()
+            .replace(Regex("""[²³¹]|\b(fhd|uhd|4k|hd|sd|h265|hevc|alt|backup)\b|\(.*?\)|\[.*?\]"""), " ")
+            .replace(Regex("""\s+"""), " ").trim()
+        val r = raiz(ch.name)
+        if (r.isBlank()) return null
+        val todos = allChannels.value
+        val irmaos = todos.filter { it.id != ch.id && raiz(it.name) == r }
+        val ordem = listOf("fhd", "hd", "sd", "4k", "uhd")
+        return irmaos.sortedBy { c -> ordem.indexOfFirst { c.name.lowercase().contains(it) }.let { if (it < 0) 99 else it } }
+            .firstOrNull { it.groupTitle == ch.groupTitle } ?: irmaos.firstOrNull()
+    }
+    private val jaTentados = mutableSetOf<String>()
+
     init {
+        player.aoDesistir = {
+            val ch = _current.value
+            if (ch != null) {
+                jaTentados += ch.id
+                val alt = versaoAlternativa(ch)?.takeIf { it.id !in jaTentados }
+                if (alt != null) {
+                    showToast("${ch.name} está fora do ar. Abrindo ${alt.name}…")
+                    tune(alt)
+                }
+            }
+        }
         // A reload that fails while last time's channels are there: a short note, not a full-screen error.
         viewModelScope.launch {
             var wasRunning = false
@@ -1420,6 +1449,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         if (_current.value?.id != channel.id) {
+            if (jaTentados.size > 20) jaTentados.clear()
             previous = _current.value
             _current.value = channel
             player.play(StreamSpecs.from(channel))

@@ -82,20 +82,20 @@ fun GuideSearchScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             AppIcon(AppIcons.Search, tint = Palette.Text, size = 26.dp)
             Spacer(Modifier.width(12.dp))
-            Text("Search the guide", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Palette.Text)
+            Text("Buscar na programação", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Palette.Text)
         }
         Spacer(Modifier.height(16.dp))
         Column(Modifier.widthIn(max = 640.dp)) {
-            TvTextField("Programme title", state.query, { state.query = it }, fieldModifier = Modifier.focusRequester(field))
+            TvTextField("Nome do programa ou do canal", state.query, { state.query = it }, fieldModifier = Modifier.focusRequester(field))
         }
         Spacer(Modifier.height(16.dp))
         val results = state.results
         when {
-            state.query.trim().length < 2 -> Hint("Type at least 2 letters. Finds what's on now, later, and earlier where the channel has catch-up.")
-            results == null -> Hint("Searching…")
-            results.isEmpty() -> Hint("Nothing in the guide matches “${state.query.trim()}”")
+            state.query.trim().length < 2 -> Hint("Digite pelo menos 2 letras. Mostra o que passa agora, mais tarde e antes.")
+            results == null -> Hint("Buscando…")
+            results.isEmpty() -> Hint("Nada na programação com “${state.query.trim()}”")
             else -> {
-                Text("${results.size} found", fontSize = 13.sp, color = Palette.TextDim)
+                Text("${results.size} encontrado(s)", fontSize = 13.sp, color = Palette.TextDim)
                 Spacer(Modifier.height(8.dp))
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
