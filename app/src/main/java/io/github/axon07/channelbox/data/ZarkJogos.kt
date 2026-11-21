@@ -219,7 +219,7 @@ object ZarkEpg {
         val (login, id) = par
         val txt = runCatching {
             http.newBuilder().callTimeout(10, TimeUnit.SECONDS).build().newCall(
-                Request.Builder().url(login.api("get_short_epg", "&stream_id=$id&limit=6")).build()
+                Request.Builder().url(login.api("get_short_epg", "&stream_id=$id&limit=12")).build()
             ).execute().use { if (it.isSuccessful) it.body?.string() else null }
         }.getOrNull() ?: return@withContext emptyList()
         fun b64(t: String?) = runCatching { String(android.util.Base64.decode(t ?: "", android.util.Base64.DEFAULT)) }.getOrDefault(t.orEmpty())

@@ -399,30 +399,52 @@ private fun AbaTv(
                     Modifier.align(Alignment.BottomEnd).padding(8.dp).background(Color(0xAA000000), RoundedCornerShape(6.dp)).padding(6.dp)
                 ) { Text("⛶", color = Color.White, fontSize = 18.sp) }
             }
-            Box(Modifier.fillMaxWidth().background(Color(0x66000000)).padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Box(Modifier.fillMaxWidth().weight(1f, fill = false).background(Color(0x66000000)).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp)) {
                 Column {
                     Text(current?.name ?: "", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val progs = current?.epgId?.let { upcoming[it] }.orEmpty()
                     val ctxEpg = androidx.compose.ui.platform.LocalContext.current
                     var curto by remember(current?.id) { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkEpg.Prog>>(emptyList()) }
                     LaunchedEffect(current?.id) {
-                        if (current != null && progs.none { it.stop > now }) {
+                        if (current != null && progs.count { it.stop > now } < 4) {
                             curto = io.github.axon07.channelbox.data.ZarkEpg.curto(ctxEpg.container.http, current.streamUrl)
                         }
                     }
-                    val agoraP = progs.firstOrNull { it.start <= now && it.stop > now }?.let { Triple(it.title, it.start, it.stop) }
-                        ?: curto.firstOrNull { it.inicio <= now && it.fim > now }?.let { Triple(it.titulo, it.inicio, it.fim) }
-                    val depoisP = progs.firstOrNull { it.start > now }?.let { Triple(it.title, it.start, it.stop) }
-                        ?: curto.firstOrNull { it.inicio > now }?.let { Triple(it.titulo, it.inicio, it.fim) }
-                    agoraP?.let { (t, i, f) ->
-                        Text("Agora  ${timeFormat(i)} – ${timeFormat(f)}  $t", color = Color(0xFFFFD34D), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        val total = (f - i).coerceAtLeast(1)
-                        Box(Modifier.padding(vertical = 4.dp).fillMaxWidth().height(3.dp).background(Color(0x33FFFFFF))) {
-                            Box(Modifier.fillMaxWidth(((now - i).toFloat() / total).coerceIn(0f, 1f)).height(3.dp).background(Palette.Accent))
+                    // Programação: o que passou, o que passa agora e os próximos, com horário.
+                    val lista = (progs.map { Triple(it.title, it.start, it.stop) } + curto.map { Triple(it.titulo, it.inicio, it.fim) })
+                        .distinctBy { it.second }.sortedBy { it.second }
+                    val iAgora = lista.indexOfFirst { it.second <= now && it.third > now }
+                    val mostrar = if (iAgora >= 0) lista.subList((iAgora - 1).coerceAtLeast(0), (iAgora + 6).coerceAtMost(lista.size))
+                        else lista.filter { it.third > now }.take(6)
+                    if (mostrar.isEmpty() && current != null) Text("Sem programação para este canal", color = Color(0x99FFFFFF), fontSize = 12.sp)
+                    mostrar.forEach { (t, i, f) ->
+                        val ag = i <= now && f > now
+                        val passou = f <= now
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                                .background(if (ag) Color(0x33E50914) else Color.Transparent, RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "${timeFormat(i)} – ${timeFormat(f)}", fontSize = 12.sp,
+                                color = when { ag -> Color(0xFFFFD34D); passou -> Color(0x77FFFFFF); else -> Color(0xCCFFFFFF) },
+                                modifier = Modifier.width(110.dp),
+                            )
+                            Text(
+                                (if (ag) "AGORA  " else "") + t, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                fontWeight = if (ag) FontWeight.Bold else FontWeight.Normal,
+                                color = when { ag -> Color.White; passou -> Color(0x77FFFFFF); else -> Color(0xDDFFFFFF) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        if (ag) {
+                            val total = (f - i).coerceAtLeast(1)
+                            Box(Modifier.padding(horizontal = 6.dp).fillMaxWidth().height(3.dp).background(Color(0x33FFFFFF))) {
+                                Box(Modifier.fillMaxWidth(((now - i).toFloat() / total).coerceIn(0f, 1f)).height(3.dp).background(Palette.Accent))
+                            }
                         }
                     }
-                    depoisP?.let { (t, i, _) -> Text("Depois  ${timeFormat(i)}  $t", color = Color(0xCCFFFFFF), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                    if (agoraP == null && depoisP == null && current != null) Text("Sem programação para este canal", color = Color(0x99FFFFFF), fontSize = 12.sp)
                 }
             }
         }
@@ -440,7 +462,7 @@ private fun AbaTv(
         Row(Modifier.fillMaxSize()) {
             lista(Modifier.weight(0.42f).fillMaxHeight())
             Spacer(Modifier.width(22.dp))
-            previa(Modifier.weight(0.58f))
+            previa(Modifier.weight(0.58f).fillMaxHeight())
         }
     }
 }
