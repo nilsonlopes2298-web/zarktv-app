@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -218,6 +222,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var vodDeInicio by remember { mutableStateOf(false) }
     /** Link do filme/episódio tocando agora (para abrir no player externo). */
     var vodUrlAtual by remember { mutableStateOf<String?>(null) }
+    /** ZarkTV: na tela cheia, ◀ na lista de canais abre os grupos ao lado (sem sair da TV). */
+    var gruposAbertos by remember { mutableStateOf(false) }
+    var grupoIndex by remember { mutableIntStateOf(0) }
+    val filtrosLista by vm.filters.collectAsStateWithLifecycle()
     val zarkCtx = LocalContext.current
     var playerExterno by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkConfig.playerExterno(zarkCtx)) }
     /** When the groups menu was opened (for [groupsBack]). */
@@ -755,7 +763,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
                 else -> openList()
             }
-            Mode.CHANNEL_LIST -> visible.getOrNull(listIndex)?.let { tuneAndWatch(it) }
+            Mode.CHANNEL_LIST -> if (gruposAbertos) {
+                filtrosLista.getOrNull(grupoIndex)?.let { vm.setFilter(it) }
+                listIndex = 0
+                gruposAbertos = false
+            } else visible.getOrNull(listIndex)?.let { tuneAndWatch(it) }
             Mode.GUIDE -> {
                 if (digits.isNotEmpty()) {
                     commitDigits()
@@ -868,7 +880,15 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     if (shift != null) vm.goLive() else return false
                 else -> return false
             }
-            Mode.CHANNEL_LIST -> {
+            Mode.CHANNEL_LIST -> if (gruposAbertos) {
+                val n = filtrosLista.size
+                when (code) {
+                    AndroidKeyEvent.KEYCODE_DPAD_UP -> if (n > 0) grupoIndex = (grupoIndex - 1).mod(n)
+                    AndroidKeyEvent.KEYCODE_DPAD_DOWN -> if (n > 0) grupoIndex = (grupoIndex + 1).mod(n)
+                    AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> gruposAbertos = false
+                    else -> Unit
+                }
+            } else {
                 val size = visible.size
                 when (code) {
                     AndroidKeyEvent.KEYCODE_DPAD_UP -> if (size > 0) listIndex = (listIndex - 1).mod(size)
@@ -878,7 +898,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     AndroidKeyEvent.KEYCODE_CHANNEL_DOWN, AndroidKeyEvent.KEYCODE_PAGE_DOWN ->
                         listIndex = (listIndex + 8).coerceAtMost((size - 1).coerceAtLeast(0))
                     // ZarkTV: ◀ abre os grupos de canais.
-                    AndroidKeyEvent.KEYCODE_DPAD_LEFT -> openGroups()
+                    AndroidKeyEvent.KEYCODE_DPAD_LEFT -> {
+                        grupoIndex = filtrosLista.indexOf(filter).coerceAtLeast(0)
+                        gruposAbertos = true
+                    }
                     AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> { vm.cycleFilter(1); listIndex = 0 }
                     AndroidKeyEvent.KEYCODE_GUIDE, AndroidKeyEvent.KEYCODE_MENU -> openGuide()
                     AndroidKeyEvent.KEYCODE_LAST_CHANNEL -> { vm.previousChannel(); mode = Mode.PLAYER }
@@ -1085,6 +1108,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         }
     }
     LaunchedEffect(mode) { if (mode != Mode.SETTINGS) settingsFromSetup = false }
+    LaunchedEffect(mode) { if (mode != Mode.CHANNEL_LIST) gruposAbertos = false }
     // Live TV doesn't play behind Movies & TV Shows; it comes back when you leave them.
     LaunchedEffect(mode, homeTab) {
         when (mode) {
@@ -1151,10 +1175,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             Mode.PLAYER -> if (touchBar) {
                 touchBar = false
             } else {
+                // ZarkTV: um toque na tela cheia mostra os canais do grupo (e o botão Voltar).
                 touchBarToken++
-                if (current != null) vm.showBanner()
+                openList()
             }
-            Mode.CHANNEL_LIST -> mode = Mode.PLAYER
+            Mode.CHANNEL_LIST -> { gruposAbertos = false; mode = Mode.PLAYER }
             Mode.GROUPS -> mode = Mode.GUIDE
             Mode.PROGRAM_MENU -> mode = Mode.GUIDE
             Mode.RECORDING_MENU -> mode = Mode.RECORDINGS
@@ -1181,7 +1206,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 bannerVisible -> bannerVisible = false
                 else -> { homeTab = Aba.TV; mode = Mode.HOME } // ZarkTV: da tela cheia volta para a lista de canais
             }
-            Mode.CHANNEL_LIST -> mode = Mode.PLAYER
+            Mode.CHANNEL_LIST -> if (gruposAbertos) gruposAbertos = false else mode = Mode.PLAYER
             Mode.GUIDE -> openGroups()
             Mode.GROUPS -> groupsBack()
             Mode.EXIT_CONFIRM -> mode = exitReturn
@@ -1938,7 +1963,19 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         )
                     }
                 }
-                if (mode == Mode.CHANNEL_LIST) {
+                if (mode == Mode.CHANNEL_LIST) Row(Modifier.fillMaxHeight()) {
+                    if (gruposAbertos) {
+                        GruposPanel(
+                            grupos = filtrosLista.map { f -> vm.filterTitle(f, menuSections) + (filterCounts[f]?.let { "  ($it)" } ?: "") },
+                            selecionado = grupoIndex,
+                            atual = filtrosLista.indexOf(filter),
+                            onEscolher = { i ->
+                                filtrosLista.getOrNull(i)?.let { vm.setFilter(it) }
+                                listIndex = 0
+                                gruposAbertos = false
+                            },
+                        )
+                    }
                     ChannelListPanel(
                         channels = visible,
                         selected = listIndex,
@@ -1955,6 +1992,16 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                             listIndex = 0
                         },
                     )
+                    if (!gruposAbertos) {
+                        // Toque: botão para abrir os grupos e para voltar.
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            PillButton("☰ Grupos") {
+                                grupoIndex = filtrosLista.indexOf(filter).coerceAtLeast(0)
+                                gruposAbertos = true
+                            }
+                            PillButton("‹ Voltar") { homeTab = Aba.TV; mode = Mode.HOME }
+                        }
+                    }
                 }
             }
         }

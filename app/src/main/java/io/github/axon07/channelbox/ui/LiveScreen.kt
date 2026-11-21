@@ -236,3 +236,33 @@ fun LinhaFocavel(
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
     ) { content() }
 }
+
+
+/** Coluna de grupos que abre ao lado da lista de canais na tela cheia (◀ no controle). */
+@Composable
+fun GruposPanel(grupos: List<String>, selecionado: Int, atual: Int, onEscolher: (Int) -> Unit) {
+    val state = rememberLazyListState()
+    LaunchedEffect(selecionado) { runCatching { state.animateScrollToItem((selecionado - 3).coerceAtLeast(0)) } }
+    Column(
+        Modifier.fillMaxHeight().width(260.dp).background(Color(0xF20A0A0A)).padding(vertical = 14.dp)
+    ) {
+        Text("Grupos", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+        LazyColumn(state = state, modifier = Modifier.weight(1f)) {
+            itemsIndexed(grupos) { i, nome ->
+                Box(
+                    Modifier.fillMaxWidth()
+                        .background(if (i == selecionado) Palette.Accent else Color.Transparent)
+                        .tap(onClick = { onEscolher(i) })
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        nome, color = if (i == atual && i != selecionado) Color(0xFFFFB74D) else Color.White,
+                        fontSize = 15.sp, fontWeight = if (i == selecionado || i == atual) FontWeight.Bold else FontWeight.Normal,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+        Text("▲▼ escolher · OK abrir · ▶ fechar", color = Color(0x99FFFFFF), fontSize = 11.sp, modifier = Modifier.padding(horizontal = 16.dp))
+    }
+}
