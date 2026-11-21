@@ -60,7 +60,7 @@ jobs:
           {
             "version": "$VERSAO",
             "url": "https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/latest/zarktv.apk",
-            "obrigatoria": true,
+            "obrigatoria": false,
             "tamanho": $(stat -c %s zarktv.apk),
             "notas": "$NOTAS"
           }
