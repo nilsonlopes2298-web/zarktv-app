@@ -41,24 +41,23 @@ object ZarkLayout {
     fun atualizar(c: Context) {
         leve.value = when (escolha(c).lowercase()) {
             "leve", "lite", "lista", "zplay", "simples" -> true
-            "unitv", "uni", "completo" -> false
             "auto" -> ZarkLeve.ativo
-            // Padrão (sem nada no painel): visual de TV leve — 4 cartões e canais em 3 colunas.
-            else -> true
+            // Padrão (sem nada no painel): visual UniTV (abas, prévia e catálogo).
+            else -> false
         }
     }
 
     /** Perfil: Automático → Leve → Completo → Automático. */
     fun proximo(c: Context) {
         val atual = p(c).getString("layout_local", null) ?: "padrao"
-        val novo = when (atual) { "padrao" -> "unitv"; "unitv" -> "auto"; else -> "padrao" }
+        val novo = when (atual) { "padrao", "unitv" -> "leve"; "leve" -> "auto"; else -> "padrao" }
         p(c).edit().putString("layout_local", novo).apply()
         atualizar(c)
     }
 
     fun nome(c: Context): String = when (p(c).getString("layout_local", null) ?: "padrao") {
-        "unitv" -> "Completo"
+        "leve" -> "Leve (4 cartões)"
         "auto" -> "Automático"
-        else -> "TV (padrão)"
+        else -> "UniTV (padrão)"
     }
 }
