@@ -44,11 +44,15 @@ object ZarkConfig {
         .callTimeout(16, TimeUnit.SECONDS)
         .build()
 
-    private fun get(http: OkHttpClient, url: String): String? = runCatching {
-        quick(http).newCall(Request.Builder().url(url).build()).execute().use { r ->
+    private fun get(http: OkHttpClient, url: String, ua: String? = null): String? = runCatching {
+        val req = Request.Builder().url(url).apply { if (ua != null) header("User-Agent", ua) }.build()
+        quick(http).newCall(req).execute().use { r ->
             if (r.isSuccessful) r.body?.string() else null
         }
     }.getOrNull()
+
+    /** Identificações testadas no login (alguns servidores recusam uma ou outra). */
+    private val IDENTIDADES = listOf(null, "okhttp/4.12.0", "VLC/3.0.20 LibVLC/3.0.20", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36")
 
     /** Servidores do painel; se a internet falhar usa a última cópia boa, senão a lista padrão. */
     suspend fun servers(context: Context, http: OkHttpClient): List<Server> = withContext(Dispatchers.IO) {
@@ -156,7 +160,9 @@ object ZarkConfig {
             val base = XtreamClient.Login(dns, user, pass).base
             val u = URLEncoder.encode(user.trim(), "UTF-8")
             val p = URLEncoder.encode(pass.trim(), "UTF-8")
-            val txt = get(http, "$base/player_api.php?username=$u&password=$p") ?: continue
+            val api = "$base/player_api.php?username=$u&password=$p"
+            // Se o servidor não responder com a identificação padrão, tenta as outras.
+            val txt = IDENTIDADES.firstNotNullOfOrNull { ua -> get(http, api, ua)?.takeIf { it.contains("user_info") || it.trim().startsWith("{") } } ?: continue
             val info = runCatching { (Json.parseToJsonElement(txt) as? JsonObject)?.get("user_info") as? JsonObject }.getOrNull()
             val auth = (info?.get("auth") as? JsonPrimitive)?.content
             if (info == null || auth == "0") {
