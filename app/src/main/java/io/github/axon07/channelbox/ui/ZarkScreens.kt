@@ -247,7 +247,7 @@ fun ZarkLoginScreen(
     val versao = io.github.axon07.channelbox.BuildConfig.VERSION_NAME
     val logoApp: @Composable (androidx.compose.ui.unit.Dp) -> Unit = { tam ->
         androidx.compose.foundation.Image(
-            painter = androidx.compose.ui.res.painterResource(io.github.axon07.channelbox.R.mipmap.ic_launcher),
+            painter = androidx.compose.ui.res.painterResource(io.github.axon07.channelbox.R.drawable.zark_logo),
             contentDescription = "ZarkTV",
             modifier = Modifier.size(tam),
         )
@@ -518,7 +518,7 @@ fun ZarkAbertura(versao: String, carregando: Boolean = false) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(io.github.axon07.channelbox.R.drawable.ic_launcher_foreground),
+                painter = androidx.compose.ui.res.painterResource(io.github.axon07.channelbox.R.drawable.zark_logo),
                 contentDescription = "ZarkTV",
                 modifier = Modifier.size(110.dp),
             )

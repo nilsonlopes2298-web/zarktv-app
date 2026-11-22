@@ -176,7 +176,7 @@ fun UniShell(
             // ---- Topo ----
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(io.github.axon07.channelbox.R.drawable.ic_launcher_foreground),
+                    painter = androidx.compose.ui.res.painterResource(io.github.axon07.channelbox.R.drawable.zark_logo),
                     contentDescription = null,
                     modifier = Modifier.size(if (compacto) 34.dp else 42.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF0A0A0A)),
                 )
