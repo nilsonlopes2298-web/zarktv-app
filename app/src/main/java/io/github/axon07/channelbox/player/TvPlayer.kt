@@ -623,7 +623,9 @@ class TvPlayer(
     private val vigia = object : Runnable {
         override fun run() {
             if (!exo.isPlaying || exo.videoFormat == null) { ultimoQuadro = -1; quadroParado = 0; return }
-            val n = exo.videoDecoderCounters?.renderedOutputBufferCount ?: return
+            val c = exo.videoDecoderCounters ?: run { handler.postDelayed(this, 1_500); return }
+            c.ensureUpdated()
+            val n = c.renderedOutputBufferCount
             if (n == ultimoQuadro) quadroParado++ else quadroParado = 0
             ultimoQuadro = n
             if (quadroParado >= 3 && !trocarDecodificador) {
@@ -642,6 +644,8 @@ class TvPlayer(
     }
 
     private fun vigiarImagem() {
+        // Só nos aparelhos da Amazon (onde a imagem travava); nos outros não mexe em nada.
+        if (!android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true)) return
         handler.removeCallbacks(vigia)
         ultimoQuadro = -1
         quadroParado = 0

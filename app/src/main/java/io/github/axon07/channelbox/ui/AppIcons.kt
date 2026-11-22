@@ -74,6 +74,13 @@ object AppIcons {
     val Film = icon("film", stroke("M4,5H20V19H4Z M8,5V19 M16,5V19 M4,9.5H8 M4,14.5H8 M16,9.5H20 M16,14.5H20"))
     /** Catch-up: a clock with an arrow going back. */
     val History = icon("history", stroke("M4.6,13A7.5,7.5 0 1,0 6.7,6.7"), stroke("M3.8,4.6V8.6H7.8"), stroke("M12,8V12.3L14.8,14"))
+    val Wifi = icon("wifi", stroke("M2.5,9A14,14 0 0,1 21.5,9 M5.5,12.3A9.5,9.5 0 0,1 18.5,12.3 M8.6,15.5A5,5 0 0,1 15.4,15.5"), fill("M10.6,19A1.4,1.4 0 1,0 13.4,19A1.4,1.4 0 1,0 10.6,19Z"))
+    val SemRede = icon("sem-rede", stroke("M2.5,9A14,14 0 0,1 21.5,9 M5.5,12.3A9.5,9.5 0 0,1 18.5,12.3 M8.6,15.5A5,5 0 0,1 15.4,15.5 M4,4L20,20"))
+    val Cabo = icon("cabo", stroke("M5,8H19V16H5Z M8,16V13 M11,16V13 M14,16V13 M17,16V13 M10,8V5H14V8 M12,16V20"))
+    val Dados = icon("dados", fill("M4,17H7V20H4Z M9,13H12V20H9Z M14,9H17V20H14Z M19,5H22V20H19Z"))
+    val Calendario = icon("calendario", stroke("M4,6H20V20H4Z M4,10H20 M8,3V7 M16,3V7"), fill("M7,12.5H9.5V15H7Z M10.75,12.5H13.25V15H10.75Z M14.5,12.5H17V15H14.5Z M7,16.5H9.5V19H7Z M10.75,16.5H13.25V19H10.75Z"))
+    val AoVivo = icon("ao-vivo", fill("M10,12A2,2 0 1,0 14,12A2,2 0 1,0 10,12Z"), stroke("M7.5,8.5A5,5 0 0,0 7.5,15.5 M16.5,8.5A5,5 0 0,1 16.5,15.5 M4.8,5.8A9,9 0 0,0 4.8,18.2 M19.2,5.8A9,9 0 0,1 19.2,18.2"))
+    val Trofeu = icon("trofeu", stroke("M8,4H16V10A4,4 0 0,1 8,10Z M8,6H5A3,3 0 0,0 8.5,11 M16,6H19A3,3 0 0,1 15.5,11 M12,14V18 M8,20H16"), fill("M12,5.5L12.9,7.3L14.8,7.5L13.4,8.8L13.8,10.7L12,9.7L10.2,10.7L10.6,8.8L9.2,7.5L11.1,7.3Z"))
     val Bell = icon("bell", stroke("M6,17V11A6,6 0 0,1 18,11V17L20,19H4Z"), stroke("M10,21H14"))
     val Tv = icon("tv", stroke("M3,6H21V17H3Z M8,21H16 M12,17V21"))
     val Star = star(true)

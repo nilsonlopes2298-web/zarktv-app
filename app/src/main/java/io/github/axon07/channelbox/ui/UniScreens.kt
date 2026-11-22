@@ -3,6 +3,7 @@ package io.github.axon07.channelbox.ui
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.border
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -209,9 +210,9 @@ fun UniShell(
                             }
                         }.getOrDefault(1)
                     }
-                    Text(
-                        when (rede) { 0 -> "⚠ Sem internet"; 2 -> "🖧 Cabo"; 3 -> "📶 Dados"; else -> "📶 Wi-Fi" },
-                        color = if (rede == 0) Color(0xFFFF5252) else Color(0xCCFFFFFF), fontSize = 13.sp,
+                    AppIcon(
+                        when (rede) { 0 -> AppIcons.SemRede; 2 -> AppIcons.Cabo; 3 -> AppIcons.Dados; else -> AppIcons.Wifi },
+                        tint = if (rede == 0) Color(0xFFFF5252) else Color.White, size = 24.dp,
                     )
                     Spacer(Modifier.width(12.dp))
                     Column(horizontalAlignment = Alignment.End) {
@@ -333,15 +334,20 @@ fun UniShell(
                 delay(9000)
                 avisoMostrado.value = true
             }
-            Column(
-                Modifier.align(Alignment.BottomEnd).padding(16.dp).width(320.dp)
-                    .background(Color(0xE6141414), RoundedCornerShape(10.dp))
-                    .border(1.dp, if (textoVenc != null) Color(0xAAFFB300) else Color(0x44FFFFFF), RoundedCornerShape(10.dp))
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-            ) {
-                Text(if (textoVenc != null) "Aviso de vencimento" else "Aviso", color = Color(0xFFFFD54F), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                textoVenc?.let { Text("$it Renove agora ou fale com seu revendedor.", color = Color.White, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 4.dp)) }
-                extras.aviso?.let { Text(it, color = Color(0xFFDDDDDD), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp)) }
+            // Como na UniTV: escurece a tela uns segundos e mostra o recado embaixo; some sozinho.
+            Box(Modifier.fillMaxSize().background(Color(0x8C000000))) {
+                Column(
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = 40.dp).widthIn(max = 640.dp)
+                        .background(Color(0xF0000000), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 24.dp, vertical = 18.dp)
+                ) {
+                    textoVenc?.let {
+                        Text("•  $it", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, lineHeight = 24.sp)
+                        Text("•  Renove a tempo para continuar assistindo sem parar. Fale com seu revendedor ou pague pelo Perfil.", color = Color.White, fontSize = 15.sp, lineHeight = 22.sp, modifier = Modifier.padding(top = 6.dp))
+                    }
+                    extras.aviso?.let { Text("•  $it", color = Color(0xFFDDDDDD), fontSize = 15.sp, lineHeight = 22.sp, modifier = Modifier.padding(top = 6.dp)) }
+                }
             }
         }
     }
@@ -705,19 +711,23 @@ private fun AbaCatalogo(
 }
 
 @Composable
-private fun Atalho(label: String, cor: Color, modifier: Modifier, compacto: Boolean, texto: Color = Color.White, onClick: () -> Unit) {
+private fun Atalho(label: String, cor: Color, modifier: Modifier, compacto: Boolean, texto: Color = Color.White, icone: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
         modifier = modifier.height(if (compacto) 52.dp else 72.dp).onFocusChanged { focused = it.isFocused }
-            .border(if (focused) 3.dp else 0.dp, if (focused) Color.White else Color.Transparent, RoundedCornerShape(10.dp))
+            .border(if (focused) 3.dp else 0.dp, if (focused) Dourado else Color.Transparent, RoundedCornerShape(10.dp))
             .tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(containerColor = cor, focusedContainerColor = cor),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.05f)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.08f)),
     ) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x33FFFFFF), Color.Transparent))), contentAlignment = Alignment.Center) {
-            Text(label, color = texto, fontSize = if (compacto) 14.sp else 18.sp, fontWeight = FontWeight.Bold)
+            if (icone != null && !compacto) Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                AppIcon(icone, tint = Color.White, size = 44.dp)
+                Spacer(Modifier.height(8.dp))
+                Text(label, color = texto, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            } else Text(label, color = texto, fontSize = if (compacto) 14.sp else 18.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -802,10 +812,10 @@ private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: (io.github.
     // Descendo das abas, o foco vai direto para os jogos (o que está passando primeiro); à esquerda ficam os filtros.
     Row(Modifier.fillMaxSize().focusProperties { enter = { if (jogos.isNullOrEmpty()) FocusRequester.Default else focoJogo } }.focusGroup()) {
         if (!compacto) {
-            Column(Modifier.width(150.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Atalho("Todos", Color(0xFF43A047), Modifier.fillMaxWidth().weight(1f), compacto) { filtro = 0 }
-                Atalho("Ao vivo", Color(0xFFFB8C00), Modifier.fillMaxWidth().weight(1f), compacto) { filtro = 1 }
-                Atalho("Encerrados", Color(0xFF039BE5), Modifier.fillMaxWidth().weight(1f), compacto) { filtro = 2 }
+            Column(Modifier.width(170.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Atalho("Todos", Color(0xFF43A047), Modifier.fillMaxWidth().weight(1f), compacto, icone = AppIcons.Calendario) { filtro = 0 }
+                Atalho("Ao vivo", Color(0xFFFB8C00), Modifier.fillMaxWidth().weight(1f), compacto, icone = AppIcons.AoVivo) { filtro = 1 }
+                Atalho("Encerrados", Color(0xFF039BE5), Modifier.fillMaxWidth().weight(1f), compacto, icone = AppIcons.Trofeu) { filtro = 2 }
             }
             Spacer(Modifier.width(12.dp))
         }
@@ -826,7 +836,7 @@ private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: (io.github.
               }
               LazyColumn(state = estadoLista, verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
                 itemsIndexed(lista) { idx, j ->
-                    LinhaFocavel(modifier = if (idx == alvo) Modifier.focusRequester(focoJogo) else Modifier, onClick = { onAssistir(j) }) {
+                    CartaoJogo(modifier = if (idx == alvo) Modifier.focusRequester(focoJogo) else Modifier, onClick = { onAssistir(j) }) {
                         Row(
                             Modifier.fillMaxWidth().background(Color(0x55FFFFFF), RoundedCornerShape(6.dp)).height(if (compacto) 76.dp else 92.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -1235,3 +1245,22 @@ internal val uniSinoAberto = androidx.compose.runtime.mutableStateOf(false)
 
 /** O aviso de vencimento já apareceu nesta abertura do app. */
 internal val avisoMostrado = androidx.compose.runtime.mutableStateOf(false)
+
+
+/** Dourado da seleção (como na UniTV). */
+internal val Dourado = Color(0xFFE8B84A)
+
+/** Linha de jogo: ao selecionar ganha borda dourada e cresce um pouco, com animação. */
+@Composable
+private fun CartaoJogo(modifier: Modifier = Modifier, onClick: () -> Unit, content: @Composable () -> Unit) {
+    var foco by remember { mutableStateOf(false) }
+    val escala by androidx.compose.animation.core.animateFloatAsState(if (foco) ZarkLeve.escala(1.03f) else 1f, label = "escalaJogo")
+    Box(
+        modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp)
+            .graphicsLayer { scaleX = escala; scaleY = escala }
+            .onFocusChanged { foco = it.isFocused }
+            .border(if (foco) 2.dp else 0.dp, if (foco) Dourado else Color.Transparent, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+    ) { content() }
+}
