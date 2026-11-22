@@ -95,7 +95,7 @@ fun BoxScope.InfoBanner(
                     Spacer(Modifier.height(4.dp))
                     ProgressBar(programProgress(current.start, current.stop, now), Modifier.fillMaxWidth())
                 } else {
-                    Text("No programme information", fontSize = 15.sp, color = Palette.TextDim)
+                    Text("Sem programação", fontSize = 15.sp, color = Palette.TextDim)
                 }
                 if (next != null) {
                     Spacer(Modifier.height(4.dp))

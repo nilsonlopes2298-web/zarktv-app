@@ -264,7 +264,7 @@ class TvPlayer(
                         Player.STATE_BUFFERING -> _status.value = PlayerStatus.Buffering
                         // A live stream "ending" means the server closed the connection: reconnect.
                         Player.STATE_ENDED -> {
-                            if (isLive) scheduleRetry("Reconnecting…") else _status.value = PlayerStatus.Idle
+                            if (isLive) scheduleRetry("Reconectando…") else _status.value = PlayerStatus.Idle
                         }
                         Player.STATE_IDLE -> Unit
                     }

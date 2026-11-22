@@ -412,7 +412,7 @@ private fun idleLabel(seconds: Int) = when {
 }
 
 private val QUALITY_CHOICES = listOf(
-    0 to "Best available",
+    0 to "Melhor disponível",
     1080 to "Up to 1080p",
     720 to "Up to 720p",
     480 to "Up to 480p",
@@ -431,7 +431,7 @@ private fun PlaybackSettings(settings: AppSettings, vm: TvViewModel, openPage: (
     SettingCard(
         title = "Maximum quality",
         description = "Lower it on a slow connection to avoid buffering",
-        value = QUALITY_CHOICES.firstOrNull { it.first == settings.maxQuality }?.second ?: "Best available",
+        value = QUALITY_CHOICES.firstOrNull { it.first == settings.maxQuality }?.second ?: "Melhor disponível",
         onClick = { openPage(Page.QUALITY) },
     )
     SettingCard(
@@ -777,10 +777,10 @@ private fun StartupSettings(settings: AppSettings, vm: TvViewModel, onExit: () -
 private fun UpdateSettings(settings: AppSettings, vm: TvViewModel) {
     val update by vm.update.collectAsStateWithLifecycle()
     SettingCard(
-        title = "Check for updates",
+        title = "Procurar atualização",
         description = when (val u = update) {
             TvViewModel.UpdateState.Checking -> "Checking…"
-            TvViewModel.UpdateState.UpToDate -> "You have the latest version (${vm.appVersion})"
+            TvViewModel.UpdateState.UpToDate -> "Você já está na versão mais nova (${vm.appVersion})"
             is TvViewModel.UpdateState.Available -> "Version ${u.release.version} is available"
             is TvViewModel.UpdateState.Downloading -> "Downloading version ${u.release.version}… ${u.percent}%"
             is TvViewModel.UpdateState.Failed -> "Couldn't check: ${u.message}"

@@ -367,6 +367,18 @@ object ZarkPrefs {
         return n
     }
     fun nomeIdioma(v: String) = when (v) { "pt" -> "Dublado"; "leg" -> "Legendado"; else -> "Automático" }
+    fun setIdioma(c: Context, v: String) = p(c).edit().putString("idioma", v).apply()
+    fun setResolucao(c: Context, v: Int) = p(c).edit().putInt("resolucao", v).apply()
+
+    /** Legendas: "auto" (do arquivo), "off", "pt", "es", "en". */
+    fun legIdioma(c: Context) = p(c).getString("leg_idioma", "auto") ?: "auto"
+    fun setLegIdioma(c: Context, v: String) = p(c).edit().putString("leg_idioma", v).apply()
+    /** 0 pequeno, 1 normal, 2 grande. */
+    fun legTamanho(c: Context) = p(c).getInt("leg_tamanho", 1)
+    fun setLegTamanho(c: Context, v: Int) = p(c).edit().putInt("leg_tamanho", v).apply()
+    /** 0 branca com contorno, 1 amarela, 2 branca com fundo preto. */
+    fun legEstilo(c: Context) = p(c).getInt("leg_estilo", 0)
+    fun setLegEstilo(c: Context, v: Int) = p(c).edit().putInt("leg_estilo", v).apply()
 
     /** 0 = não mexer, -1 = melhor, ou altura máxima (1080, 720, 480). */
     fun resolucao(c: Context) = p(c).getInt("resolucao", 0)

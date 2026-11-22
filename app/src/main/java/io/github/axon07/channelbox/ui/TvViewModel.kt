@@ -401,7 +401,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun setPinForSettings(on: Boolean) = requirePin("Enter your PIN") {
+    fun setPinForSettings(on: Boolean) = requirePin("Digite sua senha") {
         viewModelScope.launch { c.settings.setPinForSettings(on) }
     }
 
@@ -429,7 +429,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             showToast("Set a PIN first: Settings → Parental controls & hidden")
             return
         }
-        requirePin("Enter your PIN") {
+        requirePin("Digite sua senha") {
             edit(id) { it.copy(locked = locked) }
             showToast(if (locked) "$label locked" else "$label unlocked")
         }
@@ -629,7 +629,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     val updatePrompt: StateFlow<Boolean> = _updatePrompt.asStateFlow()
 
     /**
-     * [manual] = the user pressed "Check for updates": always report the result.
+     * [manual] = the user pressed "Procurar atualização": always report the result.
      * Automatic checks stay silent unless there's a new version they haven't skipped.
      */
     fun checkForUpdates(manual: Boolean) {
@@ -994,7 +994,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         .map { list ->
             // Titles from locked categories stay out of "All" and search until the PIN is entered.
             val browsingOneCategory = query.isBlank() && category != null && category != VOD_CONTINUE
-            // Titles from hidden categories stay out of "All", search and "Continue watching".
+            // Titles from hidden categories stay out of "All", search and "Continuar assistindo".
             val shown = if (browsingOneCategory) list else list.filter { overrides.value[vodKey(kind, it.category)]?.hidden != true }
             (if (unlocked || browsingOneCategory) shown
             else shown.filter { overrides.value[vodKey(kind, it.category)]?.locked != true })
@@ -1058,7 +1058,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
 
     private var playingVod: Pair<VodEntity, String?>? = null
 
-    /** Plays a movie or episode; [showId] links an episode to its show for "Continue watching". */
+    /** Plays a movie or episode; [showId] links an episode to its show for "Continuar assistindo". */
     fun playVod(item: VodEntity, startAt: Long, showId: String? = null) {
         endShift()
         val url = item.url ?: return
@@ -1450,7 +1450,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun withChannelAccess(channel: ChannelEntity?, action: () -> Unit) {
         if (channel != null && isLocked(channel) && !unlocked) {
-            requirePin("Enter your PIN to watch ${channel.name}", forChannel = true, action = action)
+            requirePin("Digite sua senha para assistir ${channel.name}", forChannel = true, action = action)
         } else {
             action()
         }
@@ -1462,7 +1462,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
 
     fun tune(channel: ChannelEntity) {
         if (isLocked(channel) && !unlocked) {
-            requirePin("Enter your PIN to watch ${channel.name}", forChannel = true) { tune(channel) }
+            requirePin("Digite sua senha para assistir ${channel.name}", forChannel = true) { tune(channel) }
             return
         }
         if (_shift.value != null) {
@@ -1652,6 +1652,13 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             "pt" -> b.setPreferredAudioLanguages("pt", "por", "pt-BR").setPreferredTextLanguage(null)
             "leg" -> b.setPreferredAudioLanguages("en", "eng", "ja", "ko", "es").setPreferredTextLanguages("pt", "por", "pt-BR")
             else -> b.setPreferredAudioLanguage(null)
+        }
+        when (val l = ZarkPrefs.legIdioma(ctx)) {
+            "off" -> b.setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, true)
+            "pt" -> b.setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, false).setPreferredTextLanguages("pt", "por", "pt-BR")
+            "es" -> b.setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, false).setPreferredTextLanguages("es", "spa")
+            "en" -> b.setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, false).setPreferredTextLanguages("en", "eng")
+            else -> Unit
         }
         player.exo.trackSelectionParameters = b.build()
         val r = ZarkPrefs.resolucao(ctx)

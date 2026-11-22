@@ -21,7 +21,7 @@ import java.io.RandomAccessFile
 /**
  * Pause live TV. When you pause, the channel is captured from that moment into a file on this
  * box; when you resume, the player plays that file while it keeps growing, so you carry on where
- * you left off, behind live. "Back to live" or changing channel throws the buffer away.
+ * you left off, behind live. "Voltar ao vivo" or changing channel throws the buffer away.
  */
 class Timeshift(private val dir: File, private val recorder: Recorder) {
     private var job: Job? = null

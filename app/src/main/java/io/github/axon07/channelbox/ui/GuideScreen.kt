@@ -187,7 +187,7 @@ fun GuideScreen(
                     selectedChannel != null -> {
                         Text(selectedChannel.name, fontSize = if (m.compact) 16.sp else 20.sp, fontWeight = FontWeight.Bold, color = Palette.Text)
                         Spacer(Modifier.height(4.dp))
-                        Text("No programme information", fontSize = 14.sp, color = Palette.TextDim)
+                        Text("Sem programação", fontSize = 14.sp, color = Palette.TextDim)
                     }
                     else -> Text("No channels in this group", fontSize = 18.sp, color = Palette.TextDim)
                 }

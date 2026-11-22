@@ -1,0 +1,222 @@
+package io.github.axon07.channelbox.ui
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.tv.material3.Text
+import io.github.axon07.channelbox.data.ZarkPrefs
+import kotlinx.coroutines.delay
+
+/** Muda quando a legenda é ajustada, para o player redesenhar as legendas. */
+object AjustesEstado {
+    val legenda = mutableIntStateOf(0)
+}
+
+private enum class Secao(val titulo: String) {
+    REPRODUCAO("Reprodução"),
+    PROPORCAO("Proporção da tela"),
+    PARENTAL("Controle parental"),
+    CACHE("Limpar cache"),
+    VERSAO("Atualizar versão"),
+    SOBRE("Sobre o ZarkTV"),
+    AVANCADO("Ajustes avançados"),
+}
+
+/**
+ * Configurações no estilo da UniTV: menu à esquerda e as opções em botões à direita.
+ * A opção escolhida fica com um triângulo dourado no canto; a selecionada pelo controle ganha borda dourada.
+ */
+@Composable
+fun ZarkAjustes(
+    vm: TvViewModel,
+    escala: Int,
+    versao: String,
+    onParental: () -> Unit,
+    onAvancado: () -> Unit,
+    onAtualizar: () -> Unit,
+    onSuporte: () -> Unit,
+) {
+    val ctx = LocalContext.current
+    var secao by remember { mutableStateOf(Secao.REPRODUCAO) }
+    val primeiro = remember { FocusRequester() }
+    LaunchedEffect(Unit) { delay(120); runCatching { primeiro.requestFocus() } }
+
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.linearGradient(listOf(Color(0xFF2A0E0E), Color(0xFF140A0C), Color(0xFF0B0B10)))
+        )
+    ) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 36.dp, vertical = 24.dp)) {
+            Text("Configurações", color = Color(0xCCFFFFFF), fontSize = 22.sp, fontWeight = FontWeight.Medium, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(18.dp))
+            Row(Modifier.fillMaxSize()) {
+                // ---- Menu ----
+                Column(Modifier.width(260.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Secao.entries.forEachIndexed { i, s ->
+                        ItemMenu(
+                            s.titulo, s == secao,
+                            if (i == 0) Modifier.focusRequester(primeiro) else Modifier,
+                            onFoco = { if (s != Secao.PARENTAL && s != Secao.AVANCADO) secao = s },
+                        ) {
+                            when (s) {
+                                Secao.PARENTAL -> onParental()
+                                Secao.AVANCADO -> onAvancado()
+                                else -> secao = s
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.width(36.dp))
+                // ---- Opções ----
+                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) {
+                    Text(secao.titulo, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(16.dp))
+                    when (secao) {
+                        Secao.REPRODUCAO -> {
+                            var idioma by remember { mutableStateOf(ZarkPrefs.idioma(ctx)) }
+                            var leg by remember { mutableStateOf(ZarkPrefs.legIdioma(ctx)) }
+                            var tam by remember { mutableIntStateOf(ZarkPrefs.legTamanho(ctx)) }
+                            var est by remember { mutableIntStateOf(ZarkPrefs.legEstilo(ctx)) }
+                            Grupo("Áudio dos filmes e séries")
+                            Opcoes(listOf("auto" to "Automático", "pt" to "Dublado", "leg" to "Original"), idioma) {
+                                idioma = it; ZarkPrefs.setIdioma(ctx, it); vm.zarkAplicarPreferencias()
+                            }
+                            Grupo("Legendas")
+                            Opcoes(listOf("auto" to "Automático", "off" to "Desligar", "pt" to "Português", "es" to "Espanhol", "en" to "Inglês"), leg) {
+                                leg = it; ZarkPrefs.setLegIdioma(ctx, it); vm.zarkAplicarPreferencias()
+                            }
+                            Grupo("Tamanho da legenda")
+                            Opcoes(listOf(0 to "Pequeno", 1 to "Normal", 2 to "Grande"), tam) {
+                                tam = it; ZarkPrefs.setLegTamanho(ctx, it); AjustesEstado.legenda.intValue++
+                            }
+                            Grupo("Estilo da legenda")
+                            Opcoes(listOf(0 to "Branca", 1 to "Amarela", 2 to "Com fundo"), est, corTexto = { v -> if (v == 1) Color(0xFFFFD54F) else Color.White }) {
+                                est = it; ZarkPrefs.setLegEstilo(ctx, it); AjustesEstado.legenda.intValue++
+                            }
+                        }
+                        Secao.PROPORCAO -> {
+                            Grupo("Como a imagem ocupa a tela")
+                            Opcoes(listOf(0 to "Normal", 1 to "Tela cheia", 2 to "Esticar"), escala) { vm.setVideoScale(it) }
+                            Text(
+                                "Normal mostra a imagem inteira. Tela cheia corta um pouco das bordas. Esticar ocupa tudo, deformando a imagem.",
+                                color = Color(0x99FFFFFF), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp),
+                            )
+                        }
+                        Secao.CACHE -> {
+                            Text("Apaga as imagens guardadas (capas e logos). O app baixa de novo quando precisar.", color = Color(0xCCFFFFFF), fontSize = 15.sp)
+                            Spacer(Modifier.height(16.dp))
+                            BotaoAjuste("Limpar agora", false) {
+                                runCatching { ctx.cacheDir.listFiles()?.forEach { it.deleteRecursively() } }
+                                runCatching { coil.Coil.imageLoader(ctx).memoryCache?.clear() }
+                                vm.showToast("Cache limpo")
+                            }
+                        }
+                        Secao.VERSAO -> {
+                            Text("Versão instalada: $versao", color = Color.White, fontSize = 16.sp)
+                            Spacer(Modifier.height(16.dp))
+                            BotaoAjuste("Procurar atualização", false) { onAtualizar() }
+                        }
+                        Secao.SOBRE -> {
+                            Text("ZarkTV $versao", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Text("TV ao vivo, filmes e séries em um só app.", color = Color(0xCCFFFFFF), fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
+                            Spacer(Modifier.height(16.dp))
+                            BotaoAjuste("Falar com o suporte", false) { onSuporte() }
+                        }
+                        else -> Unit
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ItemMenu(texto: String, ativo: Boolean, modifier: Modifier, onFoco: () -> Unit, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Box(
+        modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(6.dp))
+            .background(if (f) Color(0xFFE5482F) else if (ativo) Color(0x33E5482F) else Color.Transparent)
+            .onFocusChanged { f = it.isFocused; if (it.isFocused) onFoco() }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(texto, color = Color.White, fontSize = 17.sp, fontWeight = if (f || ativo) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun Grupo(titulo: String) {
+    Text(titulo, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 14.dp, bottom = 10.dp))
+}
+
+@Composable
+private fun <T> Opcoes(opcoes: List<Pair<T, String>>, atual: T, corTexto: (T) -> Color = { Color.White }, onEscolher: (T) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        opcoes.forEach { (v, nome) -> BotaoAjuste(nome, v == atual, corTexto(v)) { onEscolher(v) } }
+    }
+}
+
+/** Botão de opção: escolhida = triângulo dourado no canto; com o foco = borda dourada e um pouco maior. */
+@Composable
+private fun BotaoAjuste(texto: String, marcado: Boolean, cor: Color = Color.White, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    val esc by animateFloatAsState(if (f) ZarkLeve.escala(1.06f) else 1f, label = "escAjuste")
+    Box(
+        Modifier.width(150.dp).height(50.dp)
+            .graphicsLayer { scaleX = esc; scaleY = esc }
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (f) Color(0xFF5A6070) else Color(0xFF3A3F4B))
+            .border(if (f) 2.dp else 0.dp, if (f) Dourado else Color.Transparent, RoundedCornerShape(6.dp))
+            .onFocusChanged { f = it.isFocused }
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(texto, color = cor, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        if (marcado) {
+            androidx.compose.foundation.Canvas(Modifier.align(Alignment.BottomEnd).size(14.dp)) {
+                val p = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(size.width, 0f); lineTo(size.width, size.height); lineTo(0f, size.height); close()
+                }
+                drawPath(p, Dourado)
+            }
+        }
+    }
+}

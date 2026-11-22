@@ -86,6 +86,8 @@ enum class Mode {
     LIVE,
     /** ZarkTV: perfil (conta, renovar, conteúdo adulto, player, suporte). */
     PROFILE,
+    /** ZarkTV: configurações no estilo UniTV (reprodução, legendas, proporção…). */
+    AJUSTES,
 }
 
 /** Screens where we read the remote ourselves (the others use normal focus). */
@@ -282,6 +284,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var grupoIndex by remember { mutableIntStateOf(0) }
     val filtrosLista by vm.filters.collectAsStateWithLifecycle()
     val zarkCtx = LocalContext.current
+    var ajustesVolta by remember { mutableStateOf(Mode.HOME) }
     var tutorialVisto by remember { mutableStateOf(zarkCtx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getBoolean("tutorial_visto", false)) }
     var playerExterno by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkConfig.playerExterno(zarkCtx)) }
     /** When the groups menu was opened (for [groupsBack]). */
@@ -520,7 +523,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
 
     /** Settings, behind the PIN when that's turned on. */
     fun openSettings() {
-        if (settings.pinForSettings) vm.requirePin("Enter your PIN to open Settings") { mode = Mode.SETTINGS }
+        if (settings.pinForSettings) vm.requirePin("Digite sua senha para abrir as configurações") { mode = Mode.SETTINGS }
         else mode = Mode.SETTINGS
     }
 
@@ -1226,7 +1229,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     // Live TV doesn't play behind Movies & TV Shows; it comes back when you leave them.
     LaunchedEffect(mode, homeTab, jogoAberto != null, ZarkLayout.leve.value, tutorialVisto) {
         when (mode) {
-            Mode.VOD, Mode.PROFILE -> vm.enterLibrary()
+            Mode.VOD, Mode.PROFILE, Mode.AJUSTES -> vm.enterLibrary()
             // Tutorial da primeira vez na tela: nada toca até ele terminar.
             Mode.HOME -> if (tutorialVisto && !ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
@@ -1340,6 +1343,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             Mode.SETTINGS -> if (!settings.hasSource) mode = Mode.SETUP else mode = if (settingsSection != null) Mode.PROFILE else Mode.HOME
             Mode.HOME -> if (uniSinoAberto.value) uniSinoAberto.value = false else if (jogoAberto != null) jogoAberto = null else askExit(Mode.HOME)
             Mode.PROFILE -> mode = Mode.HOME
+            Mode.AJUSTES -> mode = ajustesVolta
             Mode.LIVE -> mode = Mode.HOME
             Mode.SEARCH -> openGroups(tile = 5)
             Mode.ORGANISE -> mode = organiseReturn
@@ -1481,6 +1485,23 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
                 // Só a TV ao vivo guarda o último quadro ao trocar de canal; filme/série começa com tela preta
                 // (senão aparecia a imagem parada do canal anterior).
+                // Legendas: tamanho e estilo escolhidos em Configurações.
+                AjustesEstado.legenda.intValue
+                view.subtitleView?.let { sv ->
+                    val tam = io.github.axon07.channelbox.data.ZarkPrefs.legTamanho(view.context)
+                    sv.setFractionalTextSize(androidx.media3.ui.SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * when (tam) { 0 -> 0.8f; 2 -> 1.35f; else -> 1f })
+                    val est = io.github.axon07.channelbox.data.ZarkPrefs.legEstilo(view.context)
+                    sv.setApplyEmbeddedStyles(est == 0)
+                    sv.setStyle(
+                        androidx.media3.ui.CaptionStyleCompat(
+                            if (est == 1) android.graphics.Color.YELLOW else android.graphics.Color.WHITE,
+                            if (est == 2) 0xCC000000.toInt() else android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT,
+                            if (est == 2) androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_NONE else androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                            android.graphics.Color.BLACK, null,
+                        )
+                    )
+                }
                 view.setKeepContentOnPlayerReset(false) // ZarkTV: ao trocar de canal não fica a imagem congelada do canal anterior
                 view.resizeMode = when (settings.videoScale) {
                     1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
@@ -1599,7 +1620,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     }
                     if (p != null && p.stop > t) {
                         val scheduled = TvViewModel.recordingKey(ch.id, p.start) in recordingKeys
-                        actions += DialogAction(if (scheduled) "Cancel recording" else "● Record") {
+                        actions += DialogAction(if (scheduled) "Cancelar gravação" else "● Record") {
                             vm.toggleRecordProgram(ch, p)
                             mode = Mode.GUIDE
                         }
@@ -1723,7 +1744,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                             popup = Popup(
                                 p.title, "${hit.channel.name}  ·  ${timeFormat(p.start)} – ${timeFormat(p.stop)}",
                                 listOf(
-                                    DialogAction(if (scheduled) "Cancel recording" else "● Record") {
+                                    DialogAction(if (scheduled) "Cancelar gravação" else "● Record") {
                                         vm.toggleRecordProgram(hit.channel, p)
                                         popup = null
                                     },
@@ -1865,7 +1886,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         mode = Mode.VOD
                     },
                     onPerfil = { mode = Mode.PROFILE },
-                    onAjustes = { settingsSection = null; openSettings() },
+                    onAjustes = { ajustesVolta = Mode.HOME; mode = Mode.AJUSTES },
                 )
                 else if (mode == Mode.HOME) UniShell(
                     vm = vm,
@@ -1966,8 +1987,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onOutraConta = sairDaConta,
                     onAdulto = { vm.zarkAlternarAdulto() },
                     onControleParental = { settingsSection = "parental"; openSettings() },
-                    onConfiguracoes = { settingsSection = null; openSettings() },
-                    onPlayer = { settingsSection = "playback"; openSettings() },
+                    onConfiguracoes = { ajustesVolta = Mode.PROFILE; mode = Mode.AJUSTES },
+                    onPlayer = { ajustesVolta = Mode.PROFILE; mode = Mode.AJUSTES },
                     onAtualizar = { vm.checkForUpdates(manual = true) },
                     onTema = { ZarkTema.proximo(ctx) },
                     onPlayerFilmes = {
@@ -2046,6 +2067,15 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 )
             }
             Mode.ORGANISE -> OrganiseScreen(vm, start = organiseStart, onExit = { mode = organiseReturn })
+            Mode.AJUSTES -> ZarkAjustes(
+                vm = vm,
+                escala = settings.videoScale,
+                versao = vm.appVersion,
+                onParental = { settingsSection = "parental"; openSettings() },
+                onAvancado = { settingsSection = null; openSettings() },
+                onAtualizar = { vm.checkForUpdates(manual = true) },
+                onSuporte = { runCatching { zarkCtx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(io.github.axon07.channelbox.data.ZarkConfig.WHATSAPP)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } },
+            )
             Mode.SETTINGS -> SettingsScreen(
                 onOrganise = { openOrganise(null) },
                 openNetwork = settingsFromSetup,
@@ -2126,7 +2156,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                             mode = Mode.PLAYER
                             vm.playPauseLive()
                         })
-                        if (shift != null) add(DialogAction("Back to live") {
+                        if (shift != null) add(DialogAction("Voltar ao vivo") {
                             mode = Mode.PLAYER
                             vm.goLive()
                         })
@@ -2202,8 +2232,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 // failed one keeps them – the reason is in Settings), so nothing covers the picture.
                 val fallback = when (val r = refreshState) {
                     is RefreshState.Running -> if (allChannels.isNotEmpty()) null else r.message
-                    is RefreshState.Failed -> if (allChannels.isNotEmpty()) null else "Couldn't load channels: ${r.message}\nPress OK for settings"
-                    else -> if (allChannels.isEmpty() && channelsLoaded) "No channels yet – press OK for settings" else null
+                    is RefreshState.Failed -> if (allChannels.isNotEmpty()) null else "Não foi possível carregar os canais: ${r.message}\nAperte OK para abrir as configurações"
+                    else -> if (allChannels.isEmpty() && channelsLoaded) "Nenhum canal ainda – aperte OK para abrir as configurações" else null
                 }
                 var velocidade by remember { mutableStateOf(0.0) }
                 LaunchedEffect(playerStatus) { while (playerStatus is PlayerStatus.Buffering) { velocidade = vm.player.velocidadeMBs(); delay(500) } }
