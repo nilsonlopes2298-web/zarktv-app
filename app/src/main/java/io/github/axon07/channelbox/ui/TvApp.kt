@@ -1231,7 +1231,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     // Live TV doesn't play behind Movies & TV Shows; it comes back when you leave them.
     LaunchedEffect(mode, homeTab, jogoAberto != null, ZarkLayout.leve.value, tutorialVisto) {
         when (mode) {
-            Mode.VOD, Mode.PROFILE, Mode.AJUSTES -> vm.enterLibrary()
+            // Telas que não são de canais: nada de TV ao vivo tocando por trás.
+            Mode.VOD, Mode.PROFILE, Mode.AJUSTES, Mode.SETTINGS, Mode.ORGANISE -> vm.enterLibrary()
             // Tutorial da primeira vez na tela: nada toca até ele terminar.
             Mode.HOME -> if (tutorialVisto && !ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
@@ -1528,7 +1529,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             },
             modifier = if (inPip) {
                 Modifier.fillMaxSize()
-            } else if (mode == Mode.MULTIVIEW) {
+            } else if (mode == Mode.MULTIVIEW || mode == Mode.SETTINGS || mode == Mode.AJUSTES || mode == Mode.ORGANISE) {
                 VideoEscondido
             } else if (mode == Mode.VOD) {
                 val r = vodBrowser.previewRect

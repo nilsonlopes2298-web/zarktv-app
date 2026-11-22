@@ -191,7 +191,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(start = 10.dp),
             )
             Text(
-                "Channelbox ${vm.appVersion}", fontSize = 12.sp, color = Color(0xFF7D8A9A),
+                "ZarkTV ${vm.appVersion}", fontSize = 12.sp, color = Color(0xFF7D8A9A),
                 modifier = Modifier.padding(start = 10.dp, top = 2.dp, bottom = 18.dp),
             )
             SettingsCategory.entries.forEachIndexed { i, c ->
@@ -644,15 +644,15 @@ private fun ParentalSettings(settings: AppSettings, vm: TvViewModel) {
     val locked by vm.lockedItems.collectAsStateWithLifecycle()
     val hasPin = settings.pinHash != null
     InfoCard(
-        "Rename, renumber, hide or lock",
-        "Hold OK on a channel in the guide (Edit channel) or on a group in the groups menu to rename, " +
-            "renumber, move, hide or lock it. In Movies & TV Shows, hold OK on a category to lock it."
+        "Bloquear ou esconder",
+        "Defina uma senha (PIN) aqui. Depois, segure OK num canal ou grupo para bloquear ou esconder. " +
+            "Em Filmes e Séries, segure OK numa categoria para bloquear."
     )
     SettingCard(
-        title = if (hasPin) "Change PIN" else "Set a PIN",
-        description = if (hasPin) "Locked channels, groups and categories need this PIN"
-        else "Needed before you can lock anything",
-        value = if (hasPin) "Change" else "Set",
+        title = if (hasPin) "Trocar PIN" else "Criar PIN",
+        description = if (hasPin) "Canais, grupos e categorias bloqueados pedem este PIN"
+        else "Precisa de um PIN antes de bloquear qualquer coisa",
+        value = if (hasPin) "Trocar" else "Criar",
         onClick = { vm.changePin() },
     )
     if (hasPin) {
@@ -807,7 +807,7 @@ private fun UpdateSettings(settings: AppSettings, vm: TvViewModel) {
 @Composable
 private fun AboutSettings(vm: TvViewModel) {
     val widevine = remember { vm.widevineLevel() }
-    InfoCard("Version", "Channelbox ${vm.appVersion} (build ${BuildConfig.VERSION_CODE})")
+    InfoCard("Versão", "ZarkTV ${vm.appVersion} (build ${BuildConfig.VERSION_CODE})")
     InfoCard("Device", "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}")
     InfoCard("Widevine security level", "$widevine – L1 = hardware, L3 = software")
     InfoCard("Audio decoding", "Box decoders, plus bundled FFmpeg for Dolby Digital, DD+, DTS and TrueHD")
