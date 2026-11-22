@@ -165,6 +165,30 @@ class TvPlayer(
 
     // FFmpeg (bundled) decodes AC3 / E-AC3 / DTS / TrueHD audio when the box can't.
     private val renderers = object : DefaultRenderersFactory(context) {
+        // Fire Stick / Fire TV: ao trocar a superfície do vídeo (janelinha ↔ tela cheia) o decodificador
+        // congelava a imagem e só ficava o som. Liga a correção do ExoPlayer para esses aparelhos.
+        override fun buildVideoRenderers(
+            context: Context,
+            extensionRendererMode: Int,
+            mediaCodecSelector: androidx.media3.exoplayer.mediacodec.MediaCodecSelector,
+            enableDecoderFallback: Boolean,
+            eventHandler: android.os.Handler,
+            eventListener: androidx.media3.exoplayer.video.VideoRendererEventListener,
+            allowedVideoJoiningTimeMs: Long,
+            out: java.util.ArrayList<androidx.media3.exoplayer.Renderer>,
+        ) {
+            super.buildVideoRenderers(context, extensionRendererMode, mediaCodecSelector, enableDecoderFallback, eventHandler, eventListener, allowedVideoJoiningTimeMs, out)
+            if (!android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true)) return
+            val i = out.indexOfFirst { it is androidx.media3.exoplayer.video.MediaCodecVideoRenderer }
+            if (i < 0) return
+            out[i] = object : androidx.media3.exoplayer.video.MediaCodecVideoRenderer(
+                context, codecAdapterFactory, mediaCodecSelector, allowedVideoJoiningTimeMs,
+                enableDecoderFallback, eventHandler, eventListener, MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY,
+            ) {
+                override fun codecNeedsSetOutputSurfaceWorkaround(name: String) = true
+            }
+        }
+
         // Passthrough off: decode everything to PCM, as if the TV had no Dolby / DTS receiver.
         override fun buildAudioSink(
             context: Context,

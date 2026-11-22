@@ -135,8 +135,10 @@ fun VodScreen(b: VodBrowser, vm: TvViewModel, onPlay: (item: VodEntity, show: Vo
     var categoryMenu by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
     androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
         val movie = b.movie
-        if (movie != null) MovieDetail(b, movie, progress[movie.id], vm, onPlay)
-        else if (show != null) ShowScreen(b, show, progress, vm, onPlay)
+        // Na ficha a tela não "desce" sozinha ao focar o botão (na TV o Compose centraliza o foco):
+        // só rola quando o foco sai da tela.
+        if (movie != null) SemPivo { MovieDetail(b, movie, progress[movie.id], vm, onPlay) }
+        else if (show != null) SemPivo { ShowScreen(b, show, progress, vm, onPlay) }
         else LibraryScreen(b, progress, vm, onPlay, onCategoryMenu = { cat, locked -> categoryMenu = cat to locked })
         categoryMenu?.let { (cat, locked) -> CategoryMenu(b, vm, cat, locked) { categoryMenu = null } }
     }
@@ -958,4 +960,14 @@ private fun BotoesExtras(vm: TvViewModel, item: VodEntity, serie: Boolean, episo
         segue = io.github.axon07.channelbox.data.ZarkPrefs.alternarSeguir(ctx, item.id, episodios)
         vm.showToast(if (segue) "Vamos avisar no sininho quando sair episódio novo" else "Notificações desligadas")
     }
+}
+
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun SemPivo(content: @Composable () -> Unit) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides object : androidx.compose.foundation.gestures.BringIntoViewSpec {},
+        content = content,
+    )
 }

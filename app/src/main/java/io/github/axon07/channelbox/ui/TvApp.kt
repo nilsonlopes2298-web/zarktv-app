@@ -1491,14 +1491,14 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             modifier = if (inPip) {
                 Modifier.fillMaxSize()
             } else if (mode == Mode.MULTIVIEW) {
-                Modifier.size(0.dp)
+                VideoEscondido
             } else if (mode == Mode.VOD) {
                 val r = vodBrowser.previewRect
                 if (r != null && vodBrowser.previewId != null && (vodBrowser.movie != null || vodBrowser.show != null)) {
                     with(LocalDensity.current) {
                         Modifier.align(Alignment.TopStart).offset(r.left.toDp(), r.top.toDp()).size(r.width.toDp(), r.height.toDp())
                     }
-                } else Modifier.size(0.dp)
+                } else VideoEscondido
             } else if (mode == Mode.HOME) {
                 val r = homePreview
                 if (!ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null)) && r != null) {
@@ -1508,7 +1508,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                             .offset(r.left.toDp(), r.top.toDp())
                             .size(r.width.toDp(), r.height.toDp())
                     }
-                } else Modifier.size(0.dp)
+                } else VideoEscondido
             } else if (mode == Mode.LIVE) {
                 val g = liveGeom()
                 Modifier
@@ -2399,3 +2399,10 @@ internal fun legendaEpisodio(item: VodEntity, show: VodEntity): String {
  */
 @Composable
 internal fun Bloco(conteudo: @Composable () -> Unit) = conteudo()
+
+
+/**
+ * Vídeo fora da tela em vez de tamanho zero: com tamanho zero a superfície do vídeo é destruída e
+ * recriada, e no Fire Stick (e outras TVs) a imagem congelava, ficando só o som.
+ */
+private val VideoEscondido = Modifier.offset((-64).dp, (-64).dp).size(16.dp)
