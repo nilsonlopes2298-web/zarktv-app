@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
         telaCheia()
         setContent {
             ChannelboxTheme {
-                TvApp(vm)
+                TamanhoProporcional { TvApp(vm) }
             }
         }
         // Auto frame rate: follow the playing video's frame rate when switched on (waits a moment
@@ -99,4 +99,29 @@ class MainActivity : ComponentActivity() {
         @Volatile
         var onScreen = false
     }
+}
+
+
+/**
+ * ZarkTV: deixa tudo proporcional à tela. As telas foram desenhadas para uma TV (960 × 540 "dp");
+ * celular deitado fica um pouco menor, tablet e telas grandes um pouco maiores — nem gigante nem miúdo.
+ * Ajusta a densidade e o tamanho de tela informado juntos, para as contas de posição continuarem certas.
+ */
+@androidx.compose.runtime.Composable
+fun TamanhoProporcional(conteudo: @androidx.compose.runtime.Composable () -> Unit) {
+    val cfg = androidx.compose.ui.platform.LocalConfiguration.current
+    val dens = androidx.compose.ui.platform.LocalDensity.current
+    val w = cfg.screenWidthDp.toFloat()
+    val h = cfg.screenHeightDp.toFloat()
+    val fator = if (w >= h) minOf(w / 960f, h / 540f).coerceIn(0.8f, 1.3f) else (w / 411f).coerceIn(0.85f, 1.2f)
+    if (kotlin.math.abs(fator - 1f) < 0.03f) { conteudo(); return }
+    val novaCfg = android.content.res.Configuration(cfg).apply {
+        screenWidthDp = (w / fator).toInt()
+        screenHeightDp = (h / fator).toInt()
+        smallestScreenWidthDp = (cfg.smallestScreenWidthDp / fator).toInt()
+    }
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(dens.density * fator, dens.fontScale),
+        androidx.compose.ui.platform.LocalConfiguration provides novaCfg,
+    ) { conteudo() }
 }
