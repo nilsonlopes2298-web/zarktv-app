@@ -985,7 +985,7 @@ private fun BotoesExtras(vm: TvViewModel, item: VodEntity, serie: Boolean, episo
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun SemPivo(content: @Composable () -> Unit) {
+internal fun SemPivo(content: @Composable () -> Unit) {
     androidx.compose.runtime.CompositionLocalProvider(
         androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides object : androidx.compose.foundation.gestures.BringIntoViewSpec {},
         content = content,

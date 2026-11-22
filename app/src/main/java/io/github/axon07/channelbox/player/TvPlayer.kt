@@ -616,26 +616,9 @@ class TvPlayer(
         // ZarkTV: filme/episódio Xtream que o servidor recusou (HTTP 400/403/404…) → tenta com outra
         // identificação do app e outra extensão (mp4/mkv) antes de desistir. Uniplay e outros recusam o ExoPlayer.
         val ehVod = atual != null && Regex("""/(movie|series)/[^/]+/[^/]+/[^/?]+\.\w+(\?|$)""").containsMatchIn(atual.url)
-        if (atual != null && ehVod && !isLive && tentativaAlternativa == 0) primeiroErroVod = reason
-        // Filme/episódio recusado neste endereço ("servidor não liberado"): tenta o mesmo arquivo nos outros
-        // endereços (DNS) do painel, primeiro os do mesmo servidor.
-        if (atual != null && ehVod && !isLive) {
-            if (hostsVod == null) {
-                val host = Regex("""^(https?://[^/]+)""").find(atual.url)?.value
-                hostsVod = if (host == null) emptyList() else hostsAlternativos(host).filter { !it.equals(host, ignoreCase = true) }.distinct()
-                urlVodOriginal = atual.url
-            }
-            val lista = hostsVod.orEmpty()
-            if (tentativaHost < lista.size) {
-                val novo = lista[tentativaHost++].trimEnd('/')
-                val url = urlVodOriginal!!.replace(Regex("""^https?://[^/]+"""), novo)
-                android.util.Log.w("ZarkPlayer", "filme recusado – tentando outro endereço do painel (${tentativaHost}/${lista.size})")
-                spec = atual.copy(url = url, mime = null)
-                candidates = listOf(null)
-                attempt = 0
-                handler.post { start() }
-                return
-            }
+        if (atual != null && ehVod && !isLive && tentativaAlternativa == 0 && tentativaHost == 0) {
+            primeiroErroVod = reason
+            urlVodOriginal = atual.url
         }
         if (atual != null && ehVod && !isLive && tentativaAlternativa < ALT_VOD.size) {
             val (ext, ua) = ALT_VOD[tentativaAlternativa++]
@@ -646,6 +629,25 @@ class TvPlayer(
             attempt = 0
             handler.post { start() }
             return
+        }
+        // Depois das outras identificações/formatos: filme/episódio recusado neste endereço ("servidor não liberado"): tenta o mesmo arquivo nos outros
+        // endereços (DNS) do painel, primeiro os do mesmo servidor.
+        if (atual != null && ehVod && !isLive) {
+            if (hostsVod == null) {
+                val host = Regex("""^(https?://[^/]+)""").find(urlVodOriginal ?: atual.url)?.value
+                hostsVod = if (host == null) emptyList() else hostsAlternativos(host).filter { !it.equals(host, ignoreCase = true) }.distinct()
+            }
+            val lista = hostsVod.orEmpty()
+            if (tentativaHost < lista.size) {
+                val novo = lista[tentativaHost++].trimEnd('/')
+                val url = urlVodOriginal!!.replace(Regex("""^https?://[^/]+"""), novo)
+                android.util.Log.w("ZarkPlayer", "filme recusado – tentando outro endereço do painel (${tentativaHost}/${lista.size})")
+                spec = atual.copy(url = url, mime = null, headers = atual.headers + ("User-Agent" to "VLC/3.0.20 LibVLC/3.0.20"))
+                candidates = listOf(null)
+                attempt = 0
+                handler.post { start() }
+                return
+            }
         }
         if (!isLive) {
             _status.value = PlayerStatus.Error("Não foi possível reproduzir (${primeiroErroVod ?: reason})")

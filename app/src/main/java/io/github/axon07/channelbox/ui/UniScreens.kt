@@ -252,9 +252,10 @@ fun UniShell(
                         onPrevGroup, onNextGroup, onPickChannel, onFull, onFavorite, onPreviewRect,
                         groups, currentGroup, onGroup,
                     )
-                    Aba.JOGOS -> if (jogoAberto != null) JogoAberto(
+                    // Jogo aberto: a telinha fica parada em cima; só rola quando o foco desce para os detalhes.
+                    Aba.JOGOS -> if (jogoAberto != null) SemPivo { JogoAberto(
                         vm, jogoAberto, canalJogo, canalJogoInfo, compacto, onPreviewRect, onFull, onMudarCanalJogo, onFecharJogo,
-                    ) else AbaJogos(vm, compacto, onAbrirJogo)
+                    ) } else AbaJogos(vm, compacto, onAbrirJogo)
                     Aba.DESTAQUES -> AbaDestaques(vm, compacto, extras.banners, onOpenItem)
                     Aba.FILMES -> AbaCatalogo(vm, VodKind.MOVIE, compacto, null, onOpenItem, onOpenLibrary)
                     Aba.SERIES -> AbaCatalogo(vm, VodKind.SERIES, compacto, null, onOpenItem, onOpenLibrary)
