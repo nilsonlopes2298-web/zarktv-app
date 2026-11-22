@@ -175,12 +175,9 @@ fun UniShell(
         Column(Modifier.fillMaxSize().padding(start = if (compacto) 10.dp else 28.dp, end = if (compacto) 10.dp else 28.dp, top = if (compacto) 14.dp else 20.dp, bottom = if (compacto) 8.dp else 14.dp)) {
             // ---- Topo ----
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(io.github.axon07.channelbox.R.drawable.zark_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(if (compacto) 34.dp else 42.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF0A0A0A)),
-                )
-                Spacer(Modifier.width(10.dp))
+                // Só o nome com o símbolo do play (sem a imagem do ícone).
+                Text("▶", color = Color(0xFFFF4D57), fontSize = 22.sp, fontWeight = FontWeight.Black)
+                Spacer(Modifier.width(8.dp))
                 Text("Zark", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text("TV", color = Color(0xFFFF4D57), fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
@@ -215,7 +212,7 @@ fun UniShell(
                     .focusGroup(),
             ) {
                 itemsIndexed(Aba.nomes) { i, nome ->
-                    AbaItem(nome, i == tab, Modifier.focusRequester(tabFocus[i]), compacto) { onTab(i) }
+                    AbaItem(nome, i == tab, Modifier.focusRequester(tabFocus[i]), compacto) { if (i == tab && i == Aba.TV && current != null) onFull() else onTab(i) }
                 }
             }
             Spacer(Modifier.height(if (compacto) 8.dp else 14.dp))
@@ -411,12 +408,14 @@ private fun AbaTv(
         BoxWithConstraints(mod) {
         // Prévia ocupa a largura toda da coluna; a altura é limitada para sempre sobrar a programação.
         val altPrev = minOf(maxWidth * 9f / 16f, maxHeight * 0.62f)
+        var prevFoco by remember { mutableStateOf(false) }
         Column(Modifier.fillMaxSize()) {
             Box(
                 Modifier.fillMaxWidth().height(altPrev)
-                    .border(2.dp, Color(0x55FFFFFF), RoundedCornerShape(4.dp))
                     .onGloballyPositioned { onPreviewRect(it.boundsInRoot()) }
-                    .tap(onClick = { if (current != null) onFull() })
+                    .onFocusChanged { prevFoco = it.isFocused }
+                    .border(if (prevFoco) 4.dp else 2.dp, if (prevFoco) Color.White else Color(0x55FFFFFF), RoundedCornerShape(4.dp))
+                    .clickable { if (current != null) onFull() }
             ) {
                 if (current == null) Text("Escolha um canal na lista", color = Palette.TextDim, fontSize = 15.sp, modifier = Modifier.align(Alignment.Center))
                 else Box(
@@ -475,7 +474,8 @@ private fun AbaTv(
         }
     }
     val lista: @Composable (Modifier) -> Unit = { mod ->
-        ListaDeCanais(mod, channels, groupLabel, current, favorites, onPrevGroup, onNextGroup, onPick, onFull, onFavorite, groups, currentGroup, onGroup)
+        // Clicou no canal: abre direto em tela cheia.
+        ListaDeCanais(mod, channels, groupLabel, current, favorites, onPrevGroup, onNextGroup, { ch -> onPick(ch); onFull() }, onFull, onFavorite, groups, currentGroup, onGroup)
     }
     if (compacto) {
         Column(Modifier.fillMaxSize()) {
@@ -795,7 +795,11 @@ private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: (io.github.
         }
     }
     val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR"))
-    Row(Modifier.fillMaxSize()) {
+    val focoJogo = remember { FocusRequester() }
+    val estadoLista = androidx.compose.foundation.lazy.rememberLazyListState()
+    var alvo by remember { mutableIntStateOf(0) }
+    // Descendo das abas, o foco vai direto para os jogos (o que está passando primeiro); à esquerda ficam os filtros.
+    Row(Modifier.fillMaxSize().focusProperties { enter = { if (jogos.isNullOrEmpty()) FocusRequester.Default else focoJogo } }.focusGroup()) {
         if (!compacto) {
             Column(Modifier.width(150.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Atalho("Todos", Color(0xFF43A047), Modifier.fillMaxWidth().weight(1f), compacto) { filtro = 0 }
@@ -814,9 +818,14 @@ private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: (io.github.
         when {
             lista == null -> Text("Carregando os jogos de hoje…", color = Color.White, fontSize = 16.sp)
             lista.isEmpty() -> Text("Nenhum jogo encontrado agora.", color = Color.White, fontSize = 16.sp)
-            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
-                items(lista) { j ->
-                    LinhaFocavel(onClick = { onAssistir(j) }) {
+            else -> {
+              LaunchedEffect(lista.map { it.id }) {
+                  alvo = lista.indexOfFirst { it.estado == "in" }.takeIf { it >= 0 } ?: lista.indexOfFirst { it.estado == "pre" }.coerceAtLeast(0)
+                  runCatching { estadoLista.scrollToItem(alvo) }
+              }
+              LazyColumn(state = estadoLista, verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
+                itemsIndexed(lista) { idx, j ->
+                    LinhaFocavel(modifier = if (idx == alvo) Modifier.focusRequester(focoJogo) else Modifier, onClick = { onAssistir(j) }) {
                         Row(
                             Modifier.fillMaxWidth().background(Color(0x55FFFFFF), RoundedCornerShape(6.dp)).height(if (compacto) 76.dp else 92.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -853,6 +862,7 @@ private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: (io.github.
                         }
                     }
                 }
+              }
             }
         }
     }

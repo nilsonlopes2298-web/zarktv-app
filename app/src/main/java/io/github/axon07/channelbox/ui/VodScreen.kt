@@ -517,9 +517,12 @@ private fun ShowScreen(
     val ultimo = episodes?.filter { it.id in progress }?.maxByOrNull { progress.getValue(it.id).updated }
     var listaTemporadas by remember { mutableStateOf(false) }
     val primeiro = remember { FocusRequester() }
+    val rolS = androidx.compose.foundation.rememberScrollState()
     LaunchedEffect(episodes != null) {
         delay(150)
         runCatching { primeiro.requestFocus() }
+        // A ficha abre lá em cima (título e sinopse à vista), não rolada até os botões.
+        delay(120); rolS.scrollTo(0)
     }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(ficha, show.id) { b.fundoUrl = ficha?.fundo ?: show.poster }
@@ -534,7 +537,7 @@ private fun ShowScreen(
     // O fundo é desenhado atrás do vídeo (TvApp), senão cobriria a miniatura.
     Box(Modifier.fillMaxSize()) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 36.dp, vertical = 24.dp)
+            Modifier.fillMaxSize().verticalScroll(rolS).padding(horizontal = 36.dp, vertical = 24.dp)
         ) {
             val retratoS = androidx.compose.ui.platform.LocalConfiguration.current.let { it.screenHeightDp > it.screenWidthDp }
             val tocarSerie = {
@@ -705,9 +708,11 @@ private fun MovieDetail(
     var ficha by remember(movie.id) { mutableStateOf<io.github.axon07.channelbox.data.ZarkInfo?>(null) }
     LaunchedEffect(movie.id) { ficha = vm.zarkFicha(movie) }
     val play = remember { FocusRequester() }
+    val rolF = androidx.compose.foundation.rememberScrollState()
     LaunchedEffect(movie.id) {
         delay(150)
         runCatching { play.requestFocus() }
+        delay(120); rolF.scrollTo(0)
     }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val retrato = androidx.compose.ui.platform.LocalConfiguration.current.let { it.screenHeightDp > it.screenWidthDp }
@@ -723,7 +728,7 @@ private fun MovieDetail(
         }
     }
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = if (retrato) 18.dp else 36.dp, vertical = 24.dp)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rolF).padding(horizontal = if (retrato) 18.dp else 36.dp, vertical = 24.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1.25f)) {
                     FichaCabecalho(movie.title, ficha, movie.plot, movie.rating, movie.year, null)
