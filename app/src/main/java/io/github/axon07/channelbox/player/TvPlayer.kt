@@ -107,6 +107,11 @@ class TvPlayer(
     /** Quantas alternativas (formato/identificação) já tentou neste canal. */
     private var tentativaAlternativa = 0
     private var primeiroErroVod: String? = null
+    private var hostsVod: List<String>? = null
+    private var urlVodOriginal: String? = null
+    private var tentativaHost = 0
+    /** Outros endereços (DNS) do painel para o mesmo servidor, dado o endereço atual. */
+    var hostsAlternativos: (String) -> List<String> = { emptyList() }
     private var avisouDesistencia = false
     /** Chamado quando um canal ao vivo esgota todas as tentativas. */
     var aoDesistir: (() -> Unit)? = null
@@ -353,6 +358,9 @@ class TvPlayer(
         attempt = 0
         tentativaAlternativa = 0
         primeiroErroVod = null
+        hostsVod = null
+        urlVodOriginal = null
+        tentativaHost = 0
         avisouDesistencia = false
         confirmed = false
         retries = 0
@@ -607,6 +615,26 @@ class TvPlayer(
         // identificação do app e outra extensão (mp4/mkv) antes de desistir. Uniplay e outros recusam o ExoPlayer.
         val ehVod = atual != null && Regex("""/(movie|series)/[^/]+/[^/]+/[^/?]+\.\w+(\?|$)""").containsMatchIn(atual.url)
         if (atual != null && ehVod && !isLive && tentativaAlternativa == 0) primeiroErroVod = reason
+        // Filme/episódio recusado neste endereço ("servidor não liberado"): tenta o mesmo arquivo nos outros
+        // endereços (DNS) do painel, primeiro os do mesmo servidor.
+        if (atual != null && ehVod && !isLive) {
+            if (hostsVod == null) {
+                val host = Regex("""^(https?://[^/]+)""").find(atual.url)?.value
+                hostsVod = if (host == null) emptyList() else hostsAlternativos(host).filter { !it.equals(host, ignoreCase = true) }.distinct()
+                urlVodOriginal = atual.url
+            }
+            val lista = hostsVod.orEmpty()
+            if (tentativaHost < lista.size) {
+                val novo = lista[tentativaHost++].trimEnd('/')
+                val url = urlVodOriginal!!.replace(Regex("""^https?://[^/]+"""), novo)
+                android.util.Log.w("ZarkPlayer", "filme recusado – tentando outro endereço do painel (${tentativaHost}/${lista.size})")
+                spec = atual.copy(url = url, mime = null)
+                candidates = listOf(null)
+                attempt = 0
+                handler.post { start() }
+                return
+            }
+        }
         if (atual != null && ehVod && !isLive && tentativaAlternativa < ALT_VOD.size) {
             val (ext, ua) = ALT_VOD[tentativaAlternativa++]
             val url = if (ext == null) atual.url else atual.url.replace(Regex("""\.\w+(\?|$)"""), ".$ext$1")

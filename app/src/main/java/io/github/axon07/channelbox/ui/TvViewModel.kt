@@ -1134,6 +1134,15 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
                 if (playingVod != null && player.exo.isPlaying) saveVodProgress()
             }
         }
+        player.hostsAlternativos = { host ->
+            val servidores = io.github.axon07.channelbox.data.ZarkConfig.cached(getApplication())
+            val h = host.substringAfter("://").substringBefore(":").lowercase()
+            val mesmo = servidores.filter { sv -> sv.dns.any { it.lowercase().contains(h) } }
+            val bases = (mesmo + servidores).flatMap { it.dns }
+            // Mantém a porta do endereço atual quando o DNS do painel não tem porta.
+            val porta = Regex(""":(\d+)$""").find(host)?.value.orEmpty()
+            bases.map { b -> val t = b.trim().trimEnd('/'); if (Regex(""":\d+$""").containsMatchIn(t.substringAfter("://"))) t else t + porta }.distinct().take(6)
+        }
         player.aoDesistir = {
             val ch = _current.value
             if (ch != null) {
