@@ -921,7 +921,12 @@ private fun JogoAberto(
                             Text(relogio, color = Color(0xFFFFD54F), fontSize = if (compacto) 30.sp else 40.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
                             Text("O canal abre sozinho na hora do jogo", color = Color(0x99FFFFFF), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
                             Spacer(Modifier.height(10.dp))
-                            BarrinhaCarregando(Modifier.width(140.dp))
+                            BolinhasCarregando(Modifier.size(36.dp))
+                            Spacer(Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                MarcaPequena(12)
+                                Text("  · o melhor conteúdo", color = Color(0x99FFFFFF), fontSize = 11.sp)
+                            }
                         }
                     }
                 } else if (canal == null) {

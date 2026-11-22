@@ -1811,6 +1811,12 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     Unit
                 }
                 val sairDaConta = {
+                    // Saiu da conta: para tudo (vídeo, áudio, miniatura) antes de deslogar.
+                    vm.stopVod()
+                    vm.player.stop()
+                    runCatching { vm.player.exo.clearMediaItems() }
+                    vodBrowser.previewId = null
+                    jogoAberto = null
                     pl?.let { vm.removePlaylist(it.id) }
                     vm.zarkLimparConta()
                     zarkTrocarConta = true

@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -174,30 +175,37 @@ fun ZarkLoginScreen(
     val formulario: @Composable () -> Unit = {
         Column(
             Modifier
-                .background(Color(0xF0121212), RoundedCornerShape(14.dp))
-                .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(14.dp))
-                .padding(horizontal = 22.dp, vertical = if (baixo) 16.dp else 22.dp),
-            verticalArrangement = Arrangement.spacedBy(if (baixo) 8.dp else 12.dp),
+                .clip(RoundedCornerShape(22.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xE61A0E10), Color(0xF20C0C0E))))
+                .border(1.5.dp, Brush.verticalGradient(listOf(Color(0xCCFF2D2D), Color(0x55FF2D2D))), RoundedCornerShape(22.dp))
+                .padding(horizontal = 26.dp, vertical = if (baixo) 18.dp else 24.dp),
+            verticalArrangement = Arrangement.spacedBy(if (baixo) 10.dp else 14.dp),
         ) {
-            Text("Entrar", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Text("Use o usuário e a senha que você recebeu.", color = Palette.TextDim, fontSize = 12.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(4.dp).height(if (baixo) 40.dp else 48.dp).background(Palette.Accent, RoundedCornerShape(2.dp)))
+                Spacer(Modifier.width(14.dp))
+                Column {
+                    Text("Entrar", color = Color.White, fontSize = if (baixo) 24.sp else 30.sp, fontWeight = FontWeight.Bold)
+                    Text("Use o usuário e a senha que você recebeu.", color = Color(0xCCFFFFFF), fontSize = 13.sp)
+                }
+            }
             Box(Modifier.focusRequester(first)) {
-                TvTextField("Usuário", user, { user = it; erro = null })
+                TvTextField("Usuário", user, { user = it; erro = null }, placeholder = "Digite seu usuário", icone = AppIcons.User, raio = 12.dp)
             }
             Row(verticalAlignment = Alignment.Bottom) {
                 Box(Modifier.weight(1f)) {
-                    TvTextField("Senha", pass, { pass = it; erro = null }, password = !verSenha)
+                    TvTextField("Senha", pass, { pass = it; erro = null }, password = !verSenha, placeholder = "Digite sua senha", icone = AppIcons.Lock, raio = 12.dp)
                 }
-                Spacer(Modifier.width(8.dp))
-                PillButton(if (verSenha) "Ocultar" else "Mostrar") { verSenha = !verSenha }
+                Spacer(Modifier.width(10.dp))
+                BotaoIconeTexto(if (verSenha) "Ocultar" else "Mostrar", AppIcons.Eye, Modifier.height(46.dp)) { verSenha = !verSenha }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Caixinha("Lembrar de mim", lembrar) { lembrar = !lembrar }
                 Spacer(Modifier.weight(1f))
                 Text(
                     if (manual) "Servidor automático" else "Escolher servidor",
-                    color = Palette.TextDim, fontSize = 12.sp,
-                    modifier = Modifier.tap(onClick = { manual = !manual }),
+                    color = Color(0xCCFFFFFF), fontSize = 13.sp,
+                    modifier = Modifier.tap(onClick = { manual = !manual }).padding(4.dp),
                 )
             }
             if (manual) {
@@ -213,69 +221,148 @@ fun ZarkLoginScreen(
                 Text(refreshState.message, color = Palette.Error, fontSize = 13.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
             }
 
-            BotaoCheio(if (testing) "Conferindo…" else "Entrar", Palette.Accent, enabled = canEnter, altura = if (baixo) 44 else 48, onClick = entrar)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.weight(1f)) {
-                    BotaoContorno("Ver planos", cor = Color(0x44FFFFFF), altura = if (baixo) 40 else 44) {
-                        runCatching { uri.openUri(ZarkConfig.checkoutUrl(context, user.trim(), servers.getOrNull(sel)?.name.orEmpty())) }
-                    }
+            BotaoEntrar(if (testing) "Conferindo…" else "Entrar", canEnter, if (baixo) 48 else 54, entrar)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                BotaoIconeTexto("Ver planos", AppIcons.Diamond, Modifier.weight(1f).height(if (baixo) 42.dp else 48.dp)) {
+                    runCatching { uri.openUri(ZarkConfig.checkoutUrl(context, user.trim(), servers.getOrNull(sel)?.name.orEmpty())) }
                 }
-                Box(Modifier.weight(1f)) {
-                    BotaoContorno("Suporte", cor = Color(0x44FFFFFF), altura = if (baixo) 40 else 44) {
-                        runCatching { uri.openUri(ZarkConfig.WHATSAPP) }
-                    }
+                BotaoIconeTexto("Suporte", AppIcons.Headset, Modifier.weight(1f).height(if (baixo) 42.dp else 48.dp)) {
+                    runCatching { uri.openUri(ZarkConfig.WHATSAPP) }
                 }
             }
-            if (!manual) Text("O servidor é escolhido sozinho.", color = Color(0x66FFFFFF), fontSize = 11.sp)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                AppIcon(AppIcons.Refresh, tint = Color(0x99FFFFFF), size = 14.dp)
+                Text(
+                    if (manual) "  Escolha o servidor acima." else "  O servidor é escolhido automaticamente.",
+                    color = Color(0x99FFFFFF), fontSize = 12.sp,
+                )
+            }
             Text(
                 "Opções avançadas",
-                color = Color(0x55FFFFFF), fontSize = 11.sp, textAlign = TextAlign.Center,
+                color = Color(0x40FFFFFF), fontSize = 10.sp, textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().tap(onClick = onAdvanced),
             )
         }
     }
     val versao = io.github.axon07.channelbox.BuildConfig.VERSION_NAME
-    // Capas passando atrás (filmes, séries e banners do painel) para a entrada ficar bonita.
-    val capasVod by remember { vm.vodTop(io.github.axon07.channelbox.data.VodKind.MOVIE, null, 24) }.collectAsState(initial = emptyList())
-    val capas = remember(capasVod) {
-        val painel = io.github.axon07.channelbox.data.ZarkPainel.extras(context)
-        (painel.banners.map { it.imagem } + listOfNotNull(painel.fundo) + capasVod.mapNotNull { it.poster }).distinct().take(30)
+    val logoApp: @Composable (androidx.compose.ui.unit.Dp) -> Unit = { tam ->
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(io.github.axon07.channelbox.R.mipmap.ic_launcher),
+            contentDescription = "ZarkTV",
+            modifier = Modifier.size(tam),
+        )
     }
 
-    ZarkFundo {
-        ParedeDeCapas(capas)
+    Box(Modifier.fillMaxSize().background(Color(0xFF070607))) {
+        FundoRiscosVermelhos()
         if (deitado) {
             Row(
                 Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 24.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(Modifier.weight(1f).padding(end = 32.dp)) {
+                Column(Modifier.weight(1f).padding(end = 36.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Zark", color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
-                        Text("TV", color = Palette.Accent, fontSize = 64.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
+                        logoApp(if (baixo) 72.dp else 96.dp)
+                        Spacer(Modifier.width(18.dp))
+                        Text("Zark", color = Color.White, fontSize = if (baixo) 48.sp else 64.sp, fontWeight = FontWeight.Bold)
+                        Text("TV", color = Palette.Accent, fontSize = if (baixo) 48.sp else 64.sp, fontWeight = FontWeight.Bold)
                     }
-                    Spacer(Modifier.height(10.dp))
-                    Text("Canais ao vivo, esportes, filmes e séries\nno celular, na TV Box e na Smart TV.", color = Color(0xE6FFFFFF), fontSize = 18.sp, lineHeight = 25.sp)
-                    Spacer(Modifier.height(18.dp))
-                    Box(Modifier.width(48.dp).height(3.dp).background(Palette.Accent, RoundedCornerShape(2.dp)))
-                    Spacer(Modifier.height(18.dp))
-                    Text("Versão $versao", color = Color(0x66FFFFFF), fontSize = 12.sp)
+                    Spacer(Modifier.height(16.dp))
+                    Box(Modifier.width(56.dp).height(4.dp).background(Palette.Accent, RoundedCornerShape(2.dp)))
+                    Spacer(Modifier.height(16.dp))
+                    Text("Canais ao vivo, esportes, filmes e séries\nno celular, na TV Box e na Smart TV.", color = Color(0xEBFFFFFF), fontSize = if (baixo) 16.sp else 20.sp, lineHeight = if (baixo) 22.sp else 28.sp)
+                    Spacer(Modifier.height(20.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AppIcon(AppIcons.Phone, tint = Color(0xCCFFFFFF), size = 26.dp)
+                        Box(Modifier.padding(horizontal = 16.dp).width(1.dp).height(20.dp).background(Color(0x44FFFFFF)))
+                        AppIcon(AppIcons.Box, tint = Color(0xCCFFFFFF), size = 26.dp)
+                        Box(Modifier.padding(horizontal = 16.dp).width(1.dp).height(20.dp).background(Color(0x44FFFFFF)))
+                        AppIcon(AppIcons.Tv, tint = Color(0xCCFFFFFF), size = 28.dp)
+                    }
+                    Spacer(Modifier.height(if (baixo) 18.dp else 36.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.width(2.dp).height(14.dp).background(Palette.Accent))
+                        Text("  Versão $versao", color = Color(0x99FFFFFF), fontSize = 12.sp)
+                    }
                 }
-                Box(Modifier.width(340.dp).verticalScroll(rememberScrollState())) { formulario() }
+                Box(Modifier.width(if (baixo) 360.dp else 420.dp).verticalScroll(rememberScrollState())) { formulario() }
             }
         } else {
             Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 32.dp),
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                ZarkMarca(tamanho = 42)
-                Spacer(Modifier.height(6.dp))
-                Text("Canais, esportes, filmes e séries", color = Color(0xCCFFFFFF), fontSize = 15.sp)
-                Spacer(Modifier.height(24.dp))
-                Box(Modifier.widthIn(max = 400.dp).fillMaxWidth()) { formulario() }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    logoApp(60.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Text("Zark", color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold)
+                    Text("TV", color = Palette.Accent, fontSize = 40.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(8.dp))
+                Text("Canais ao vivo, esportes, filmes e séries", color = Color(0xCCFFFFFF), fontSize = 14.sp)
+                Spacer(Modifier.height(22.dp))
+                Box(Modifier.widthIn(max = 420.dp).fillMaxWidth()) { formulario() }
                 Spacer(Modifier.height(16.dp))
-                Text("Versão $versao", color = Color(0x55FFFFFF), fontSize = 11.sp)
+                Text("Versão $versao", color = Color(0x66FFFFFF), fontSize = 11.sp)
             }
+        }
+    }
+}
+
+/** Fundo da entrada: preto com faixas de luz vermelha curvas (sem imagem, leve). */
+@Composable
+fun FundoRiscosVermelhos() {
+    Canvas(Modifier.fillMaxSize()) {
+        val w = size.width; val h = size.height
+        drawRect(Brush.radialGradient(listOf(Color(0x55B00000), Color.Transparent), center = androidx.compose.ui.geometry.Offset(w * 0.25f, h * 0.45f), radius = w * 0.55f))
+        fun risco(x0: Float, y0: Float, cx: Float, cy: Float, x1: Float, y1: Float, larg: Float, alfa: Float) {
+            val p = androidx.compose.ui.graphics.Path().apply { moveTo(x0, y0); quadraticBezierTo(cx, cy, x1, y1) }
+            drawPath(p, Color(0xFFFF2020).copy(alpha = alfa * 0.25f), style = Stroke(larg * 6))
+            drawPath(p, Color(0xFFFF3030).copy(alpha = alfa), style = Stroke(larg))
+        }
+        risco(-w * 0.05f, h * 0.30f, w * 0.20f, -h * 0.05f, w * 0.45f, -h * 0.02f, 3f, 0.55f)
+        risco(w * 0.35f, h * 1.05f, w * 0.65f, h * 0.70f, w * 1.05f, h * 0.62f, 3f, 0.45f)
+        risco(-w * 0.02f, h * 0.95f, w * 0.30f, h * 0.88f, w * 0.55f, h * 0.70f, 1.5f, 0.35f)
+    }
+}
+
+/** Botão vermelho grande "▶ Entrar". */
+@Composable
+private fun BotaoEntrar(texto: String, ativo: Boolean, altura: Int, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Box(
+        Modifier.fillMaxWidth().height(altura.dp).clip(RoundedCornerShape(14.dp))
+            .background(Brush.verticalGradient(if (ativo) listOf(Color(0xFFFF2A2A), Color(0xFFC40000)) else listOf(Color(0x66FF2A2A), Color(0x66C40000))))
+            .border(if (f) 2.5.dp else 0.dp, if (f) Color.White else Color.Transparent, RoundedCornerShape(14.dp))
+            .onFocusChanged { f = it.isFocused }
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AppIcon(AppIcons.Play, tint = Color.White, size = 22.dp)
+            Spacer(Modifier.width(10.dp))
+            Text(texto, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+/** Botão escuro com ícone (Mostrar, Ver planos, Suporte). */
+@Composable
+private fun BotaoIconeTexto(texto: String, icone: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Box(
+        modifier.clip(RoundedCornerShape(12.dp))
+            .background(if (f) Color(0x40FFFFFF) else Color(0x1FFFFFFF))
+            .border(if (f) 2.dp else 1.dp, if (f) Color.White else Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+            .onFocusChanged { f = it.isFocused }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AppIcon(icone, tint = Color.White, size = 18.dp)
+            Spacer(Modifier.width(8.dp))
+            Text(texto, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
 }

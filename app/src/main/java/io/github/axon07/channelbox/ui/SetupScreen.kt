@@ -454,6 +454,10 @@ fun TvTextField(
     lines: Int = 1,
     /** Extra modifier for the input itself (e.g. a FocusRequester). */
     fieldModifier: Modifier = Modifier,
+    /** ZarkTV: texto de exemplo dentro do campo vazio e ícone à esquerda. */
+    placeholder: String? = null,
+    icone: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    raio: androidx.compose.ui.unit.Dp? = null,
 ) {
     // On a TV the remote first lands on the field (no keyboard); OK starts typing. Phones and
     // tablets type straight away when the field is tapped.
@@ -477,9 +481,12 @@ fun TvTextField(
         focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down)
     }
     val active = focused || hovered
+    val forma = raio?.let { androidx.compose.foundation.shape.RoundedCornerShape(it) } ?: SetupStyle.Shape
     Column(Modifier.fillMaxWidth()) {
-        Text(label, fontSize = 12.sp, color = if (active) Palette.Text else Palette.TextDim)
-        Spacer(Modifier.height(6.dp))
+        if (label.isNotEmpty()) {
+            Text(label, fontSize = if (raio != null) 14.sp else 12.sp, color = if (active || raio != null) Palette.Text else Palette.TextDim)
+            Spacer(Modifier.height(6.dp))
+        }
         Box(
             fieldModifier
                 .fillMaxWidth()
@@ -490,17 +497,26 @@ fun TvTextField(
                         indication = null,
                     ) { editing = true } else Modifier
                 )
-                .background(SetupStyle.Field, SetupStyle.Shape)
+                .background(if (raio != null) Color(0xCC0E0E10) else SetupStyle.Field, forma)
                 .border(
                     if (active) 1.5.dp else 1.dp,
                     when {
                         focused -> Palette.Accent
-                        hovered -> Color(0xFF8A98A8)
-                        else -> SetupStyle.FieldEdge
+                        hovered -> if (raio != null) Palette.Accent else Color(0xFF8A98A8)
+                        else -> if (raio != null) Color(0x33FFFFFF) else SetupStyle.FieldEdge
                     },
-                    SetupStyle.Shape,
+                    forma,
                 ),
         ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+        if (icone != null) {
+            Spacer(Modifier.width(14.dp))
+            AppIcon(icone, tint = Color(0xB3FFFFFF), size = 20.dp)
+        }
+        Box(Modifier.weight(1f)) {
+        if (value.isEmpty() && placeholder != null) {
+            Text(placeholder, color = Color(0x66FFFFFF), fontSize = 15.sp, modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp))
+        }
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -529,6 +545,8 @@ fun TvTextField(
                 }
                 .padding(horizontal = 14.dp, vertical = 11.dp),
         )
+        }
+        }
         }
     }
 }
