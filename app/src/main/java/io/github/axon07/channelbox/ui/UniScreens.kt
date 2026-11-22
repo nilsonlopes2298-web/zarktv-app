@@ -194,10 +194,35 @@ fun UniShell(
                 }
                 if (!compacto) {
                     Spacer(Modifier.width(16.dp))
+                    // Conexão (Wi-Fi / cabo / sem internet), atualizada junto com o relógio.
+                    val ctxRede = androidx.compose.ui.platform.LocalContext.current
+                    val rede = remember(hora) {
+                        runCatching {
+                            val cm = ctxRede.getSystemService(android.net.ConnectivityManager::class.java)
+                            val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+                            when {
+                                caps == null -> 0
+                                caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET) -> 2
+                                caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) -> 1
+                                else -> 3
+                            }
+                        }.getOrDefault(1)
+                    }
                     Text(
-                        java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(hora)),
-                        color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold,
+                        when (rede) { 0 -> "⚠ Sem internet"; 2 -> "🖧 Cabo"; 3 -> "📶 Dados"; else -> "📶 Wi-Fi" },
+                        color = if (rede == 0) Color(0xFFFF5252) else Color(0xCCFFFFFF), fontSize = 13.sp,
                     )
+                    Spacer(Modifier.width(12.dp))
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(hora)),
+                            color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            java.text.SimpleDateFormat("EEE, dd/MM", java.util.Locale("pt", "BR")).format(java.util.Date(hora)),
+                            color = Color(0xCCFFFFFF), fontSize = 12.sp,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(if (compacto) 6.dp else 10.dp))
