@@ -245,13 +245,8 @@ fun ZarkLoginScreen(
         }
     }
     val versao = io.github.axon07.channelbox.BuildConfig.VERSION_NAME
-    val logoApp: @Composable (androidx.compose.ui.unit.Dp) -> Unit = { tam ->
-        androidx.compose.foundation.Image(
-            painter = androidx.compose.ui.res.painterResource(io.github.axon07.channelbox.R.drawable.zark_logo),
-            contentDescription = "ZarkTV",
-            modifier = Modifier.size(tam),
-        )
-    }
+    // Entrada só com o nome ZarkTV (o ícone fica só no atalho do aparelho).
+    val logoApp: @Composable (androidx.compose.ui.unit.Dp) -> Unit = { _ -> }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF070607))) {
         FundoRiscosVermelhos()
@@ -263,7 +258,6 @@ fun ZarkLoginScreen(
                 Column(Modifier.weight(1f).padding(end = 36.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         logoApp(if (baixo) 72.dp else 96.dp)
-                        Spacer(Modifier.width(18.dp))
                         Text("Zark", color = Color.White, fontSize = if (baixo) 48.sp else 64.sp, fontWeight = FontWeight.Bold)
                         Text("TV", color = Palette.Accent, fontSize = if (baixo) 48.sp else 64.sp, fontWeight = FontWeight.Bold)
                     }
@@ -294,7 +288,6 @@ fun ZarkLoginScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     logoApp(60.dp)
-                    Spacer(Modifier.width(12.dp))
                     Text("Zark", color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold)
                     Text("TV", color = Palette.Accent, fontSize = 40.sp, fontWeight = FontWeight.Bold)
                 }
@@ -517,13 +510,8 @@ fun ZarkAbertura(versao: String, carregando: Boolean = false) {
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(io.github.axon07.channelbox.R.drawable.zark_logo),
-                contentDescription = "ZarkTV",
-                modifier = Modifier.size(110.dp),
-            )
-            Spacer(Modifier.height(18.dp))
-            ZarkMarca(30)
+            // Abertura só com o nome ZarkTV (o ícone fica só no atalho do aparelho).
+            ZarkMarca(46)
             Spacer(Modifier.height(8.dp))
             Text("V $versao", color = Palette.TextDim, fontSize = 14.sp)
             if (carregando) {
