@@ -895,10 +895,12 @@ const val ADAPTIVE = -1
 private fun loadControl(size: String): androidx.media3.exoplayer.LoadControl {
     val (min, max, start, restart) = when (size) {
         "none" -> listOf(1_500, 4_000, 500, 1_000)
-        "small" -> listOf(5_000, 15_000, 700, 2_000)
+        "small" -> listOf(8_000, 20_000, 1_500, 3_500)
         "large" -> listOf(30_000, 60_000, 4_000, 8_000)
         "xlarge" -> listOf(60_000, 120_000, 6_000, 12_000)
-        else -> listOf(8_000, 30_000, 900, 2_500) // medium (ZarkTV: canal começa com menos de 1 s guardado)
+        // medium (ZarkTV): guarda ~2,5 s antes de começar e 5 s depois de travar, para não ficar
+        // abrindo e carregando de novo logo em seguida; mantém até 40 s guardados.
+        else -> listOf(15_000, 40_000, 2_500, 5_000)
     }
     return androidx.media3.exoplayer.DefaultLoadControl.Builder()
         .setBufferDurationsMs(min, max, start, restart)
