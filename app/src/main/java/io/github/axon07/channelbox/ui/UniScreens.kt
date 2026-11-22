@@ -413,7 +413,7 @@ private fun AbaTv(
         val altPrev = minOf(maxWidth * 9f / 16f, maxHeight * 0.62f)
         Column(Modifier.fillMaxSize()) {
             Box(
-                Modifier.fillMaxWidth().height(altPrev).background(Color.Black, RoundedCornerShape(4.dp))
+                Modifier.fillMaxWidth().height(altPrev)
                     .border(2.dp, Color(0x55FFFFFF), RoundedCornerShape(4.dp))
                     .onGloballyPositioned { onPreviewRect(it.boundsInRoot()) }
                     .tap(onClick = { if (current != null) onFull() })
@@ -514,8 +514,8 @@ fun ListaDeCanais(
     LaunchedEffect(channels) { runCatching { listState.scrollToItem((inicio - 2).coerceAtLeast(0)) } }
     Column(modifier.background(Color(0x55000000), RoundedCornerShape(8.dp))) {
         Row(Modifier.fillMaxWidth().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            PillButton("◀", onClick = onPrevGroup)
-            Box(Modifier.weight(1f).padding(horizontal = 6.dp)) {
+            // Sem botões ◀ ▶: toca/OK no nome do grupo abre a lista de grupos.
+            Box(Modifier.weight(1f)) {
                 LinhaFocavel(selecionado = verGrupos, onClick = { verGrupos = !verGrupos }) {
                     Text(
                         (groups.firstOrNull { it.first == currentGroup }?.second ?: groupLabel.ifBlank { "Lista de Canais" }) + if (verGrupos) "  ▲" else "  ▼",
@@ -524,7 +524,6 @@ fun ListaDeCanais(
                     )
                 }
             }
-            PillButton("▶", onClick = onNextGroup)
         }
         if (verGrupos && groups.isNotEmpty()) {
             // Grupos de canais (o ★ Favoritos é um deles).
