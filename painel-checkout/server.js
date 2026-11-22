@@ -36,8 +36,8 @@ const CONFIG_PADRAO = {
   mpEmailPagador: 'cliente@zarktvqx.cfd',
   ipHandle: '',
   planos: [
-    { id: 'mensal', nome: 'Mensal', dias: 30, valor: 30 },
-    { id: 'trimestral', nome: 'Trimestral', dias: 90, valor: 80 },
+    { id: 'mensal', nome: 'Mensal', dias: 30, valor: 35 },
+    { id: 'anual', nome: 'Anual', dias: 365, valor: 350 },
   ],
   servidores: ['Club', 'Uniplay', 'Five', 'Live'],
   whats: { url: '', apikey: '', instancia: '', numeroAdmin: '558587890473', avisarCliente: true },

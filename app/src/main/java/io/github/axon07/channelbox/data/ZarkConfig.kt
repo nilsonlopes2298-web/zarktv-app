@@ -85,12 +85,17 @@ object ZarkConfig {
      * e o servidor do cliente. Sem esse campo, cai no WhatsApp do suporte.
      */
     /** Endereço do checkout no painel (campo "checkout" do config.json), sem parâmetros; null se não tiver. */
+    /** Checkout Pix do painel; sem o campo no config.json usa o checkout padrão do ZarkTV Cloud. */
+    const val CHECKOUT_PADRAO = "https://painel.zarktvqx.cfd/checkout"
+
     fun checkoutBase(context: Context): String? {
-        val txt = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_CONFIG, null) ?: return null
-        return runCatching {
-            val o = Json.parseToJsonElement(txt) as? JsonObject
-            listOf("checkout", "pagamento", "checkout_url").firstNotNullOfOrNull { k -> (o?.get(k) as? JsonPrimitive)?.content?.takeIf { s -> s.startsWith("http") } }
-        }.getOrNull()?.substringBefore('?')?.trimEnd('/')
+        val txt = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_CONFIG, null)
+        return (txt?.let {
+            runCatching {
+                val o = Json.parseToJsonElement(it) as? JsonObject
+                listOf("checkout", "pagamento", "checkout_url").firstNotNullOfOrNull { k -> (o?.get(k) as? JsonPrimitive)?.content?.takeIf { s -> s.startsWith("http") } }
+            }.getOrNull()
+        } ?: CHECKOUT_PADRAO).substringBefore('?').trimEnd('/')
     }
 
     fun checkoutUrl(context: Context, user: String, server: String): String {
@@ -100,7 +105,7 @@ object ZarkConfig {
                 val o = Json.parseToJsonElement(it) as? JsonObject
                 listOf("checkout", "pagamento", "checkout_url").firstNotNullOfOrNull { k -> (o?.get(k) as? JsonPrimitive)?.content?.takeIf { s -> s.startsWith("http") } }
             }.getOrNull()
-        } ?: return WHATSAPP + "?text=" + URLEncoder.encode("Olá! Quero renovar meu ZarkTV. Usuário: $user", "UTF-8")
+        } ?: CHECKOUT_PADRAO
         val sep = if ('?' in base) "&" else "?"
         return base + sep + "usuario=" + URLEncoder.encode(user, "UTF-8") + "&servidor=" + URLEncoder.encode(server, "UTF-8")
     }
