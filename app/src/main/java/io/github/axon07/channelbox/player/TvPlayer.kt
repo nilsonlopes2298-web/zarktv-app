@@ -106,6 +106,7 @@ class TvPlayer(
     private var spec: StreamSpec? = null
     /** Quantas alternativas (formato/identificação) já tentou neste canal. */
     private var tentativaAlternativa = 0
+    private var primeiroErroVod: String? = null
     private var avisouDesistencia = false
     /** Chamado quando um canal ao vivo esgota todas as tentativas. */
     var aoDesistir: (() -> Unit)? = null
@@ -351,6 +352,7 @@ class TvPlayer(
         }
         attempt = 0
         tentativaAlternativa = 0
+        primeiroErroVod = null
         avisouDesistencia = false
         confirmed = false
         retries = 0
@@ -558,8 +560,15 @@ class TvPlayer(
     private fun describe(error: PlaybackException): String {
         var cause: Throwable? = error
         while (cause != null && cause !is HttpDataSource.InvalidResponseCodeException) cause = cause.cause
-        val code = (cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-            ?: return error.errorCodeName
+        val ex = cause as? HttpDataSource.InvalidResponseCodeException
+        val code = ex?.responseCode ?: return error.errorCodeName
+        // Diagnóstico: endereço (sem a senha) e o que o servidor respondeu.
+        val resposta = runCatching { String(ex.responseBody, Charsets.UTF_8) }.getOrDefault("")
+            .replace(Regex("<[^>]*>"), " ").replace(Regex("\\s+"), " ").trim().take(90)
+        runCatching {
+            val u = ex.dataSpec.uri.toString().replace(Regex("""/(live|movie|series)/([^/]+)/[^/]+/"""), "/$1/$2/***/")
+            android.util.Log.w("ZarkPlayer", "HTTP $code em $u resposta=[$resposta] cabecalhos=${ex.headerFields}")
+        }
         val hint = when (code) {
             400 -> "o servidor recusou este arquivo – pode estar fora do ar no servidor"
             401, 403 -> "o servidor recusou – a conta pode estar em uso em outro aparelho ou vencida"
@@ -568,7 +577,8 @@ class TvPlayer(
             in 500..599 -> "o servidor está com problema"
             else -> null
         }
-        return if (hint != null) "HTTP $code: $hint" else "HTTP $code"
+        val extra = if (resposta.isNotBlank()) "\nServidor: $resposta" else ""
+        return (if (hint != null) "HTTP $code: $hint" else "HTTP $code") + extra
     }
 
     private fun failed(reason: String) {
@@ -596,6 +606,7 @@ class TvPlayer(
         // ZarkTV: filme/episódio Xtream que o servidor recusou (HTTP 400/403/404…) → tenta com outra
         // identificação do app e outra extensão (mp4/mkv) antes de desistir. Uniplay e outros recusam o ExoPlayer.
         val ehVod = atual != null && Regex("""/(movie|series)/[^/]+/[^/]+/[^/?]+\.\w+(\?|$)""").containsMatchIn(atual.url)
+        if (atual != null && ehVod && !isLive && tentativaAlternativa == 0) primeiroErroVod = reason
         if (atual != null && ehVod && !isLive && tentativaAlternativa < ALT_VOD.size) {
             val (ext, ua) = ALT_VOD[tentativaAlternativa++]
             val url = if (ext == null) atual.url else atual.url.replace(Regex("""\.\w+(\?|$)"""), ".$ext$1")
@@ -607,7 +618,7 @@ class TvPlayer(
             return
         }
         if (!isLive) {
-            _status.value = PlayerStatus.Error("Não foi possível reproduzir ($reason)")
+            _status.value = PlayerStatus.Error("Não foi possível reproduzir (${primeiroErroVod ?: reason})")
             return
         }
         // Avisa uma vez (por canal) que esgotou as tentativas: o app pode abrir outra versão do mesmo canal.
@@ -834,6 +845,7 @@ class TvPlayer(
             null to "IPTVSmartersPlayer",
             "mp4" to "VLC/3.0.20 LibVLC/3.0.20",
             "mkv" to "VLC/3.0.20 LibVLC/3.0.20",
+            "m3u8" to null,
         )
 
         private val ALTERNATIVAS = listOf(
