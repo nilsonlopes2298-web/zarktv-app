@@ -285,6 +285,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     val filtrosLista by vm.filters.collectAsStateWithLifecycle()
     val zarkCtx = LocalContext.current
     var ajustesVolta by remember { mutableStateOf(Mode.HOME) }
+    var sairAberto by remember { mutableStateOf(false) }
     var tutorialVisto by remember { mutableStateOf(zarkCtx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getBoolean("tutorial_visto", false)) }
     var playerExterno by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkConfig.playerExterno(zarkCtx)) }
     /** When the groups menu was opened (for [groupsBack]). */
@@ -393,8 +394,9 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     }
 
     fun askExit(returnTo: Mode) {
+        // ZarkTV: a pergunta aparece por cima da tela atual (não troca de tela nem abre canal atrás).
         exitReturn = returnTo
-        mode = Mode.EXIT_CONFIRM
+        sairAberto = true
     }
 
     /** Back on the side menu – the last step before leaving. */
@@ -412,7 +414,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     exitApp()
                 } else {
                     exitArmedAt = t
-                    vm.showToast("Press Back again to exit")
+                    vm.showToast("Aperte Voltar de novo para sair")
                 }
             }
             BackAction.OPEN_GUIDE -> mode = Mode.GUIDE // never exit: go round to the guide
@@ -1276,6 +1278,20 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             delay(250)
         }
     }
+    // Séries: terminou o episódio, começa o próximo sozinho (sem perguntar).
+    LaunchedEffect(pbEnded) {
+        if (!pbEnded || mode != Mode.PLAYBACK || playbackReturn != Mode.VOD) return@LaunchedEffect
+        val ep = vodPreviewItem ?: return@LaunchedEffect
+        val sh = vodPreviewShow ?: return@LaunchedEffect
+        val lista = vodBrowser.episodes.orEmpty()
+        val i = lista.indexOfFirst { it.id == ep.id }
+        val prox = if (i >= 0) lista.getOrNull(i + 1) else null
+        if (prox != null) {
+            vm.showToast("Próximo episódio: T${prox.season} E${prox.episode}")
+            delay(1_500)
+            if (mode == Mode.PLAYBACK) startVod(prox, sh, 0)
+        }
+    }
     LaunchedEffect(playbackToken) {
         playbackOverlay = true
         delay(4_000)
@@ -1317,6 +1333,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     // ---- Back: TV → Guide → Groups → Exit? ----------------------------------------------------
 
     BackHandler(enabled = !(mode == Mode.SETUP && (!settings.hasSource || zarkTrocarConta))) {
+        if (sairAberto) { sairAberto = false; return@BackHandler }
         when (mode) {
             Mode.PLAYER -> when {
                 digits.isNotEmpty() -> digits = ""
@@ -2385,6 +2402,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     })
                 }
             }
+            if (sairAberto) DialogoSair(onSair = { sairAberto = false; exitApp() }, onCancelar = { sairAberto = false })
             toast?.let { ToastMessage(it.text) }
         }
     }
