@@ -293,6 +293,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     val showCount by vm.showCount.collectAsStateWithLifecycle()
     /** Movie/episode waiting for "Resume or start over?", with where you stopped. */
     var vodResume by remember { mutableStateOf<Triple<VodEntity, VodEntity?, Long>?>(null) }
+    var pixAberto by remember { mutableStateOf(false) }
     var previewPergunta by remember { mutableStateOf<Triple<VodEntity, VodEntity?, Long>?>(null) }
     val scope = rememberCoroutineScope()
     /** Last key press or touch, for closing the guide/menus when idle. */
@@ -1776,11 +1777,16 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 val pl = settings.playlists.firstOrNull { it.enabled } ?: settings.playlists.firstOrNull()
                 val ctx = LocalContext.current
                 val uri = androidx.compose.ui.platform.LocalUriHandler.current
-                val pagar = {
+                val abrirPaginaPagamento = {
                     runCatching {
                         uri.openUri(io.github.axon07.channelbox.data.ZarkConfig.checkoutUrl(ctx, pl?.xtUser.orEmpty(), pl?.name.orEmpty()))
                     }.onFailure { vm.showToast("Fale com o suporte no WhatsApp: (85) 8789-0473") }
                     Unit
+                }
+                // Pagar agora: Pix com QR Code dentro do app (se o painel tiver o checkout); senão abre a página.
+                val pagar = {
+                    if (io.github.axon07.channelbox.data.ZarkConfig.checkoutBase(ctx) != null) pixAberto = true
+                    else abrirPaginaPagamento()
                 }
                 val suporte = {
                     runCatching { uri.openUri(io.github.axon07.channelbox.data.ZarkConfig.WHATSAPP) }
@@ -1978,6 +1984,18 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     },
                     onVoltar = { mode = Mode.HOME },
                 )
+                if (pixAberto) {
+                    androidx.activity.compose.BackHandler { pixAberto = false }
+                    PixDialogo(
+                        http = vm.zarkHttp,
+                        checkout = io.github.axon07.channelbox.data.ZarkConfig.checkoutBase(ctx) ?: "",
+                        usuario = pl?.xtUser.orEmpty(),
+                        servidor = pl?.name.orEmpty(),
+                        onFechar = { pixAberto = false },
+                        onAbrirPagina = { pixAberto = false; abrirPaginaPagamento() },
+                        onSuporte = { pixAberto = false; suporte() },
+                    )
+                }
                 // Tutorial da primeira vez (como o "Otimizada a operação…" da UniTV).
                 if (mode == Mode.HOME && !ZarkLayout.leve.value && !tutorialVisto && allChannels.isNotEmpty()) {
                     ZarkTutorial {

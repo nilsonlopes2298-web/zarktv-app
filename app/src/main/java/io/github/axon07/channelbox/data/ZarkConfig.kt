@@ -80,6 +80,15 @@ object ZarkConfig {
      * Link do checkout do painel (campo "checkout" ou "pagamento" no config.json), com o usuário
      * e o servidor do cliente. Sem esse campo, cai no WhatsApp do suporte.
      */
+    /** Endereço do checkout no painel (campo "checkout" do config.json), sem parâmetros; null se não tiver. */
+    fun checkoutBase(context: Context): String? {
+        val txt = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_CONFIG, null) ?: return null
+        return runCatching {
+            val o = Json.parseToJsonElement(txt) as? JsonObject
+            listOf("checkout", "pagamento", "checkout_url").firstNotNullOfOrNull { k -> (o?.get(k) as? JsonPrimitive)?.content?.takeIf { s -> s.startsWith("http") } }
+        }.getOrNull()?.substringBefore('?')?.trimEnd('/')
+    }
+
     fun checkoutUrl(context: Context, user: String, server: String): String {
         val txt = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_CONFIG, null)
         val base = txt?.let {

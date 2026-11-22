@@ -374,6 +374,36 @@ async function rotas(req, res) {
     return enviar(res, 200, paginaCheckout({ usuario: url.searchParams.get('usuario') || '', servidor: url.searchParams.get('servidor') || '' }));
   }
 
+  // ---- API do app ZarkTV (Perfil → Pagar agora): planos, gerar Pix e conferir pagamento ----
+  if (req.method === 'GET' && rota === '/checkout/api/planos') {
+    return json(res, 200, { planos: cfg.planos.map((p) => ({ id: p.id, nome: p.nome, dias: p.dias, valor: Number(p.valor) })), gateway: cfg.gateway });
+  }
+  if (req.method === 'POST' && rota === '/checkout/api/pix') {
+    if (limitar(ipDe(req))) return json(res, 429, { erro: 'Muitas tentativas. Aguarde alguns minutos.' });
+    const b = await lerCorpo(req);
+    const plano = cfg.planos.find((p) => p.id === b.plano) || cfg.planos[0];
+    const usuario = String(b.usuario || '').trim().slice(0, 60);
+    if (!usuario || !plano) return json(res, 400, { erro: 'Informe o usuário e o plano.' });
+    const p = {
+      id: 'ZK' + Date.now().toString(36).toUpperCase() + crypto.randomBytes(3).toString('hex').toUpperCase(),
+      criadoEm: agora(), status: 'pendente', gateway: cfg.gateway, origem: 'app',
+      usuario, servidor: cfg.servidores.includes(b.servidor) ? b.servidor : (cfg.servidores[0] || ''),
+      whatsapp: '', planoId: plano.id, planoNome: plano.nome, dias: plano.dias, valor: plano.valor,
+    };
+    try {
+      Object.assign(p, cfg.gateway === 'infinitepay' ? await criarLinkInfinitePay(cfg, p) : await criarPixMercadoPago(cfg, p));
+    } catch (e) {
+      console.error('Falha ao gerar Pix (app):', e.message);
+      return json(res, 502, { erro: 'Não foi possível gerar o Pix agora. Tente de novo ou fale com o suporte.' });
+    }
+    salvarPedido(p);
+    whats(cfg.whats.numeroAdmin, `🧾 *Novo pedido (app)* — ZarkTV\n👤 ${p.usuario} (${p.servidor})\n📦 ${p.planoNome} · ${brl(p.valor)}\n💳 ${p.gateway}`);
+    return json(res, 200, {
+      id: p.id, plano: p.planoNome, dias: p.dias, valor: Number(p.valor),
+      pixCopiaCola: p.pixCopiaCola || null, link: p.linkPagamento || null,
+    });
+  }
+
   if (req.method === 'POST' && rota === '/checkout/pedido') {
     if (limitar(ipDe(req))) return enviar(res, 429, pagina('Aguarde', '<div class="card"><p class="erro">Muitas tentativas. Aguarde alguns minutos.</p></div>'));
     const b = await lerCorpo(req);

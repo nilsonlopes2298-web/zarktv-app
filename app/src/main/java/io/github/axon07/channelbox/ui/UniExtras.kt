@@ -284,11 +284,9 @@ fun TileImagem(
                 Text(titulo, color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center).padding(8.dp))
             }
             if (!imagem.isNullOrBlank()) {
-                AsyncImage(
-                    imagem, titulo, contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().then(if (cor != null) Modifier.padding(start = 18.dp, top = 6.dp) else Modifier),
-                    alpha = if (cor != null) 0.85f else 1f,
-                )
+                // Capa preenchendo o quadrado inteiro; a cor do atalho fica numa faixa por baixo do nome.
+                AsyncImage(imagem, titulo, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                if (cor != null) Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, cor.copy(alpha = 0.85f)))))
             }
             if (rotulo && titulo != null) {
                 Box(
