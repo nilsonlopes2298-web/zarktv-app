@@ -166,7 +166,8 @@ fun UniShell(
     val tabFocus = remember { List(Aba.nomes.size) { FocusRequester() } }
     LaunchedEffect(Unit) {
         delay(150)
-        runCatching { tabFocus[tab].requestFocus() }
+        // Voltando da tela cheia para a aba TV: o foco fica no canal (ListaDeCanais), não na aba.
+        if (!(voltouDoCanal.value && tab == Aba.TV)) runCatching { tabFocus[tab].requestFocus() }
     }
     if (!Aba.temPrevia(tab) && !(tab == Aba.JOGOS && jogoAberto != null)) LaunchedEffect(Unit) { onPreviewRect(null) }
 
@@ -231,7 +232,7 @@ fun UniShell(
 
             // ---- Abas ----
             // Subindo do conteúdo para as abas, o foco cai sempre na aba aberta (não numa vizinha, que trocaria a aba).
-            LaunchedEffect(tab) { runCatching { tabFocus[tab].requestFocus() } }
+            LaunchedEffect(tab) { if (!(voltouDoCanal.value && tab == Aba.TV)) runCatching { tabFocus[tab].requestFocus() } }
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(if (compacto) 4.dp else 14.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -519,6 +520,16 @@ fun ListaDeCanais(
     val listState = rememberLazyListState()
     val inicio = channels.indexOfFirst { it.id == current?.id }.coerceAtLeast(0)
     LaunchedEffect(channels) { runCatching { listState.scrollToItem((inicio - 2).coerceAtLeast(0)) } }
+    val focoCanal = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        if (voltouDoCanal.value) {
+            delay(250)
+            runCatching { listState.scrollToItem((inicio - 2).coerceAtLeast(0)) }
+            delay(50)
+            runCatching { focoCanal.requestFocus() }
+            voltouDoCanal.value = false
+        }
+    }
     Column(modifier.background(Color(0x55000000), RoundedCornerShape(8.dp))) {
         Row(Modifier.fillMaxWidth().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
             // Sem botões ◀ ▶: toca/OK no nome do grupo abre a lista de grupos.
@@ -554,6 +565,7 @@ fun ListaDeCanais(
                 val tocando = ch.id == current?.id
                 LinhaFocavel(
                     selecionado = tocando,
+                    modifier = if (tocando) Modifier.focusRequester(focoCanal) else Modifier,
                     onLongClick = { onFavorite(ch) },
                     onClick = { if (tocando) onFull() else onPick(ch) },
                 ) {
@@ -1265,3 +1277,7 @@ private fun CartaoJogo(modifier: Modifier = Modifier, onClick: () -> Unit, conte
             .clickable(onClick = onClick)
     ) { content() }
 }
+
+
+/** Marcado ao voltar da tela cheia para a lista: o foco volta para o canal que estava tocando. */
+internal val voltouDoCanal = androidx.compose.runtime.mutableStateOf(false)

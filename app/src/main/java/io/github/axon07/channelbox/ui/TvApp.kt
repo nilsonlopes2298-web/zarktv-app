@@ -1340,7 +1340,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 digits.isNotEmpty() -> digits = ""
                 touchBar -> touchBar = false
                 bannerVisible -> bannerVisible = false
-                else -> if (ZarkLayout.leve.value) mode = Mode.LIVE else { if (jogoAberto == null) homeTab = Aba.TV; mode = Mode.HOME } // ZarkTV: volta para a lista de canais (ou para o jogo)
+                else -> if (ZarkLayout.leve.value) mode = Mode.LIVE else { if (jogoAberto == null) { homeTab = Aba.TV; voltouDoCanal.value = true }; mode = Mode.HOME } // ZarkTV: volta para a lista de canais (ou para o jogo)
             }
             Mode.CHANNEL_LIST -> if (gruposAbertos) gruposAbertos = false else mode = Mode.PLAYER
             Mode.GUIDE -> openGroups()
