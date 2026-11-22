@@ -189,9 +189,8 @@ fun ZarkLoginScreen(
                     Text("Use o usuário e a senha que você recebeu.", color = Color(0xCCFFFFFF), fontSize = 13.sp)
                 }
             }
-            Box(Modifier.focusRequester(first)) {
-                TvTextField("Usuário", user, { user = it; erro = null }, placeholder = "Digite seu usuário", icone = AppIcons.User, raio = 12.dp)
-            }
+            // O foco do controle já começa no campo Usuário (contorno vermelho mostra onde está).
+            TvTextField("Usuário", user, { user = it; erro = null }, placeholder = "Digite seu usuário", icone = AppIcons.User, raio = 12.dp, fieldModifier = Modifier.focusRequester(first))
             Row(verticalAlignment = Alignment.Bottom) {
                 Box(Modifier.weight(1f)) {
                     TvTextField("Senha", pass, { pass = it; erro = null }, password = !verSenha, placeholder = "Digite sua senha", icone = AppIcons.Lock, raio = 12.dp)
@@ -202,11 +201,7 @@ fun ZarkLoginScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Caixinha("Lembrar de mim", lembrar) { lembrar = !lembrar }
                 Spacer(Modifier.weight(1f))
-                Text(
-                    if (manual) "Servidor automático" else "Escolher servidor",
-                    color = Color(0xCCFFFFFF), fontSize = 13.sp,
-                    modifier = Modifier.tap(onClick = { manual = !manual }).padding(4.dp),
-                )
+                BotaoIconeTexto(if (manual) "Servidor automático" else "Escolher servidor", AppIcons.Globe, Modifier.height(38.dp)) { manual = !manual }
             }
             if (manual) {
                 androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -461,11 +456,11 @@ private fun Caixinha(label: String, marcado: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun BotaoCheio(label: String, cor: Color, enabled: Boolean = true, altura: Int = 52, onClick: () -> Unit) {
+fun BotaoCheio(label: String, cor: Color, enabled: Boolean = true, altura: Int = 52, modifier: Modifier = Modifier, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().height(altura.dp).onFocusChanged { focused = it.isFocused }
+        modifier = modifier.fillMaxWidth().height(altura.dp).onFocusChanged { focused = it.isFocused }
             .border(if (focused) 3.dp else 0.dp, if (focused) Color.White else Color.Transparent, RoundedCornerShape(12.dp))
             .tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),

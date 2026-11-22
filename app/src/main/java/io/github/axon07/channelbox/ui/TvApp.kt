@@ -1224,10 +1224,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         }
     }
     // Live TV doesn't play behind Movies & TV Shows; it comes back when you leave them.
-    LaunchedEffect(mode, homeTab, jogoAberto != null, ZarkLayout.leve.value) {
+    LaunchedEffect(mode, homeTab, jogoAberto != null, ZarkLayout.leve.value, tutorialVisto) {
         when (mode) {
             Mode.VOD, Mode.PROFILE -> vm.enterLibrary()
-            Mode.HOME -> if (!ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else vm.enterLibrary()
+            // Tutorial da primeira vez na tela: nada toca até ele terminar.
+            Mode.HOME -> if (tutorialVisto && !ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
             // Audio & subtitles opened from a movie, episode or recording is still part of playback.
             Mode.OPTIONS -> if (optionsReturn != Mode.PLAYBACK) vm.leaveLibrary()

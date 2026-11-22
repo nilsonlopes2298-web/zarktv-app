@@ -379,10 +379,10 @@ fun ZarkTutorial(onFim: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Text("Pular", color = Color(0xAAFFFFFF), fontSize = 14.sp, modifier = Modifier.tap(onClick = onFim).padding(12.dp))
+                Box(Modifier.width(120.dp)) { BotaoCheio("Pular", Color(0x33FFFFFF), altura = 48, onClick = onFim) }
                 Spacer(Modifier.width(12.dp))
-                Box(Modifier.width(240.dp).focusRequester(botao)) {
-                    BotaoCheio(if (passo < PASSOS.lastIndex) "Próximo" else "Experimente já", Palette.Accent) {
+                Box(Modifier.width(240.dp)) {
+                    BotaoCheio(if (passo < PASSOS.lastIndex) "Próximo" else "Experimente já", Palette.Accent, altura = 48, modifier = Modifier.focusRequester(botao)) {
                         if (passo < PASSOS.lastIndex) passo++ else onFim()
                     }
                 }
