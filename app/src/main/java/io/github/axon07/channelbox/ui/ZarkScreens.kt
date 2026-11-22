@@ -135,8 +135,21 @@ fun ZarkLoginScreen(
             val (server, r) = if (manual) servers[sel] to ZarkConfig.login(vm.zarkHttp, servers[sel], user.trim(), pass.trim())
             else ZarkConfig.loginAuto(vm.zarkHttp, servers, user.trim(), pass.trim())
             testing = false
+            // Conta vencida: não entra, avisa e mostra como renovar.
+            val venc: Long? = when (r) {
+                is ZarkConfig.Login.Vencida -> r.expira ?: 0L
+                is ZarkConfig.Login.Ok -> if (ZarkConfig.vencida(r)) (r.expira ?: 0L) else null
+                else -> null
+            }
+            if (venc != null) {
+                erro = "Sua conta venceu" + (if (venc > 0) " em " + ZarkConfig.dataBr(venc) else "") +
+                    ". Renove para continuar assistindo: toque em Ver planos ou fale com o suporte."
+                return@launch
+            }
             when (r) {
+                is ZarkConfig.Login.Vencida -> Unit
                 is ZarkConfig.Login.Ok -> {
+                    ZarkConfig.salvarVencimento(context, r.expira)
                     ZarkConfig.lembrar(context, if (lembrar) user.trim() else null, if (lembrar) pass.trim() else null)
                     vm.zarkConta.value = r
                     submitted = true

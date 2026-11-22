@@ -1608,8 +1608,28 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
      * Na abertura: confere a conta do servidor ZarkTV. Se o DNS salvo não responde, testa os
      * outros DNS do mesmo servidor (do config.json) e troca sozinho para o que funcionar.
      */
-    fun zarkConferir() {
-        if (zarkConferido) return
+    /** Conta vencida: o app bloqueia tudo e mostra como renovar. Guarda a data em que venceu (0 = sem data). */
+    val zarkVencida = MutableStateFlow<Long?>(null)
+    private var vigiaVencimento = false
+
+    /** Confere o vencimento sozinho: pela data guardada (a cada minuto, mesmo sem internet) e no servidor (a cada 15 min). */
+    fun zarkVigiarVencimento() {
+        if (vigiaVencimento) return
+        vigiaVencimento = true
+        viewModelScope.launch {
+            var minutos = 0
+            while (true) {
+                val exp = ZarkConfig.vencimentoSalvo(getApplication())
+                if (exp != null && exp < System.currentTimeMillis()) zarkVencida.value = exp
+                if (minutos % 15 == 0) zarkConferir(forcar = true)
+                minutos++
+                kotlinx.coroutines.delay(60_000)
+            }
+        }
+    }
+
+    fun zarkConferir(forcar: Boolean = false) {
+        if (zarkConferido && !forcar) return
         zarkConferido = true
         viewModelScope.launch {
             val s = c.settings.current()
@@ -1624,8 +1644,14 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             // O DNS salvo primeiro; depois os outros do mesmo servidor.
             val dns = (listOf(atual) + grupo?.dns.orEmpty()).distinct()
             when (val r = ZarkConfig.login(c.http, ZarkConfig.Server(p.name, dns), p.xtUser, p.xtPass)) {
+                is ZarkConfig.Login.Vencida -> {
+                    ZarkConfig.salvarVencimento(getApplication(), r.expira ?: 1L)
+                    zarkVencida.value = r.expira ?: 0L
+                }
                 is ZarkConfig.Login.Ok -> {
                     zarkConta.value = r
+                    ZarkConfig.salvarVencimento(getApplication(), r.expira)
+                    zarkVencida.value = if (ZarkConfig.vencida(r)) (r.expira ?: 0L) else null
                     if (r.dns != atual) {
                         showToast("Servidor trocado automaticamente")
                         savePlaylist(p.copy(xtServer = r.dns))
@@ -1710,6 +1736,8 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
 
     fun zarkLimparConta() {
         zarkConta.value = null
+        zarkVencida.value = null
+        ZarkConfig.salvarVencimento(getApplication(), null)
         zarkConferido = false
     }
 

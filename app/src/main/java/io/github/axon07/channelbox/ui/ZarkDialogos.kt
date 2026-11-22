@@ -160,3 +160,45 @@ fun DialogoSair(onSair: () -> Unit, onCancelar: () -> Unit) {
         }
     }
 }
+
+
+/** Conta vencida: bloqueia o app inteiro, avisa e mostra como renovar. */
+@Composable
+fun TelaVencida(
+    venceuEm: Long?,
+    usuario: String,
+    onPagar: () -> Unit,
+    onConferir: () -> Unit,
+    onSuporte: () -> Unit,
+    onTrocarConta: () -> Unit,
+) {
+    val foco = remember { FocusRequester() }
+    LaunchedEffect(Unit) { delay(150); runCatching { foco.requestFocus() } }
+    Box(Modifier.fillMaxSize().background(Color(0xF20B0B10)), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.width(520.dp).clip(RoundedCornerShape(18.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xFF2A1416), Color(0xFF15161C))))
+                .border(1.dp, Color(0x33FF4D57), RoundedCornerShape(18.dp))
+                .padding(horizontal = 32.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            MarcaPequena()
+            Spacer(Modifier.height(18.dp))
+            Text("Sua conta venceu", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            val quando = if (venceuEm != null && venceuEm > 1) " em " + io.github.axon07.channelbox.data.ZarkConfig.dataBr(venceuEm) else ""
+            Text(
+                "A conta $usuario venceu$quando. Renove para voltar a assistir canais, filmes e séries.",
+                color = Color(0xCCFFFFFF), fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 22.sp,
+            )
+            Spacer(Modifier.height(24.dp))
+            BotaoDialogo("Pagar agora no Pix", true, Modifier.fillMaxWidth().focusRequester(foco), onPagar)
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                BotaoDialogo("Já paguei", false, Modifier.weight(1f), onConferir)
+                BotaoDialogo("Suporte", false, Modifier.weight(1f), onSuporte)
+                BotaoDialogo("Trocar conta", false, Modifier.weight(1f), onTrocarConta)
+            }
+        }
+    }
+}

@@ -2403,6 +2403,44 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     })
                 }
             }
+            // Conta vencida: bloqueia tudo (nada toca) até renovar.
+            val vencida by vm.zarkVencida.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) { vm.zarkVigiarVencimento() }
+            if (vencida != null && mode != Mode.SETUP) {
+                LaunchedEffect(vencida, mode) {
+                    vm.stopVod()
+                    vm.player.stop()
+                    runCatching { vm.player.exo.clearMediaItems() }
+                    vodBrowser.previewId = null
+                    jogoAberto = null
+                }
+                val plV = settings.playlists.firstOrNull { it.enabled } ?: settings.playlists.firstOrNull()
+                var pixVencida by remember { mutableStateOf(false) }
+                androidx.activity.compose.BackHandler { if (pixVencida) pixVencida = false else exitApp() }
+                TelaVencida(
+                    venceuEm = vencida,
+                    usuario = plV?.xtUser.orEmpty(),
+                    onPagar = { pixVencida = true },
+                    onConferir = { vm.showToast("Conferindo seu pagamento…"); vm.zarkConferir(forcar = true) },
+                    onSuporte = { runCatching { zarkCtx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(io.github.axon07.channelbox.data.ZarkConfig.WHATSAPP + "?text=" + android.net.Uri.encode("Olá! Minha conta ZarkTV venceu, quero renovar. Usuário: " + plV?.xtUser.orEmpty()))).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } },
+                    onTrocarConta = {
+                        plV?.let { vm.removePlaylist(it.id) }
+                        vm.zarkLimparConta()
+                        zarkTrocarConta = true
+                        setupPlaylistId = null
+                        mode = Mode.SETUP
+                    },
+                )
+                if (pixVencida) PixDialogo(
+                    http = vm.zarkHttp,
+                    checkout = io.github.axon07.channelbox.data.ZarkConfig.checkoutBase(zarkCtx) ?: "",
+                    usuario = plV?.xtUser.orEmpty(),
+                    servidor = plV?.name.orEmpty(),
+                    onFechar = { pixVencida = false },
+                    onAbrirPagina = { pixVencida = false },
+                    onSuporte = { pixVencida = false },
+                )
+            }
             if (sairAberto) DialogoSair(onSair = { sairAberto = false; exitApp() }, onCancelar = { sairAberto = false })
             toast?.let { ToastMessage(it.text) }
         }

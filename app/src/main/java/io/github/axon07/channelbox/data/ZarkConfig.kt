@@ -156,7 +156,22 @@ object ZarkConfig {
         data class Ok(val dns: String, val expira: Long?, val status: String) : Login
         object SenhaErrada : Login
         object SemResposta : Login
+        /** Usuário e senha certos, mas a conta venceu. */
+        data class Vencida(val expira: Long?) : Login
     }
+
+    /** Conta vencida: status "Expired" do servidor ou data de vencimento já passou. */
+    fun vencida(ok: Login.Ok): Boolean =
+        ok.status.equals("Expired", ignoreCase = true) || (ok.expira != null && ok.expira < System.currentTimeMillis())
+
+    fun dataBr(ms: Long?): String = if (ms == null) "" else
+        java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(ms))
+
+    /** Guarda o vencimento para bloquear o app mesmo sem internet quando a data passar. */
+    fun salvarVencimento(c: Context, expira: Long?) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putLong("conta_expira", expira ?: 0L).apply()
+    fun vencimentoSalvo(c: Context): Long? =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong("conta_expira", 0L).takeIf { it > 0 }
 
     /** Testa usuário e senha em cada DNS do servidor, na ordem, até um responder. */
     suspend fun login(http: OkHttpClient, server: Server, user: String, pass: String): Login = withContext(Dispatchers.IO) {
@@ -170,12 +185,13 @@ object ZarkConfig {
             val txt = IDENTIDADES.firstNotNullOfOrNull { ua -> get(http, api, ua)?.takeIf { it.contains("user_info") || it.trim().startsWith("{") } } ?: continue
             val info = runCatching { (Json.parseToJsonElement(txt) as? JsonObject)?.get("user_info") as? JsonObject }.getOrNull()
             val auth = (info?.get("auth") as? JsonPrimitive)?.content
+            val exp = (info?.get("exp_date") as? JsonPrimitive)?.content?.toLongOrNull()?.takeIf { it > 0 }?.times(1000)
+            val status = (info?.get("status") as? JsonPrimitive)?.content.orEmpty()
+            if (info != null && status.equals("Expired", ignoreCase = true)) return@withContext Login.Vencida(exp)
             if (info == null || auth == "0") {
                 wrong = true
                 continue
             }
-            val exp = (info["exp_date"] as? JsonPrimitive)?.content?.toLongOrNull()?.takeIf { it > 0 }?.times(1000)
-            val status = (info["status"] as? JsonPrimitive)?.content.orEmpty()
             return@withContext Login.Ok(base, exp, status)
         }
         if (wrong) Login.SenhaErrada else Login.SemResposta
@@ -191,14 +207,17 @@ object ZarkConfig {
             val canal = kotlinx.coroutines.channels.Channel<Pair<Server, Login>>(servers.size)
             val jobs = servers.map { s -> launch { canal.send(s to runCatching { login(http, s, user, pass) }.getOrDefault(Login.SemResposta)) } }
             var resposta: Login = Login.SemResposta
+            var vencida: Pair<Server, Login>? = null
             repeat(servers.size) {
                 val (s, r) = canal.receive()
                 if (r is Login.Ok) {
                     jobs.forEach { it.cancel() }
                     return@coroutineScope s to r
                 }
+                if (r is Login.Vencida && vencida == null) vencida = s to r
                 if (r == Login.SenhaErrada) resposta = r
             }
+            vencida?.let { return@coroutineScope it }
             // Ninguém respondeu a tempo: tenta mais uma vez, um por um (servidor lento ou ocupado).
             if (resposta == Login.SemResposta) {
                 for (s in servers) {
