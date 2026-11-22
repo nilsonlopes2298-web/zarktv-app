@@ -407,11 +407,13 @@ private fun AbaTv(
         // A prévia nunca ocupa mais que ~58% da altura: sempre sobra espaço para a programação (EPG) embaixo.
         BoxWithConstraints(mod) {
         // Prévia ocupa a largura toda da coluna; a altura é limitada para sempre sobrar a programação.
-        val altPrev = minOf(maxWidth * 9f / 16f, maxHeight * 0.62f)
+        // Janelinha sempre no formato do vídeo (16:9), sem faixas pretas dos lados, como na UniTV.
+        val altPrev = minOf(maxWidth * 9f / 16f, maxHeight * 0.68f)
+        val largPrev = altPrev * 16f / 9f
         var prevFoco by remember { mutableStateOf(false) }
         Column(Modifier.fillMaxSize()) {
             Box(
-                Modifier.fillMaxWidth().height(altPrev)
+                Modifier.width(largPrev).height(altPrev)
                     .onGloballyPositioned { onPreviewRect(it.boundsInRoot()) }
                     .onFocusChanged { prevFoco = it.isFocused }
                     .border(if (prevFoco) 4.dp else 2.dp, if (prevFoco) Color.White else Color(0x55FFFFFF), RoundedCornerShape(4.dp))
@@ -422,7 +424,7 @@ private fun AbaTv(
                     Modifier.align(Alignment.BottomEnd).padding(8.dp).background(Color(0xAA000000), RoundedCornerShape(6.dp)).padding(6.dp)
                 ) { Text("⛶", color = Color.White, fontSize = 18.sp) }
             }
-            Box(Modifier.fillMaxWidth().weight(1f, fill = false).background(Color(0x66000000)).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Box(Modifier.width(largPrev).weight(1f, fill = false).background(Color(0x66000000)).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp)) {
                 Column {
                     Text(current?.name ?: "", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val progs = current?.epgId?.let { upcoming[it] }.orEmpty()
@@ -485,9 +487,9 @@ private fun AbaTv(
         }
     } else {
         Row(Modifier.fillMaxSize()) {
-            lista(Modifier.weight(0.42f).fillMaxHeight())
-            Spacer(Modifier.width(22.dp))
-            previa(Modifier.weight(0.58f).fillMaxHeight())
+            lista(Modifier.weight(0.38f).fillMaxHeight())
+            Spacer(Modifier.width(18.dp))
+            previa(Modifier.weight(0.62f).fillMaxHeight())
         }
     }
 }
@@ -783,6 +785,7 @@ fun PosterTile(item: VodEntity, w: Dp, h: Dp, mostrarTitulo: Boolean = true, onC
 
 // ---- Jogos: guia de jogos do dia ----------------------------------------------------------------
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: (io.github.axon07.channelbox.data.ZarkJogos.Jogo) -> Unit) {
     var jogos by remember { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkJogos.Jogo>?>(null) }
