@@ -533,11 +533,11 @@ class TvPlayer(
         val code = (cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
             ?: return error.errorCodeName
         val hint = when (code) {
-            401, 403 -> "the provider refused it – usually the account is already playing on another device; " +
-                "otherwise the account has ended or the provider blocks this app's user agent (Settings → Network)"
-            404, 410 -> "the link no longer works – reload the playlist"
-            429, 456, 458, 509 -> "too many connections on this account – stop it on other devices"
-            in 500..599 -> "the provider's server has a problem"
+            400 -> "o servidor recusou este arquivo – pode estar fora do ar no servidor"
+            401, 403 -> "o servidor recusou – a conta pode estar em uso em outro aparelho ou vencida"
+            404, 410 -> "o arquivo não existe mais no servidor"
+            429, 456, 458, 509 -> "conexões demais nesta conta – feche em outros aparelhos"
+            in 500..599 -> "o servidor está com problema"
             else -> null
         }
         return if (hint != null) "HTTP $code: $hint" else "HTTP $code"
@@ -561,6 +561,19 @@ class TvPlayer(
             val headers = if (ua == null) atual.headers - "User-Agent" else atual.headers + ("User-Agent" to ua)
             spec = atual.copy(url = base, headers = headers, mime = if (ext == "m3u8") StreamSpecs.MIME_HLS else null)
             candidates = listOf(spec!!.mime)
+            attempt = 0
+            handler.post { start() }
+            return
+        }
+        // ZarkTV: filme/episódio Xtream que o servidor recusou (HTTP 400/403/404…) → tenta com outra
+        // identificação do app e outra extensão (mp4/mkv) antes de desistir. Uniplay e outros recusam o ExoPlayer.
+        val ehVod = atual != null && Regex("""/(movie|series)/[^/]+/[^/]+/[^/?]+\.\w+(\?|$)""").containsMatchIn(atual.url)
+        if (atual != null && ehVod && !isLive && tentativaAlternativa < ALT_VOD.size) {
+            val (ext, ua) = ALT_VOD[tentativaAlternativa++]
+            val url = if (ext == null) atual.url else atual.url.replace(Regex("""\.\w+(\?|$)"""), ".$ext$1")
+            val headers = if (ua == null) atual.headers - "User-Agent" else atual.headers + ("User-Agent" to ua)
+            spec = atual.copy(url = url, headers = headers, mime = null)
+            candidates = listOf(null)
             attempt = 0
             handler.post { start() }
             return
@@ -747,6 +760,15 @@ class TvPlayer(
         const val DEFAULT_USER_AGENT = UserAgent.DEFAULT
 
         /** Formatos e identificações tentados quando um canal Xtream não abre. */
+        /** Filmes/episódios: mesma extensão com outras identificações, depois mp4 e mkv. */
+        private val ALT_VOD = listOf<Pair<String?, String?>>(
+            null to "VLC/3.0.20 LibVLC/3.0.20",
+            null to "okhttp/4.12.0",
+            null to "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+            "mp4" to "VLC/3.0.20 LibVLC/3.0.20",
+            "mkv" to "VLC/3.0.20 LibVLC/3.0.20",
+        )
+
         private val ALTERNATIVAS = listOf(
             "m3u8" to null,
             "ts" to "VLC/3.0.20 LibVLC/3.0.20",
