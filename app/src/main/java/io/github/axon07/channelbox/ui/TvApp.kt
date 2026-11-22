@@ -2207,7 +2207,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
                 var velocidade by remember { mutableStateOf(0.0) }
                 LaunchedEffect(playerStatus) { while (playerStatus is PlayerStatus.Buffering) { velocidade = vm.player.velocidadeMBs(); delay(500) } }
-                StatusMessage(playerStatus, current, fallback, velocidade)
+                StatusMessage(playerStatus, current, fallback, velocidade, jaTocando = vm.player.jaTocou)
                 val cur = current
                 // REC and the pause badge show with the banner / controls, then hide with them.
                 val overlays = bannerVisible || touchBar

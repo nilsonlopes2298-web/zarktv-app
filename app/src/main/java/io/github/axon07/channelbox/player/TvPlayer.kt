@@ -118,6 +118,8 @@ class TvPlayer(
     private var candidates: List<String?> = listOf(null)
     private var attempt = 0
     private var confirmed = false // the current type has played at least once
+    /** O canal atual já mostrou imagem (travadas depois disso são só "carregando" no canto). */
+    val jaTocou: Boolean get() = confirmed
     private var retries = 0
     private var widevineL3 = false
     private var onDemand = false

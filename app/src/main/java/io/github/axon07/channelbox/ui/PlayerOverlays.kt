@@ -139,7 +139,24 @@ fun BoxScope.NumberEntry(digits: String, match: ChannelEntity?) {
 }
 
 @Composable
-fun BoxScope.StatusMessage(status: PlayerStatus, channel: ChannelEntity?, fallback: String?, velocidade: Double = 0.0) {
+fun BoxScope.StatusMessage(status: PlayerStatus, channel: ChannelEntity?, fallback: String?, velocidade: Double = 0.0, jaTocando: Boolean = false) {
+    // Canal que já estava passando e parou para carregar: só um aviso pequeno no canto, sem cobrir a imagem.
+    if (channel != null && status is PlayerStatus.Buffering && jaTocando) {
+        androidx.compose.foundation.layout.Row(
+            Modifier.align(Alignment.TopEnd).padding(20.dp)
+                .clip(RoundedCornerShape(20.dp)).background(Color(0x99000000))
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BolinhasCarregando(Modifier.size(22.dp))
+            androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
+            Text(
+                "Carregando" + if (velocidade > 0.05) " · " + String.format(java.util.Locale("pt", "BR"), "%.1f MB/s", velocidade) else "",
+                color = Color.White, fontSize = 13.sp,
+            )
+        }
+        return
+    }
     // ZarkTV: abrindo o canal = logo + nome do canal, anel girando em volta e barrinha passando.
     if (channel != null && status is PlayerStatus.Buffering) {
         val giro = androidx.compose.animation.core.rememberInfiniteTransition(label = "carregando")
