@@ -24,7 +24,8 @@ object ZarkConfig {
     const val CONFIG_URL = "https://tv.zarktvqx.cfd/config.json"
     const val WHATSAPP = "https://wa.me/558587890473"
 
-    data class Server(val name: String, val dns: List<String>)
+    /** [epg]: guias extras (XMLTV) do painel para este servidor, além do guia do próprio servidor. */
+    data class Server(val name: String, val dns: List<String>, val epg: List<String> = emptyList())
 
     /** Usada se o config.json não abrir e não houver cópia salva. */
     val PADRAO = listOf(
@@ -54,6 +55,20 @@ object ZarkConfig {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val fresh = get(http, CONFIG_URL)?.let { txt -> parse(txt).takeIf { it.isNotEmpty() }?.also { prefs.edit().putString(KEY_CONFIG, txt).apply() } }
         fresh ?: prefs.getString(KEY_CONFIG, null)?.let { parse(it).takeIf { l -> l.isNotEmpty() } } ?: PADRAO
+    }
+
+    /**
+     * Guias de programação (EPG) do painel para o servidor: o "epg" do próprio servidor no config.json
+     * mais o "epg" geral (vale para todos). Separados por vírgula, do jeito que a playlist guarda.
+     */
+    fun epgDoServidor(context: Context, nome: String): String {
+        val txt = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_CONFIG, null) ?: return ""
+        val geral = runCatching {
+            val o = Json.parseToJsonElement(txt) as? JsonObject
+            listOf("epg", "guia", "xmltv").flatMap { k -> o?.get(k)?.let(::urls).orEmpty() }
+        }.getOrDefault(emptyList())
+        val doServ = parse(txt).firstOrNull { it.name.equals(nome, ignoreCase = true) }?.epg.orEmpty()
+        return (doServ + geral).filter { it.startsWith("http") }.distinct().joinToString(",")
     }
 
     /** Lista salva (sem internet), para a tela abrir na hora. */
@@ -106,7 +121,8 @@ object ZarkConfig {
             ?: return null
         val dns = listOf("dns", "dnss", "urls", "hosts", "url", "host", "server", "servidor")
             .flatMap { o[it]?.let(::urls).orEmpty() }.distinct()
-        return dns.takeIf { it.isNotEmpty() }?.let { Server(name.trim(), it) }
+        val epg = listOf("epg", "guia", "xmltv").flatMap { k -> o[k]?.let(::urls).orEmpty() }.filter { it.startsWith("http") }
+        return dns.takeIf { it.isNotEmpty() }?.let { Server(name.trim(), it, epg) }
     }
 
     private fun urls(e: JsonElement): List<String> = when (e) {

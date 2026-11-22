@@ -1608,6 +1608,9 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
                 ?: return@launch
             val servers = ZarkConfig.servers(getApplication(), c.http)
             val grupo = servers.firstOrNull { it.name.equals(p.name, ignoreCase = true) }
+            // Guia de programação do painel mudou → a playlist passa a usar o novo (vale na próxima atualização diária).
+            val epgPainel = ZarkConfig.epgDoServidor(getApplication(), p.name)
+            if (epgPainel.isNotBlank() && epgPainel != p.epgUrl) savePlaylist(p.copy(epgUrl = epgPainel))
             val atual = XtreamClient.Login(p.xtServer, p.xtUser, p.xtPass).base
             // O DNS salvo primeiro; depois os outros do mesmo servidor.
             val dns = (listOf(atual) + grupo?.dns.orEmpty()).distinct()

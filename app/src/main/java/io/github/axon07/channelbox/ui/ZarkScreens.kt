@@ -148,6 +148,7 @@ fun ZarkLoginScreen(
                             xtServer = r.dns,
                             xtUser = user.trim(),
                             xtPass = pass.trim(),
+                            epgUrl = ZarkConfig.epgDoServidor(context, server.name),
                         )
                     )
                 }
