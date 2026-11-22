@@ -171,7 +171,8 @@ fun UniShell(
 
     // O fundo é desenhado atrás do vídeo (TvApp), para a prévia do canal aparecer.
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val compacto = maxWidth < 700.dp
+        // Deitado (TV, tablet ou celular) sempre no formato UniTV: lista à esquerda, janelinha à direita.
+        val compacto = maxWidth < 600.dp || maxWidth < maxHeight
         Column(Modifier.fillMaxSize().padding(start = if (compacto) 10.dp else 28.dp, end = if (compacto) 10.dp else 28.dp, top = if (compacto) 14.dp else 20.dp, bottom = if (compacto) 8.dp else 14.dp)) {
             // ---- Topo ----
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -433,7 +434,7 @@ private fun AbaTv(
         BoxWithConstraints(mod) {
         // Prévia ocupa a largura toda da coluna; a altura é limitada para sempre sobrar a programação.
         // Janelinha sempre no formato do vídeo (16:9), sem faixas pretas dos lados, como na UniTV.
-        val altPrev = minOf(maxWidth * 9f / 16f, maxHeight * 0.68f)
+        val altPrev = minOf(maxWidth * 9f / 16f, maxHeight - 60.dp)
         val largPrev = altPrev * 16f / 9f
         var prevFoco by remember { mutableStateOf(false) }
         Column(Modifier.fillMaxSize()) {
@@ -449,60 +450,32 @@ private fun AbaTv(
                     Modifier.align(Alignment.BottomEnd).padding(8.dp).background(Color(0xAA000000), RoundedCornerShape(6.dp)).padding(6.dp)
                 ) { Text("⛶", color = Color.White, fontSize = 18.sp) }
             }
-            Box(Modifier.width(largPrev).weight(1f, fill = false).background(Color(0x66000000)).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp)) {
-                Column {
-                    Text(current?.name ?: "", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    val progs = current?.epgId?.let { upcoming[it] }.orEmpty()
-                    val ctxEpg = androidx.compose.ui.platform.LocalContext.current
-                    var curto by remember(current?.id) { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkEpg.Prog>>(emptyList()) }
-                    LaunchedEffect(current?.id) {
-                        if (current != null && progs.count { it.stop > now } < 4) {
-                            curto = io.github.axon07.channelbox.data.ZarkEpg.curto(ctxEpg.container.http, current.streamUrl)
-                        }
+            // Embaixo só o nome do canal e o que está passando agora (como na UniTV).
+            Row(
+                Modifier.width(largPrev).background(Color(0x88000000), RoundedCornerShape(bottomStart = 4.dp, bottomEnd = 4.dp)).padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val progs = current?.epgId?.let { upcoming[it] }.orEmpty()
+                val ctxEpg = androidx.compose.ui.platform.LocalContext.current
+                var curto by remember(current?.id) { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkEpg.Prog>>(emptyList()) }
+                LaunchedEffect(current?.id) {
+                    if (current != null && progs.none { it.start <= now && it.stop > now }) {
+                        curto = io.github.axon07.channelbox.data.ZarkEpg.curto(ctxEpg.container.http, current.streamUrl)
                     }
-                    // Programação: o que passou, o que passa agora e os próximos, com horário.
-                    val lista = (progs.map { Triple(it.title, it.start, it.stop) } + curto.map { Triple(it.titulo, it.inicio, it.fim) })
-                        .distinctBy { it.second }.sortedBy { it.second }
-                    val iAgora = lista.indexOfFirst { it.second <= now && it.third > now }
-                    val mostrar = if (iAgora >= 0) lista.subList((iAgora - 1).coerceAtLeast(0), (iAgora + 6).coerceAtMost(lista.size))
-                        else lista.filter { it.third > now }.take(6)
-                    if (mostrar.isEmpty() && current != null) Text("Sem programação para este canal", color = Color(0x99FFFFFF), fontSize = 12.sp)
-                    mostrar.forEach { (t, i, f) ->
-                        val ag = i <= now && f > now
-                        val passou = f <= now
-                        Row(
-                            Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                                .background(if (ag) Color(0x33E50914) else Color.Transparent, RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                "${timeFormat(i)} – ${timeFormat(f)}", fontSize = 12.sp,
-                                color = when { ag -> Color(0xFFFFD34D); passou -> Color(0x77FFFFFF); else -> Color(0xCCFFFFFF) },
-                                modifier = Modifier.width(110.dp),
-                            )
-                            Text(
-                                (if (ag) "AGORA  " else "") + t, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                fontWeight = if (ag) FontWeight.Bold else FontWeight.Normal,
-                                color = when { ag -> Color.White; passou -> Color(0x77FFFFFF); else -> Color(0xDDFFFFFF) },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        if (ag) {
-                            val total = (f - i).coerceAtLeast(1)
-                            Box(Modifier.padding(horizontal = 6.dp).fillMaxWidth().height(3.dp).background(Color(0x33FFFFFF))) {
-                                Box(Modifier.fillMaxWidth(((now - i).toFloat() / total).coerceIn(0f, 1f)).height(3.dp).background(Palette.Accent))
-                            }
-                        }
-                    }
+                }
+                val agora = progs.firstOrNull { it.start <= now && it.stop > now }?.title
+                    ?: curto.firstOrNull { it.inicio <= now && it.fim > now }?.titulo
+                Text(current?.name ?: "", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (agora != null) {
+                    Text("  ·  Agora: $agora", color = Color(0xCCFFFFFF), fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 }
             }
         }
         }
     }
     val lista: @Composable (Modifier) -> Unit = { mod ->
-        // Clicou no canal: abre direto em tela cheia.
-        ListaDeCanais(mod, channels, groupLabel, current, favorites, onPrevGroup, onNextGroup, { ch -> onPick(ch); onFull() }, onFull, onFavorite, groups, currentGroup, onGroup)
+        // Como na UniTV: 1º clique abre o canal na janelinha, 2º clique no mesmo canal abre em tela cheia.
+        ListaDeCanais(mod, channels, groupLabel, current, favorites, onPrevGroup, onNextGroup, onPick, onFull, onFavorite, groups, currentGroup, onGroup)
     }
     if (compacto) {
         Column(Modifier.fillMaxSize()) {
