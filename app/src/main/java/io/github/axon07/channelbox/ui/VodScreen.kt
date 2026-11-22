@@ -558,13 +558,13 @@ private fun ShowScreen(
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
                 val alvo = ultimo ?: inSeason.firstOrNull()
-                BotaoFicha(if (ultimo != null) "⛶  Tela cheia · T${ultimo.season}E${ultimo.episode}" else "⛶  Tela cheia", true, Modifier.focusRequester(primeiro)) {
+                BotaoFicha(if (ultimo != null) "Tela cheia · T${ultimo.season}E${ultimo.episode}" else "Tela cheia", true, Modifier.focusRequester(primeiro), icone = AppIcons.TelaCheia) {
                     if (b.previewId != null && b.acaoTelaCheia != null) b.acaoTelaCheia?.invoke()
                     else alvo?.let { b.focusId = it.id; onPlay(it, show) }
                 }
                 BotoesExtras(vm, show, serie = true, episodios = episodes?.size ?: 0)
-                BotaoFicha("Player externo", false) { alvo?.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, show.title) } }
-                BotaoFicha("‹ Voltar", false) {
+                BotaoFicha("Player externo", false, icone = AppIcons.Externo) { alvo?.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, show.title) } }
+                BotaoFicha("Voltar", false, icone = AppIcons.Voltar) {
                     b.closeShow()
                     b.voltarInicio?.invoke()
                 }
@@ -742,12 +742,12 @@ private fun MovieDetail(
             }
             Spacer(Modifier.height(18.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
-                BotaoFicha(if (progress != null && progress.position > 0) "⛶  Continuar" else "⛶  Tela cheia", true, Modifier.focusRequester(play)) {
+                BotaoFicha(if (progress != null && progress.position > 0) "Continuar" else "Tela cheia", true, Modifier.focusRequester(play), icone = AppIcons.TelaCheia) {
                     if (b.previewId == movie.id && b.acaoTelaCheia != null) b.acaoTelaCheia?.invoke() else assistir()
                 }
                 BotoesExtras(vm, movie, serie = false, episodios = 0)
-                BotaoFicha("Player externo", false) { movie.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, movie.title) } }
-                BotaoFicha("‹ Voltar", false) {
+                BotaoFicha("Player externo", false, icone = AppIcons.Externo) { movie.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, movie.title) } }
+                BotaoFicha("Voltar", false, icone = AppIcons.Voltar) {
                     b.movie = null
                     b.focusToken++
                     b.voltarInicio?.invoke()
@@ -815,20 +815,38 @@ private fun LinhaInfo(rotulo: String, valor: String?) {
 
 /** Botão da ficha (Tela cheia, Player externo, Temporada…): cinza-azulado, vermelho no foco. */
 @Composable
-private fun BotaoFicha(label: String, principal: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun BotaoFicha(
+    label: String,
+    principal: Boolean,
+    modifier: Modifier = Modifier,
+    icone: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    ativo: Boolean = false,
+    onClick: () -> Unit,
+) {
+    // Todos do mesmo tamanho, ícone + texto centralizados; selecionado ganha borda dourada e cresce.
     var f by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
-        modifier = modifier.height(40.dp).widthIn(min = 120.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+        modifier = modifier.height(48.dp).widthIn(min = 148.dp).onFocusChanged { f = it.isFocused }
+            .border(if (f) 2.dp else 0.dp, if (f) Dourado else Color.Transparent, RoundedCornerShape(10.dp))
+            .tap(onClick = onClick),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (principal) Color(0xCCB71C1C) else Color(0x80596273),
-            focusedContainerColor = Color(0xFFE53935),
+            containerColor = if (principal) Color(0xFFD32F2F) else Color(0x33FFFFFF),
+            focusedContainerColor = if (principal) Color(0xFFE53935) else Color(0x59FFFFFF),
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.04f)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.06f)),
     ) {
-        Box(Modifier.padding(horizontal = 16.dp).fillMaxHeight(), contentAlignment = Alignment.Center) {
-            Text(label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        Row(
+            Modifier.fillMaxHeight().padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            if (icone != null) {
+                AppIcon(icone, tint = if (ativo) Dourado else Color.White, size = 20.dp)
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
     }
 }
@@ -947,16 +965,16 @@ private fun BotoesExtras(vm: TvViewModel, item: VodEntity, serie: Boolean, episo
     var fav by remember(item.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.ehFavorito(ctx, item.id)) }
     var segue by remember(item.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.segue(ctx, item.id)) }
     // Rótulos curtos (como na UniTV); o valor escolhido aparece num aviso rápido.
-    BotaoFicha("Idioma", false) {
+    BotaoFicha("Idioma", false, icone = AppIcons.Audio) {
         idioma = io.github.axon07.channelbox.data.ZarkPrefs.proximoIdioma(ctx)
         vm.showToast("Áudio: " + io.github.axon07.channelbox.data.ZarkPrefs.nomeIdioma(idioma))
     }
-    BotaoFicha("Resolução", false) {
+    BotaoFicha("Resolução", false, icone = AppIcons.Resolucao) {
         resol = io.github.axon07.channelbox.data.ZarkPrefs.proximaResolucao(ctx)
         vm.showToast("Resolução: " + io.github.axon07.channelbox.data.ZarkPrefs.nomeResolucao(resol))
     }
-    BotaoFicha(if (fav) "★ Favorito" else "☆ Favorito", fav) { fav = vm.zarkFavoritar(item) }
-    if (serie) BotaoFicha(if (segue) "Notificações ✓" else "Notificações", segue) {
+    BotaoFicha("Favorito", false, icone = if (fav) AppIcons.EstrelaCheia else AppIcons.Estrela, ativo = fav) { fav = vm.zarkFavoritar(item) }
+    if (serie) BotaoFicha("Avisar", false, icone = AppIcons.Bell, ativo = segue) {
         segue = io.github.axon07.channelbox.data.ZarkPrefs.alternarSeguir(ctx, item.id, episodios)
         vm.showToast(if (segue) "Vamos avisar no sininho quando sair episódio novo" else "Notificações desligadas")
     }
