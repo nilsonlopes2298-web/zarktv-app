@@ -213,7 +213,7 @@ class TvPlayer(
             if (mime == MimeTypes.VIDEO_DOLBY_VISION && !dolbyVisionAllowed) return@setMediaCodecSelector emptyList()
             val all = androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(mime, secure, tunneling)
             // HDR / Dolby Vision only come out of the hardware decoder, so it stays first for Dolby Vision.
-            val software = if (mime.startsWith("video/")) options.softwareVideo && mime != MimeTypes.VIDEO_DOLBY_VISION
+            val software = if (mime.startsWith("video/")) (options.softwareVideo != trocarDecodificador) && mime != MimeTypes.VIDEO_DOLBY_VISION
             else options.softwareAudio
             // Software first when chosen; hardware stays as a fallback (protected video has no software decoder).
             if (software) all.sortedBy { !it.softwareOnly } else all
@@ -263,6 +263,10 @@ class TvPlayer(
                 }
 
                 override fun onPlayerError(error: PlaybackException) = handleError(error)
+
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isPlaying) vigiarImagem()
+                }
 
                 override fun onTracksChanged(tracks: Tracks) {
                     _tracksVersion.value++
@@ -611,6 +615,39 @@ class TvPlayer(
         scheduleRetry("Canal fora do ar no momento – tentando de novo… ($reason)")
     }
 
+    // ---- ZarkTV: imagem congelada com o som tocando (decodificador de vídeo travado, ex.: Fire Stick) ----
+    /** Depois de travar uma vez, o vídeo passa a usar o outro decodificador (software ↔ hardware) nesta sessão. */
+    @Volatile private var trocarDecodificador = false
+    private var ultimoQuadro = -1
+    private var quadroParado = 0
+    private val vigia = object : Runnable {
+        override fun run() {
+            if (!exo.isPlaying || exo.videoFormat == null) { ultimoQuadro = -1; quadroParado = 0; return }
+            val n = exo.videoDecoderCounters?.renderedOutputBufferCount ?: return
+            if (n == ultimoQuadro) quadroParado++ else quadroParado = 0
+            ultimoQuadro = n
+            if (quadroParado >= 3 && !trocarDecodificador) {
+                // Som andando e nenhum quadro novo há ~4,5 s: troca o decodificador e recomeça do mesmo ponto.
+                android.util.Log.w("ZarkPlayer", "imagem parada com som – trocando o decodificador de vídeo")
+                trocarDecodificador = true
+                quadroParado = 0
+                val pos = exo.currentPosition
+                exo.stop()
+                exo.prepare()
+                if (!isLive) exo.seekTo(pos)
+                return
+            }
+            handler.postDelayed(this, 1_500)
+        }
+    }
+
+    private fun vigiarImagem() {
+        handler.removeCallbacks(vigia)
+        ultimoQuadro = -1
+        quadroParado = 0
+        handler.postDelayed(vigia, 1_500)
+    }
+
     private fun scheduleRetry(message: String) {
         val current = spec ?: return
         retries++
@@ -789,6 +826,8 @@ class TvPlayer(
             null to "VLC/3.0.20 LibVLC/3.0.20",
             null to "okhttp/4.12.0",
             null to "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+            null to "Lavf/58.76.100",
+            null to "IPTVSmartersPlayer",
             "mp4" to "VLC/3.0.20 LibVLC/3.0.20",
             "mkv" to "VLC/3.0.20 LibVLC/3.0.20",
         )

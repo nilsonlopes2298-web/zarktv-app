@@ -2185,14 +2185,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     )
                 }
             }
-            Mode.EXIT_CONFIRM -> ActionDialog(
-                title = "Sair do ZarkTV?",
-                subtitle = null,
-                actions = listOf(
-                    DialogAction("Exit") { exitApp() },
-                    DialogAction("Cancel") { mode = exitReturn },
-                ),
-            )
+            Mode.EXIT_CONFIRM -> DialogoSair(onSair = { exitApp() }, onCancelar = { mode = exitReturn })
             Mode.PLAYER, Mode.CHANNEL_LIST -> Bloco {
                 // ZarkTV: no celular/tablet, ao tocar na tela aparece o botão de voltar.
                 if (mode == Mode.PLAYER && touchBar) {

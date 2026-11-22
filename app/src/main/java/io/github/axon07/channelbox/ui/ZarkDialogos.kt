@@ -132,3 +132,31 @@ private fun BotaoDialogo(texto: String, principal: Boolean, modifier: Modifier, 
         contentAlignment = Alignment.Center,
     ) { Text(texto, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
 }
+
+
+/** Confirmação de saída: cartão centralizado, com a marca e dois botões grandes lado a lado. */
+@Composable
+fun DialogoSair(onSair: () -> Unit, onCancelar: () -> Unit) {
+    val foco = remember { FocusRequester() }
+    LaunchedEffect(Unit) { delay(80); runCatching { foco.requestFocus() } }
+    Box(Modifier.fillMaxSize().background(Color(0xB3000000)), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.width(400.dp).clip(RoundedCornerShape(18.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xF2262A33), Color(0xF2161820))))
+                .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(18.dp))
+                .padding(horizontal = 28.dp, vertical = 26.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            MarcaPequena()
+            Spacer(Modifier.height(18.dp))
+            Text("Sair do ZarkTV?", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            Text("O vídeo para e o app fecha.", color = Color(0xB3FFFFFF), fontSize = 14.sp)
+            Spacer(Modifier.height(22.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                BotaoDialogo("Cancelar", false, Modifier.weight(1f), onCancelar)
+                BotaoDialogo("Sair", true, Modifier.weight(1f).focusRequester(foco), onSair)
+            }
+        }
+    }
+}
