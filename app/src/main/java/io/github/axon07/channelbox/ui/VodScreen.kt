@@ -623,8 +623,10 @@ private fun ShowScreen(
                                 ) {
                                     b.focusId = ep.id
                                     // Toca na miniatura (para escolher com calma); no celular em pé abre direto.
+                                    // OK de novo no episódio que já está tocando na miniatura → tela cheia.
                                     val prev = b.acaoPreview
-                                    if (prev != null && !retratoAuto) prev(ep, show) else onPlay(ep, show)
+                                    if (ep.id == b.previewId && b.acaoTelaCheia != null) b.acaoTelaCheia?.invoke()
+                                    else if (prev != null && !retratoAuto) prev(ep, show) else onPlay(ep, show)
                                 }
                             }
                         }
