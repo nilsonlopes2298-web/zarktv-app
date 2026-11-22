@@ -409,10 +409,11 @@ private fun AbaTv(
     val previa: @Composable (Modifier) -> Unit = { mod ->
         // A prévia nunca ocupa mais que ~58% da altura: sempre sobra espaço para a programação (EPG) embaixo.
         BoxWithConstraints(mod) {
-        val altPrev = minOf(maxWidth * 9f / 16f, maxHeight * 0.58f)
+        // Prévia ocupa a largura toda da coluna; a altura é limitada para sempre sobrar a programação.
+        val altPrev = minOf(maxWidth * 9f / 16f, maxHeight * 0.62f)
         Column(Modifier.fillMaxSize()) {
             Box(
-                Modifier.width(altPrev * 16f / 9f).height(altPrev)
+                Modifier.fillMaxWidth().height(altPrev).background(Color.Black, RoundedCornerShape(4.dp))
                     .border(2.dp, Color(0x55FFFFFF), RoundedCornerShape(4.dp))
                     .onGloballyPositioned { onPreviewRect(it.boundsInRoot()) }
                     .tap(onClick = { if (current != null) onFull() })
