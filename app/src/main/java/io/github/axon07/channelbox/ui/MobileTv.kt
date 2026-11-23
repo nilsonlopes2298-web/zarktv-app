@@ -124,7 +124,7 @@ fun AbaTvCelular(
                 items(grupos, key = { it.second }) { (f, nome) ->
                     val sel = f == currentGroup
                     Row(
-                        Modifier.fillMaxWidth().height(52.dp).background(if (sel) Color(0xFF232325) else Color.Transparent).clickable { onGroup(f) },
+                        Modifier.fillMaxWidth().height(64.dp).background(if (sel) Color(0xFF2A2A2E) else Color.Transparent).clickable { onGroup(f) },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(Modifier.width(3.dp).fillMaxHeight().background(if (sel) vermelho else Color.Transparent))
@@ -154,19 +154,19 @@ fun AbaTvCelular(
                         f.format(java.util.Date(it.start)) + " – " + f.format(java.util.Date(it.stop)) + "  " + it.title
                     }
                     Row(
-                        Modifier.fillMaxWidth().height(72.dp)
+                        Modifier.fillMaxWidth().height(84.dp).padding(bottom = 2.dp).background(Color(0xFF1C1C1F))
                             .background(if (tocando) vermelho else Color.Transparent)
                             .clickable { if (tocando) onFull() else onPick(ch) }
                             .padding(horizontal = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(Modifier.size(width = 44.dp, height = 32.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(width = 60.dp, height = 40.dp), contentAlignment = Alignment.Center) {
                             ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize())
                         }
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                "%03d  %s".format(ch.number, ch.name), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                                "%03d   %s".format(ch.number, ch.name), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
                             Spacer(Modifier.height(4.dp))

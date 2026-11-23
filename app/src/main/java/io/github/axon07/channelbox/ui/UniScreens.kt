@@ -498,9 +498,7 @@ private fun AbaTv(
     }
     if (compacto) {
         // Celular em pé: vídeo em cima, Canais | Favoritos, grupos | canais (como na UniTV Mobile).
-        var transmitir by remember { mutableStateOf(false) }
-    if (transmitir) TransmitirDialog(vm, current?.streamUrl, current?.name ?: "ZarkTV") { transmitir = false }
-    AbaTvCelular(channels, current, favorites, upcoming, now, onPick, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup) { transmitir = true }
+        AbaTvCelular(channels, current, favorites, upcoming, now, onPick, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup)
     } else {
         Row(Modifier.fillMaxSize()) {
             lista(Modifier.weight(0.38f).fillMaxHeight())
