@@ -289,14 +289,14 @@ private fun BotaoPix(texto: String, principal: Boolean, modifier: Modifier, onCl
 
 /** Celular: círculo verde que cresce e o "✓" sendo desenhado quando o Pix cai. */
 @Composable
-private fun PagoAnimado() {
+internal fun PagoAnimado(tamanho: androidx.compose.ui.unit.Dp = 96.dp) {
     val circulo = remember { androidx.compose.animation.core.Animatable(0f) }
     val traco = remember { androidx.compose.animation.core.Animatable(0f) }
     LaunchedEffect(Unit) {
         circulo.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 300f))
         traco.animateTo(1f, androidx.compose.animation.core.tween(380))
     }
-    androidx.compose.foundation.Canvas(Modifier.size(96.dp)) {
+    androidx.compose.foundation.Canvas(Modifier.size(tamanho)) {
         val r = size.minDimension / 2f
         drawCircle(Color(0x334CC38A), radius = r * circulo.value)
         drawCircle(Color(0xFF4CC38A), radius = r * 0.72f * circulo.value)

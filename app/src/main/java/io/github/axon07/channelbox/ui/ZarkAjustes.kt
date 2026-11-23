@@ -1,6 +1,12 @@
 package io.github.axon07.channelbox.ui
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -257,6 +263,7 @@ private fun ConteudoAjuste(secao: Secao, vm: TvViewModel, escala: Int, versao: S
             }
         }
         Secao.VERSAO -> {
+            if (io.github.axon07.channelbox.system.Aparelho.soCelular) VerificarCelular(vm, versao)
             var toques by remember { mutableIntStateOf(0) }
             var beta by remember { mutableStateOf(io.github.axon07.channelbox.data.Updater.canalBeta(ctx)) }
             // 5 toques na versão mostram a opção de versões de teste (só para o dono).
@@ -367,4 +374,52 @@ private fun LinhaBotoes(content: @Composable () -> Unit) {
     if (io.github.axon07.channelbox.system.Aparelho.soCelular)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
     else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { content() }
+}
+
+/** Celular: cartão com animação enquanto procura a atualização e o resultado claro no fim. */
+@Composable
+private fun VerificarCelular(vm: TvViewModel, versao: String) {
+    val estado by vm.update.collectAsStateWithLifecycle()
+    var desde by remember { mutableStateOf(0L) }
+    var segura by remember { mutableStateOf(false) }
+    // Mostra o "Verificando…" por pelo menos 1,5 s, para dar tempo de ver.
+    LaunchedEffect(estado) {
+        if (estado is TvViewModel.UpdateState.Checking) { desde = System.currentTimeMillis(); segura = true }
+        else if (segura) { delay((1_500 - (System.currentTimeMillis() - desde)).coerceAtLeast(0)); segura = false }
+    }
+    Column(
+        Modifier.fillMaxWidth().padding(bottom = 12.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1C1C1F)).padding(vertical = 22.dp, horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        val e = estado
+        when {
+            segura || e is TvViewModel.UpdateState.Checking -> {
+                val gira = rememberInfiniteTransition(label = "verifica")
+                val ang by gira.animateFloat(0f, 360f, infiniteRepeatable(tween(900, easing = LinearEasing)), label = "ang")
+                androidx.compose.foundation.Canvas(Modifier.size(56.dp)) {
+                    drawCircle(Color(0x22FFFFFF), style = androidx.compose.ui.graphics.drawscope.Stroke(5.dp.toPx()))
+                    drawArc(Color(0xFFE50914), ang, 90f, false, style = androidx.compose.ui.graphics.drawscope.Stroke(5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                }
+                Text("Verificando atualizações…", color = Color(0xFFEDEDED), fontSize = 16.sp, modifier = Modifier.padding(top = 14.dp))
+                Text("Versão instalada: $versao", color = Color(0xFF85858B), fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+            e is TvViewModel.UpdateState.UpToDate -> {
+                PagoAnimado(64.dp)
+                Text("Você está na versão mais recente", color = Color(0xFFEDEDED), fontSize = 16.sp, modifier = Modifier.padding(top = 12.dp))
+                Text("Versão $versao", color = Color(0xFF85858B), fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+            e is TvViewModel.UpdateState.Available || e is TvViewModel.UpdateState.Downloading -> {
+                Text("Nova versão disponível", color = Color(0xFFEDEDED), fontSize = 16.sp)
+                Text("Toque em Atualizar no aviso para instalar.", color = Color(0xFF85858B), fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+            e is TvViewModel.UpdateState.Failed -> {
+                Text("Não deu para verificar agora", color = Color(0xFFEDEDED), fontSize = 16.sp)
+                Text("Confira a internet e tente de novo.", color = Color(0xFF85858B), fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+            else -> {
+                Text("Versão instalada: $versao", color = Color(0xFFEDEDED), fontSize = 16.sp)
+                Text("Toque em Procurar atualização para conferir.", color = Color(0xFF85858B), fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+    }
 }
