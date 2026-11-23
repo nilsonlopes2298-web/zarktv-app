@@ -989,6 +989,21 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         }.filter { !adultoBloq(it.category, it.title) }.take(n)
     }
 
+    /**
+     * ZarkTV: destaques que mudam todo dia. Pega os 80 mais novos do servidor, dá preferência aos
+     * lançamentos (ano atual ou anterior) com capa e nota, e sorteia [n] com uma semente do dia —
+     * assim muda a cada dia, mas fica igual durante o mesmo dia (não pula a cada abertura).
+     */
+    fun vodDestaques(kind: String, n: Int): Flow<List<VodEntity>> = vodTop(kind, null, 80).map { lista ->
+        val ano = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        val comCapa = lista.filter { !it.poster.isNullOrBlank() }
+        val recentes = comCapa.filter { (it.year?.take(4)?.toIntOrNull() ?: 0) >= ano - 1 }
+        val base = (if (recentes.size >= n * 2) recentes else comCapa).distinctBy { it.title.lowercase().substringBefore(" (").substringBefore(" temp") }
+        val dia = java.time.LocalDate.now().toEpochDay()
+        // Os 3 mais novos sempre entram; o resto é sorteado do dia.
+        (base.take(3) + base.drop(3).shuffled(java.util.Random(dia * 31 + kind.hashCode()))).take(n)
+    }
+
     /** [category]: null = all, [VOD_CONTINUE] = started but not finished. */
     fun vodItems(kind: String, category: String?, query: String): Flow<List<VodEntity>> = libraryRaw(kind, category, query)
         .map { list ->
@@ -1015,6 +1030,13 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     val vodProgress: StateFlow<Map<String, VodProgressEntity>> = repo.vod.observeProgress()
         .map { list -> list.associateBy { it.id } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    /** ZarkTV Mobile: "Continue assistindo" — filmes e séries com progresso, os mais recentes primeiro. */
+    fun vodContinuar(): kotlinx.coroutines.flow.Flow<List<VodEntity>> = vodProgress.map { m ->
+        val ids = m.values.filter { it.duration <= 0 || it.position < it.duration * 0.95 }
+            .sortedByDescending { it.updated }.map { it.showId ?: it.id }.distinct().take(15)
+        if (ids.isEmpty()) emptyList() else runCatching { repo.vod.byIds(ids) }.getOrDefault(emptyList()).sortedBy { ids.indexOf(it.id) }
+    }
 
     /** Episodes of a show; empty list with a message if the provider couldn't be reached. */
     suspend fun episodes(show: VodEntity): List<VodEntity> {

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ZarkTV Mobile: celular e tablet. Gira a tela (em pé ou deitado) e não aparece na tela da TV. -->
+<!-- ZarkTV Mobile: celular e tablet. Só em pé e não aparece na tela da TV. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application>
         <activity
             android:name=".MainActivity"
-            android:screenOrientation="fullUser"
+            android:screenOrientation="sensorPortrait"
             tools:replace="android:screenOrientation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

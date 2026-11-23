@@ -10,7 +10,7 @@ name: APK latest (ZarkTV)
 # Ramo "main": publica na versão "latest" (todos os clientes).
 on:
   push:
-    branches: [main, beta]
+    branches: [main, beta, mobile-ui]
     paths-ignore:
       - 'painel-checkout/**'
   workflow_dispatch:
@@ -49,12 +49,14 @@ jobs:
       - name: Versao
         run: |
           echo "VERSAO=1.${{ github.run_number }}.0" >> "$GITHUB_ENV"
-          if [ "${{ github.ref_name }}" = "beta" ]; then echo "TAG=beta" >> "$GITHUB_ENV"; else echo "TAG=latest" >> "$GITHUB_ENV"; fi
+          if [ "${{ github.ref_name }}" = "beta" ]; then echo "TAG=beta" >> "$GITHUB_ENV"; elif [ "${{ github.ref_name }}" = "mobile-ui" ]; then echo "TAG=mobile" >> "$GITHUB_ENV"; else echo "TAG=latest" >> "$GITHUB_ENV"; fi
 
       - name: Compilar APK
         # main: só o app dos clientes (unico). beta: o app dos clientes + ZarkTV TV + ZarkTV Mobile.
         run: |
-          if [ "$TAG" = "beta" ]; then
+          if [ "$TAG" = "mobile" ]; then
+            ./gradlew --no-daemon assembleMobileRelease -PappVersionName="$VERSAO"
+          elif [ "$TAG" = "beta" ]; then
             ./gradlew --no-daemon assembleUnicoRelease assembleTvRelease assembleMobileRelease -PappVersionName="$VERSAO"
           else
             ./gradlew --no-daemon assembleUnicoRelease -PappVersionName="$VERSAO"

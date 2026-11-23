@@ -46,7 +46,7 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
         val estavel = baixarInfo("latest")
         if (!canalBeta(context)) return@withContext estavel
         // Versões de teste ligadas: fica com a mais nova entre a de teste e a dos clientes.
-        val beta = runCatching { baixarInfo("beta") }.getOrNull()
+        val beta = runCatching { baixarInfo(if (BuildConfig.APARELHO == "mobile") "mobile" else "beta") }.getOrNull()
         listOfNotNull(estavel, beta).maxWithOrNull { a, b -> compareVersions(a.version, b.version) }
     }
 

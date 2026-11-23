@@ -289,9 +289,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     val atividade = LocalContext.current as? android.app.Activity
     LaunchedEffect(mode) {
         if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
-            atividade?.requestedOrientation = if (mode == Mode.PLAYER || mode == Mode.PLAYBACK)
-                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+            // Sempre em pé (pedido do Nilson), inclusive na tela cheia.
+            atividade?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
         }
     }
     var sairAberto by remember { mutableStateOf(false) }
