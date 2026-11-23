@@ -94,7 +94,15 @@ object Aba {
     fun rotulo(f: ChannelFilter, titulo: String) = when (f) {
         ChannelFilter.All -> "Todos os canais"
         ChannelFilter.Favorites -> "★ Favoritos"
-        else -> titulo
+        else -> limparGrupo(titulo)
+    }
+
+    /** "Canais | Premiere" → "Premiere", "CANAIS: SPORTV" → "SporTV" (tira o "Canais" do começo). */
+    fun limparGrupo(t: String): String {
+        val sem = t.replace(Regex("""^\s*(canais|canal|channels?)\s*([|:/\-–•]+|\s)\s*""", RegexOption.IGNORE_CASE), "").trim()
+        val base = sem.ifBlank { t.trim() }
+        // Tudo em maiúsculas fica com só a primeira letra maiúscula (siglas curtas como HBO continuam).
+        return if (base == base.uppercase() && base.length > 4) base.lowercase().split(' ').joinToString(" ") { w -> if (w.length <= 3) w.uppercase() else w.replaceFirstChar { it.uppercase() } } else base
     }
 }
 
