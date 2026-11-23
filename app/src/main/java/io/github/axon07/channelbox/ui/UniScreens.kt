@@ -1362,7 +1362,7 @@ private fun ShellCelular(
     // Pesquisa própria do celular (por cima de tudo, com o mais buscado).
     var buscando by remember { mutableStateOf(false) }
     if (buscando) {
-        BuscaCel(vm, onOpen = { buscando = false; onOpenItem(it) }, onCanal = { buscando = false; onTab(Aba.TV); onPickChannel(it) }) { buscando = false }
+        BuscaCel(vm, soCanais = tab == Aba.TV, onOpen = { buscando = false; onOpenItem(it) }, onCanal = { buscando = false; onTab(Aba.TV); onPickChannel(it) }) { buscando = false }
         return
     }
     val naTv = tab == Aba.TV
@@ -1815,7 +1815,7 @@ private fun FiltradoCel(vm: TvViewModel, filtro: Regex, onOpen: (VodEntity) -> U
  */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun BuscaCel(vm: TvViewModel, onOpen: (VodEntity) -> Unit, onCanal: (ChannelEntity) -> Unit, onFechar: () -> Unit) {
+private fun BuscaCel(vm: TvViewModel, soCanais: Boolean, onOpen: (VodEntity) -> Unit, onCanal: (ChannelEntity) -> Unit, onFechar: () -> Unit) {
     androidx.activity.compose.BackHandler { onFechar() }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE) }
@@ -1829,10 +1829,10 @@ private fun BuscaCel(vm: TvViewModel, onOpen: (VodEntity) -> Unit, onCanal: (Cha
     val foco = remember { androidx.compose.ui.focus.FocusRequester() }
     LaunchedEffect(Unit) { delay(200); runCatching { foco.requestFocus() } }
     val q = texto.trim()
-    val filmes by remember(q) { if (q.length < 2) kotlinx.coroutines.flow.flowOf(emptyList()) else vm.vodItems(VodKind.MOVIE, null, q) }.collectAsState(initial = emptyList())
-    val series by remember(q) { if (q.length < 2) kotlinx.coroutines.flow.flowOf(emptyList()) else vm.vodItems(VodKind.SERIES, null, q) }.collectAsState(initial = emptyList())
+    val filmes by remember(q) { if (q.length < 2 || soCanais) kotlinx.coroutines.flow.flowOf(emptyList()) else vm.vodItems(VodKind.MOVIE, null, q) }.collectAsState(initial = emptyList())
+    val series by remember(q) { if (q.length < 2 || soCanais) kotlinx.coroutines.flow.flowOf(emptyList()) else vm.vodItems(VodKind.SERIES, null, q) }.collectAsState(initial = emptyList())
     val todosCanais by vm.allChannels.collectAsState()
-    val canais = remember(q, todosCanais) { if (q.length < 2) emptyList() else todosCanais.filter { it.name.contains(q, ignoreCase = true) }.take(60) }
+    val canais = remember(q, todosCanais) { if (q.length < 2 || !soCanais) emptyList() else todosCanais.filter { it.name.contains(q, ignoreCase = true) }.take(60) }
     // Mais buscados: os mais vistos da semana no ZarkTV (o mesmo "em alta" do Web Play).
     val maisBuscados by remember { vm.vodDestaquesWeb() }.collectAsState(initial = emptyList())
     val rank = remember(maisBuscados) { maisBuscados.map { it.first }.take(10) }
@@ -1849,7 +1849,7 @@ private fun BuscaCel(vm: TvViewModel, onOpen: (VodEntity) -> Unit, onCanal: (Cha
                 AppIcon(AppIcons.Search, tint = Texto3, size = 16.dp)
                 Spacer(Modifier.width(8.dp))
                 Box(Modifier.weight(1f)) {
-                    if (texto.isEmpty()) Text("Filme, série ou canal", color = Texto3, fontSize = 15.sp)
+                    if (texto.isEmpty()) Text(if (soCanais) "Nome do canal" else "Filme ou série", color = Texto3, fontSize = 15.sp)
                     androidx.compose.foundation.text.BasicTextField(
                         texto, { texto = it }, singleLine = true,
                         textStyle = androidx.compose.ui.text.TextStyle(color = Texto1, fontSize = 15.sp),
@@ -1880,7 +1880,7 @@ private fun BuscaCel(vm: TvViewModel, onOpen: (VodEntity) -> Unit, onCanal: (Cha
                     }
                     item { Spacer(Modifier.height(8.dp)) }
                 }
-                if (rank.isNotEmpty()) {
+                if (rank.isNotEmpty() && !soCanais) {
                     item { Text("Mais buscados", color = Texto1, fontSize = 16.sp, fontWeight = FontWeight.Medium) }
                     items(rank.size, key = { "r" + rank[it].id }) { i ->
                         val item = rank[i]
@@ -1899,16 +1899,16 @@ private fun BuscaCel(vm: TvViewModel, onOpen: (VodEntity) -> Unit, onCanal: (Cha
                 }
             }
         } else {
-            val abas = listOf("Todos", "Filmes (${filmes.size})", "Séries (${series.size})", "Canais (${canais.size})")
-            LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val abas = listOf("Todos", "Filmes (${filmes.size})", "Séries (${series.size})")
+            if (!soCanais) LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(abas.size) { i ->
                     val sel = i == tipo
                     Text(abas[i], color = if (sel) Color.White else Texto1, fontSize = 13.sp,
                         modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (sel) VermelhoCel else ElevadoCel).clickable { tipo = i }.padding(horizontal = 12.dp, vertical = 8.dp))
                 }
             }
-            val vod = when (tipo) { 1 -> filmes; 2 -> series; 3 -> emptyList(); else -> (series + filmes) }
-            val mostrarCanais = tipo == 3 || tipo == 0
+            val vod = when (tipo) { 1 -> filmes; 2 -> series; else -> (series + filmes) }
+            val mostrarCanais = soCanais
             if (vod.isEmpty() && (!mostrarCanais || canais.isEmpty())) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nada encontrado para \"$q\".", color = Texto3, fontSize = 14.sp) }
             } else androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
@@ -1918,7 +1918,7 @@ private fun BuscaCel(vm: TvViewModel, onOpen: (VodEntity) -> Unit, onCanal: (Cha
             ) {
                 if (mostrarCanais && canais.isNotEmpty()) {
                     item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) { Text("Canais", color = Texto1, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
-                    items(if (tipo == 0) canais.take(6).size else canais.size, span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) { i ->
+                    items(canais.size, span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) { i ->
                         val ch = canais[i]
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { guardar(q); onCanal(ch) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(width = 48.dp, height = 32.dp)) { ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize()) }

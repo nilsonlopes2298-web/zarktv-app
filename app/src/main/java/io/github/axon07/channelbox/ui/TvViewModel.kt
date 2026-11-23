@@ -1113,7 +1113,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
                 val nome = settings.value?.playlists?.firstOrNull { it.enabled }?.name.orEmpty()
                 url.replace(Regex("""^https?://[^/]+"""), "http://tv.zarktvqx.cfd/v/" + sid(nome))
             }
-            val foi = io.github.axon07.channelbox.data.Baixados.baixar(ctx, item, titulo, capa, final)
+            val foi = io.github.axon07.channelbox.data.Baixados.baixar(ctx, c.http, item, titulo, capa, final)
             showToast(if (foi) "Baixando \"$titulo\" — acompanhe em Perfil → Baixados" else "Não deu para começar o download")
         }
     }

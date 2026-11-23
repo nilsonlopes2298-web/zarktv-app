@@ -86,6 +86,26 @@ fun DialogoContinuar(titulo: String, detalhe: String?, posicao: Long, onContinua
     LaunchedEffect(Unit) { delay(80); runCatching { foco.requestFocus() } }
     val s = posicao / 1000
     val hhmmss = "%02d:%02d:%02d".format(s / 3600, (s % 3600) / 60, s % 60)
+    // Celular: aviso pequeno embaixo, sem tampar a tela.
+    if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+            Row(
+                Modifier.padding(12.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xF0232325))
+                    .border(1.dp, Color(0x14EDEDED), RoundedCornerShape(12.dp)).padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Continuar de $hhmmss?", color = Color(0xFFEDEDED), fontSize = 14.sp)
+                    Text("Continua sozinho em ${falta}s", color = Color(0xFF85858B), fontSize = 12.sp)
+                }
+                Text("Do início", color = Color(0xFFA1A1A6), fontSize = 13.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onInicio).padding(horizontal = 10.dp, vertical = 8.dp))
+                Text("Continuar", color = Color.White, fontSize = 13.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFFE50914)).clickable(onClick = onContinuar).padding(horizontal = 12.dp, vertical = 8.dp))
+            }
+        }
+        return
+    }
     Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
         Column(
             Modifier.width(420.dp).clip(RoundedCornerShape(16.dp))

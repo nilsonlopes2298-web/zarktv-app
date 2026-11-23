@@ -206,12 +206,6 @@ fun FichaFilmeCel(b: VodBrowser, movie: VodEntity, progress: VodProgressEntity?,
         VideoTopo(b, ficha?.fundo ?: movie.poster, movie.title, voltar, { transmitir = true }) { b.acaoPreview?.invoke(movie, null) ?: onPlay(movie, null) }
         Column(Modifier.fillMaxWidth().weight(1f).background(Fundo).verticalScroll(rol).padding(horizontal = 16.dp, vertical = 16.dp)) {
             CabecalhoCel(movie.title, ficha, movie.plot, movie.rating, movie.year)
-            if (progress != null && progress.position > 0 && b.previewId == null) {
-                Spacer(Modifier.height(12.dp))
-                Text("▶  Continuar de onde parou", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium,
-                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Vermelho).clickable { b.acaoPreview?.invoke(movie, null) ?: onPlay(movie, null) }
-                        .padding(horizontal = 16.dp, vertical = 12.dp))
-            }
             AcoesCel(vm, movie, movie)
             ParecidosCel(vm, movie) { b.movie = it }
             Spacer(Modifier.height(24.dp))

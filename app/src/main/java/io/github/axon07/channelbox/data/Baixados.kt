@@ -1,12 +1,11 @@
 package io.github.axon07.channelbox.data
 
-import android.app.DownloadManager
 import android.content.Context
-import android.net.Uri
 import android.os.Environment
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import kotlinx.coroutines.launch
 
 /**
  * ZarkTV: filmes e episódios baixados para ver sem internet (só filmes e séries; canal não grava).
@@ -37,43 +36,51 @@ object Baixados {
 
     fun baixado(ctx: Context, id: String): Item? = lista(ctx).firstOrNull { it.id == id }
 
+    // O próprio app baixa (com o mesmo acesso à internet do player). O gerenciador de downloads do
+    // Android não servia: em alguns aparelhos ele não acha o endereço do servidor ZarkTV.
+    private val escopo = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+    private val andamento = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
     /** Começa a baixar [url] (já conferida). */
-    fun baixar(ctx: Context, item: VodEntity, titulo: String, capa: String?, url: String): Boolean = runCatching {
+    fun baixar(ctx: Context, http: okhttp3.OkHttpClient, item: VodEntity, titulo: String, capa: String?, url: String): Boolean = runCatching {
         val ext = Regex("""\.(\w{2,4})(\?|$)""").find(url)?.groupValues?.get(1)?.lowercase()?.takeIf { it in setOf("mp4", "mkv", "avi", "ts", "mov") } ?: "mp4"
-        val nome = "zarktv-" + item.id.replace(Regex("[^A-Za-z0-9_-]"), "_") + "." + ext
-        val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val req = DownloadManager.Request(Uri.parse(url))
-            .setTitle(titulo)
-            .setDescription("ZarkTV – baixando para ver sem internet")
-            .addRequestHeader("User-Agent", "VLC/3.0.20 LibVLC/3.0.20")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalFilesDir(ctx, Environment.DIRECTORY_MOVIES, nome)
-        val id = dm.enqueue(req)
-        val arquivo = File(ctx.getExternalFilesDir(Environment.DIRECTORY_MOVIES), nome).absolutePath
-        salvar(ctx, listOf(Item(item.id, titulo, capa, item.kind, id, arquivo)) + lista(ctx).filter { it.id != item.id })
+        val pasta = ctx.getExternalFilesDir(Environment.DIRECTORY_MOVIES) ?: ctx.filesDir
+        val arquivo = File(pasta, "zarktv-" + item.id.replace(Regex("[^A-Za-z0-9_-]"), "_") + "." + ext)
+        salvar(ctx, listOf(Item(item.id, titulo, capa, item.kind, 0L, arquivo.absolutePath)) + lista(ctx).filter { it.id != item.id })
+        andamento[item.id] = 0
+        escopo.launch {
+            val parte = File(arquivo.path + ".part")
+            val ok = runCatching {
+                val cliente = http.newBuilder().readTimeout(60, java.util.concurrent.TimeUnit.SECONDS).callTimeout(0, java.util.concurrent.TimeUnit.SECONDS).build()
+                cliente.newCall(okhttp3.Request.Builder().url(url).header("User-Agent", "VLC/3.0.20 LibVLC/3.0.20").build()).execute().use { r ->
+                    if (!r.isSuccessful) error("HTTP ${r.code}")
+                    val corpo = r.body ?: error("vazio")
+                    val total = corpo.contentLength()
+                    corpo.byteStream().use { inp ->
+                        parte.outputStream().use { out ->
+                            val buf = ByteArray(256 * 1024); var feito = 0L; var n: Int
+                            while (inp.read(buf).also { n = it } >= 0) {
+                                if (!andamento.containsKey(item.id)) error("cancelado")
+                                out.write(buf, 0, n); feito += n
+                                if (total > 0) andamento[item.id] = (feito * 100 / total).toInt().coerceIn(0, 99)
+                            }
+                        }
+                    }
+                }
+                parte.renameTo(arquivo)
+            }.getOrDefault(false)
+            if (ok) andamento.remove(item.id) else { parte.delete(); if (andamento.containsKey(item.id)) andamento[item.id] = -1 }
+        }
         true
     }.getOrDefault(false)
 
     /** 0–100 enquanto baixa; 100 = pronto; -1 = falhou. */
-    fun progresso(ctx: Context, it: Item): Int {
-        val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        dm.query(DownloadManager.Query().setFilterById(it.downloadId)).use { c ->
-            if (c == null || !c.moveToFirst()) return if (File(it.arquivo).exists()) 100 else -1
-            val st = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-            if (st == DownloadManager.STATUS_SUCCESSFUL) return 100
-            if (st == DownloadManager.STATUS_FAILED) return -1
-            val feito = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-            val total = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-            return if (total > 0) (feito * 100 / total).toInt().coerceIn(0, 99) else 0
-        }
-    }
+    fun progresso(ctx: Context, it: Item): Int = andamento[it.id] ?: if (File(it.arquivo).exists()) 100 else -1
 
     fun apagar(ctx: Context, id: String) {
         val l = lista(ctx)
-        l.firstOrNull { it.id == id }?.let { x ->
-            runCatching { (ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).remove(x.downloadId) }
-            runCatching { File(x.arquivo).delete() }
-        }
+        andamento.remove(id)
+        l.firstOrNull { it.id == id }?.let { x -> runCatching { File(x.arquivo).delete(); File(x.arquivo + ".part").delete() } }
         salvar(ctx, l.filter { it.id != id })
     }
 }
