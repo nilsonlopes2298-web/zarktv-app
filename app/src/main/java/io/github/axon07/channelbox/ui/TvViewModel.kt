@@ -1105,6 +1105,8 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun leaveLibrary() {
+        // Sem conta ou conta vencida: não volta a tocar canal nenhum.
+        if (zarkVencida.value != null || settings.value?.playlists?.none { it.enabled } != false) return
         if (libraryOpen) resumeLive()
     }
 
@@ -1530,6 +1532,8 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onForeground() {
+        // Sem conta, conta vencida ou na tela de entrada: nada volta a tocar.
+        if (zarkVencida.value != null || settings.value?.playlists?.none { it.enabled } != false) return
         // Live TV paused (not yet playing the buffer): stay paused – restarting the live stream here
         // would play live behind the pause and use a second connection.
         val st = _shift.value
@@ -1735,6 +1739,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun zarkLimparConta() {
+        player.esquecer()
         zarkConta.value = null
         zarkVencida.value = null
         ZarkConfig.salvarVencimento(getApplication(), null)
