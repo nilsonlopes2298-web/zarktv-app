@@ -1189,7 +1189,13 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             val bases = (mesmo + servidores).flatMap { it.dns }
             // Mantém a porta do endereço atual quando o DNS do painel não tem porta.
             val porta = Regex(""":(\d+)$""").find(host)?.value.orEmpty()
-            bases.map { b -> val t = b.trim().trimEnd('/'); if (Regex(""":\d+$""").containsMatchIn(t.substringAfter("://"))) t else t + porta }.distinct().take(6)
+            val diretos = bases.map { b -> val t = b.trim().trimEnd('/'); if (Regex(""":\d+$""").containsMatchIn(t.substringAfter("://"))) t else t + porta }.distinct().take(6)
+            // Por último, o mesmo caminho que o Web Play usa (tv.zarktvqx.cfd/v/<servidor>): o servidor
+            // da ZarkTV busca o filme no IPTV e repassa. Resolve filme que dá 404 direto no aparelho.
+            fun sid(n: String) = java.text.Normalizer.normalize(n, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "").lowercase().replace(Regex("[^a-z0-9]+"), "")
+            val proxies = (mesmo.ifEmpty { listOfNotNull(servidores.firstOrNull { sv -> sid(sv.name) == sid(settings.value?.playlists?.firstOrNull { it.enabled }?.name.orEmpty()) }) })
+                .map { "http://tv.zarktvqx.cfd/v/" + sid(it.name) }
+            (diretos + proxies).distinct()
         }
         player.aoDesistir = {
             val ch = _current.value

@@ -1397,7 +1397,7 @@ private fun ShellCelular(
             when (tab) {
                 Aba.TV -> TvCelular(channels, current, favorites, upcoming, now, onPickChannel, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup)
                 Aba.JOGOS -> if (jogoAberto != null) SemPivo { JogoAberto(vm, jogoAberto, canalJogo, canalJogoInfo, true, onPreviewRect, onFull, onMudarCanalJogo, onFecharJogo) }
-                    else AbaJogos(vm, true, onAbrirJogo)
+                    else JogosCel(vm, onAbrirJogo)
                 Aba.FILMES -> CatalogoCel(vm, VodKind.MOVIE, onOpenItem, onOpenLibrary)
                 Aba.SERIES -> CatalogoCel(vm, VodKind.SERIES, onOpenItem, onOpenLibrary)
                 else -> RecomendacoesCel(
@@ -1613,17 +1613,34 @@ private fun CanalCel(ch: ChannelEntity, onClick: () -> Unit) {
     }
 }
 
+/** Cartão do jogo no jeito da UniTV: campeonato em cima, escudos em círculo, hora grande e o botão vermelho. */
 @Composable
-private fun CartaoJogoCel(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, onClick: () -> Unit) {
-    val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
-    Column(Modifier.width(250.dp).clip(RoundedCornerShape(12.dp)).background(CartaoCel).clickable(onClick = onClick).padding(12.dp)) {
-        Text(j.liga, color = Texto2, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(8.dp))
+private fun CartaoJogoCel(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, modifier: Modifier = Modifier.width(280.dp), onClick: () -> Unit) {
+    val br = java.util.Locale("pt", "BR")
+    val hora = java.text.SimpleDateFormat("HH:mm", br).format(java.util.Date(j.inicio))
+    val dia = java.text.SimpleDateFormat("dd/MM", br).format(java.util.Date(j.inicio))
+    val aoVivo = j.estado == "in"
+    Column(
+        modifier.clip(RoundedCornerShape(16.dp)).background(CartaoCel)
+            .border(1.dp, if (aoVivo) VermelhoCel.copy(alpha = 0.5f) else LinhaCel, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick).padding(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (j.ligaLogo != null) { AsyncImage(j.ligaLogo, null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)) }
+            Text(j.liga, color = Texto2, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             TimeCel(j.casa.nome, j.casa.logo, Modifier.weight(1f))
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(0.8f)) {
-                Text(if (j.estado == "in") "${j.casa.placar ?: 0} x ${j.fora.placar ?: 0}" else hora, color = Texto1, fontSize = 20.sp, fontWeight = FontWeight.Medium)
-                if (j.estado == "in") Text("Ao vivo", color = VermelhoCel, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                if (aoVivo || j.estado == "post") Text("${j.casa.placar ?: 0}  x  ${j.fora.placar ?: 0}", color = Texto1, fontSize = 24.sp, fontWeight = FontWeight.Medium)
+                else { Text(hora, color = Texto1, fontSize = 24.sp, fontWeight = FontWeight.Medium); Text(dia, color = Texto3, fontSize = 12.sp) }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    when { aoVivo -> "Ao vivo"; j.estado == "post" -> "Encerrado"; else -> "Ver jogo" },
+                    color = if (aoVivo) Color.White else Texto1, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(if (aoVivo) VermelhoCel else ElevadoCel).padding(horizontal = 14.dp, vertical = 6.dp),
+                )
             }
             TimeCel(j.fora.nome, j.fora.logo, Modifier.weight(1f))
         }
@@ -1633,9 +1650,32 @@ private fun CartaoJogoCel(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, on
 @Composable
 private fun TimeCel(nome: String, logo: String?, modifier: Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) { if (logo != null) AsyncImage(logo, nome, modifier = Modifier.size(34.dp)) }
-        Spacer(Modifier.height(4.dp))
-        Text(nome, color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Box(Modifier.size(48.dp).clip(androidx.compose.foundation.shape.CircleShape).background(ElevadoCel), contentAlignment = Alignment.Center) {
+            if (logo != null) AsyncImage(logo, nome, contentScale = ContentScale.Fit, modifier = Modifier.size(32.dp))
+            else Text(iniciaisCel(nome), color = Texto2, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(nome, color = Texto1, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Aba Jogos do celular: jogos de hoje, ao vivo primeiro, um cartão por linha. */
+@Composable
+private fun JogosCel(vm: TvViewModel, onAbrir: (io.github.axon07.channelbox.data.ZarkJogos.Jogo) -> Unit) {
+    var jogos by remember { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkJogos.Jogo>?>(null) }
+    LaunchedEffect(Unit) {
+        jogos = runCatching { io.github.axon07.channelbox.data.ZarkJogos.hoje(vm.zarkHttp) }.getOrDefault(emptyList())
+            .sortedWith(compareBy({ when (it.estado) { "in" -> 0; "pre" -> 1; else -> 2 } }, { it.inicio }))
+    }
+    val lista = jogos
+    when {
+        lista == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Carregando jogos…", color = Texto3, fontSize = 14.sp) }
+        lista.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nenhum jogo hoje.", color = Texto3, fontSize = 14.sp) }
+        else -> LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val aoVivo = lista.count { it.estado == "in" }
+            if (aoVivo > 0) item { Text("Ao vivo agora · $aoVivo", color = VermelhoCel, fontSize = 13.sp, fontWeight = FontWeight.Medium) }
+            items(lista, key = { it.id.ifBlank { it.casa.nome + it.inicio } }) { j -> CartaoJogoCel(j, Modifier.fillMaxWidth()) { onAbrir(j) } }
+        }
     }
 }
 
