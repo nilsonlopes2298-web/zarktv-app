@@ -6,9 +6,11 @@ name: APK latest (ZarkTV)
 # Junto vai o version.json que o app le ao abrir: se a versao for mais nova, o app
 # obriga a atualizar.
 
+# Ramo "beta": publica na versão "beta" (só quem ligou "versões de teste" no app recebe).
+# Ramo "main": publica na versão "latest" (todos os clientes).
 on:
   push:
-    branches: [main]
+    branches: [main, beta]
     paths-ignore:
       - 'painel-checkout/**'
   workflow_dispatch:
@@ -45,7 +47,9 @@ jobs:
           fi
 
       - name: Versao
-        run: echo "VERSAO=1.${{ github.run_number }}.0" >> "$GITHUB_ENV"
+        run: |
+          echo "VERSAO=1.${{ github.run_number }}.0" >> "$GITHUB_ENV"
+          if [ "${{ github.ref_name }}" = "beta" ]; then echo "TAG=beta" >> "$GITHUB_ENV"; else echo "TAG=latest" >> "$GITHUB_ENV"; fi
 
       - name: Compilar APK
         run: ./gradlew --no-daemon assembleRelease -PappVersionName="$VERSAO"
@@ -59,7 +63,7 @@ jobs:
           cat > version.json <<JSON
           {
             "version": "$VERSAO",
-            "url": "https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/latest/zarktv.apk",
+            "url": "https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/$TAG/zarktv.apk",
             "obrigatoria": false,
             "tamanho": $(stat -c %s zarktv.apk),
             "notas": "$NOTAS"
@@ -67,11 +71,12 @@ jobs:
           JSON
           cat version.json
 
-      - name: Publicar na versao 'latest'
+      - name: Publicar (latest ou beta)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: ZarkTV (versao atual)
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ env.TAG == 'beta' && 'ZarkTV (versao de teste)' || 'ZarkTV (versao atual)' }}
           prerelease: true
           files: |
             zarktv.apk

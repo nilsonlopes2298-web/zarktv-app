@@ -55,6 +55,7 @@ private enum class Secao(val titulo: String) {
     PARENTAL("Controle parental"),
     CACHE("Limpar cache"),
     VERSAO("Atualizar versão"),
+    DIAGNOSTICO("Diagnóstico"),
     SOBRE("Sobre o ZarkTV"),
     AVANCADO("Ajustes avançados"),
 }
@@ -149,9 +150,48 @@ fun ZarkAjustes(
                             }
                         }
                         Secao.VERSAO -> {
-                            Text("Versão instalada: $versao", color = Color.White, fontSize = 16.sp)
+                            var toques by remember { mutableIntStateOf(0) }
+                            var beta by remember { mutableStateOf(io.github.axon07.channelbox.data.Updater.canalBeta(ctx)) }
+                            // 5 toques na versão mostram a opção de versões de teste (só para o dono).
+                            Text(
+                                "Versão instalada: $versao" + if (beta) "  ·  recebendo versões de teste" else "",
+                                color = Color.White, fontSize = 16.sp,
+                                modifier = Modifier.clickable { toques++ },
+                            )
                             Spacer(Modifier.height(16.dp))
-                            BotaoAjuste("Procurar atualização", false) { onAtualizar() }
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                BotaoAjuste("Procurar atualização", false) { toques++; onAtualizar() }
+                                if (toques >= 5 || beta) BotaoAjuste(if (beta) "Teste: ligado" else "Teste: desligado", beta) {
+                                    beta = !beta
+                                    io.github.axon07.channelbox.data.Updater.setCanalBeta(ctx, beta)
+                                    vm.showToast(if (beta) "Vai receber as versões de teste" else "Voltou para a versão dos clientes")
+                                }
+                            }
+                        }
+                        Secao.DIAGNOSTICO -> {
+                            var versaoDiag by remember { mutableIntStateOf(0) }
+                            val texto = remember(versaoDiag) {
+                                io.github.axon07.channelbox.player.ZarkDiag.iniciar(ctx)
+                                io.github.axon07.channelbox.player.ZarkDiag.texto(ctx, versao, vm.player.velocidadeMBs())
+                            }
+                            Text("Mostra como os canais e filmes estão abrindo neste aparelho. Nenhuma senha é guardada.", color = Color(0x99FFFFFF), fontSize = 14.sp)
+                            Spacer(Modifier.height(12.dp))
+                            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color(0x22FFFFFF)).padding(16.dp)) {
+                                Text(texto, color = Color.White, fontSize = 15.sp, lineHeight = 24.sp)
+                            }
+                            Spacer(Modifier.height(16.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                BotaoAjuste("Enviar ao suporte", false) {
+                                    runCatching {
+                                        ctx.startActivity(
+                                            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(io.github.axon07.channelbox.data.ZarkConfig.WHATSAPP + "?text=" + android.net.Uri.encode(texto)))
+                                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        )
+                                    }
+                                }
+                                BotaoAjuste("Atualizar", false) { versaoDiag++ }
+                                BotaoAjuste("Zerar", false) { io.github.axon07.channelbox.player.ZarkDiag.zerar(); versaoDiag++ }
+                            }
                         }
                         Secao.SOBRE -> {
                             Text("ZarkTV $versao", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)

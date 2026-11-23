@@ -256,12 +256,16 @@ class TvPlayer(
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     when (playbackState) {
                         Player.STATE_READY -> {
+                            ZarkDiag.voltou()
                             retries = 0
                             refusals = 0
                             confirmed = true
                             _status.value = PlayerStatus.Playing
                         }
-                        Player.STATE_BUFFERING -> _status.value = PlayerStatus.Buffering
+                        Player.STATE_BUFFERING -> {
+                            if (confirmed) ZarkDiag.travou()
+                            _status.value = PlayerStatus.Buffering
+                        }
                         // A live stream "ending" means the server closed the connection: reconnect.
                         Player.STATE_ENDED -> {
                             if (isLive) scheduleRetry("Reconectando…") else _status.value = PlayerStatus.Idle
@@ -270,7 +274,12 @@ class TvPlayer(
                     }
                 }
 
-                override fun onPlayerError(error: PlaybackException) = handleError(error)
+                override fun onPlayerError(error: PlaybackException) {
+                    ZarkDiag.erro(error)
+                    handleError(error)
+                }
+
+                override fun onRenderedFirstFrame() = ZarkDiag.primeiroQuadro()
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     if (isPlaying) vigiarImagem()
@@ -338,6 +347,8 @@ class TvPlayer(
         open(StreamSpec(Uri.fromFile(File(path)).toString(), emptyMap(), null, null), onDemand = true)
 
     private fun open(stream: StreamSpec, onDemand: Boolean, startAt: Long = 0) {
+        ZarkDiag.iniciar(context)
+        ZarkDiag.abrindo(aoVivo = !onDemand)
         startPosition = startAt.coerceAtLeast(0)
         handler.removeCallbacksAndMessages(null)
         // Let go of the previous stream first: on one-connection accounts the provider refuses the

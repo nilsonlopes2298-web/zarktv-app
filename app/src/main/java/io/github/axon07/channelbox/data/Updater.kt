@@ -43,22 +43,30 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
      * version.json ({"version":"1.12.0","url":"…/zarktv.apk","obrigatoria":true,"notas":"…"}).
      */
     suspend fun latest(): ReleaseInfo? = withContext(Dispatchers.IO) {
+        val estavel = baixarInfo("latest")
+        if (!canalBeta(context)) return@withContext estavel
+        // Versões de teste ligadas: fica com a mais nova entre a de teste e a dos clientes.
+        val beta = runCatching { baixarInfo("beta") }.getOrNull()
+        listOfNotNull(estavel, beta).maxWithOrNull { a, b -> compareVersions(a.version, b.version) }
+    }
+
+    private fun baixarInfo(tag: String): ReleaseInfo? {
         val request = Request.Builder()
-            .url("https://github.com/${BuildConfig.UPDATE_REPO}/releases/download/latest/version.json")
+            .url("https://github.com/${BuildConfig.UPDATE_REPO}/releases/download/$tag/version.json")
             .header("User-Agent", "ZarkTV/${BuildConfig.VERSION_NAME}")
             .header("Cache-Control", "no-cache")
             .build()
         http.newCall(request).execute().use { response ->
-            if (response.code == 404) return@withContext null // ainda não publicado
+            if (response.code == 404) return null // ainda não publicado
             if (!response.isSuccessful) throw IOException("Não deu para verificar atualização (HTTP ${response.code})")
             val json = Json.parseToJsonElement(response.body?.string().orEmpty()) as? JsonObject
                 ?: throw IOException("Resposta inesperada do servidor de atualização")
-            val version = json.str("version")?.removePrefix("v") ?: return@withContext null
-            ReleaseInfo(
+            val version = json.str("version")?.removePrefix("v") ?: return null
+            return ReleaseInfo(
                 version = version,
                 title = "ZarkTV $version",
                 notes = json.str("notas").orEmpty().trim(),
-                apkUrl = json.str("url") ?: "https://github.com/${BuildConfig.UPDATE_REPO}/releases/download/latest/zarktv.apk",
+                apkUrl = json.str("url") ?: "https://github.com/${BuildConfig.UPDATE_REPO}/releases/download/$tag/zarktv.apk",
                 apkSize = json.str("tamanho")?.toLongOrNull() ?: 0L,
                 forced = json.str("obrigatoria")?.lowercase() == "true", // só obriga se o painel mandar "true"
             )
@@ -148,6 +156,10 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
     }
 
     companion object {
+        /** Só para o dono testar antes de liberar aos clientes (ligado escondido em Configurações → Atualizar versão). */
+        fun canalBeta(c: Context) = c.getSharedPreferences("zarktv", Context.MODE_PRIVATE).getBoolean("canal_beta", false)
+        fun setCanalBeta(c: Context, v: Boolean) = c.getSharedPreferences("zarktv", Context.MODE_PRIVATE).edit().putBoolean("canal_beta", v).apply()
+
         /** Compares "1.2.10" style versions numerically; >0 if [a] is newer. */
         fun compareVersions(a: String, b: String): Int {
             val pa = a.removePrefix("v").split('.', '-').map { it.toIntOrNull() ?: 0 }
