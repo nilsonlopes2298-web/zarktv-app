@@ -96,7 +96,7 @@ private fun VideoTopo(b: VodBrowser, exo: androidx.media3.exoplayer.ExoPlayer, i
         if (!tocando || carregando) {
             AsyncImage(imagem, titulo, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Color(0x55000000)))
-            if (carregando) Box(Modifier.align(Alignment.Center)) { CarregandoYt(40.dp) }
+            if (carregando) Box(Modifier.align(Alignment.Center)) { BolinhasCarregando(Modifier.size(52.dp)) }
             else Box(
                 Modifier.align(Alignment.Center).size(56.dp).clip(CircleShape).background(Color(0x66000000)),
                 contentAlignment = Alignment.Center,
