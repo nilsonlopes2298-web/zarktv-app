@@ -567,6 +567,7 @@ class TvPlayer(
         if (!isLive && semConexao(error)) {
             // Servidor do filme não respondeu: vai logo para o próximo caminho (Web Play / outro DNS).
             erroConexaoVod = true
+            attempt = candidates.lastIndex // outro formato no mesmo endereço morto não adianta
             android.util.Log.w("ZarkPlayer", "filme: servidor não respondeu – indo para outro caminho")
             handler.post { failed("o servidor não respondeu") }
             return
