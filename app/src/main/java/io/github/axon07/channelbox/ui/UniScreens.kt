@@ -946,7 +946,8 @@ private fun JogoAberto(
         }
     }
     var aba by remember { mutableIntStateOf(0) }
-    val naoComecou = j.estado == "pre" && j.inicio > agora
+    // Até 1 hora antes mostra a contagem; depois disso o canal já fica liberado (pré-jogo).
+    val naoComecou = j.estado == "pre" && j.inicio - agora > 60 * 60_000L
     val falta = (j.inicio - agora).coerceAtLeast(0) / 60_000
     val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
     val data = java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))

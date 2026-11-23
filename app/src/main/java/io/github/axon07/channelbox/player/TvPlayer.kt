@@ -980,12 +980,15 @@ private fun loadControl(size: String): androidx.media3.exoplayer.LoadControl {
  *  aquela travadinha logo depois de abrir. */
 private val FIRE_TV = android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true)
 
+/** TV Box fraca (pouca memória): guarda no máximo 20 s e respeita o limite de tamanho, para não travar/fechar. */
+private val LEVE get() = io.github.axon07.channelbox.ui.ZarkLeve.ativo
+
 private class BufferAutomatico(
     private val velocidade: () -> Double,
 ) : androidx.media3.exoplayer.DefaultLoadControl(
     androidx.media3.exoplayer.upstream.DefaultAllocator(true, androidx.media3.common.C.DEFAULT_BUFFER_SEGMENT_SIZE),
-    15_000, 40_000, 2_500, 5_000,
-    androidx.media3.common.C.LENGTH_UNSET, true, 0, false,
+    if (LEVE) 10_000 else 15_000, if (LEVE) 20_000 else 40_000, 2_500, 5_000,
+    androidx.media3.common.C.LENGTH_UNSET, !LEVE, 0, false,
 ) {
     override fun shouldStartPlayback(parameters: androidx.media3.exoplayer.LoadControl.Parameters): Boolean {
         val mbs = runCatching { velocidade() }.getOrDefault(0.0)

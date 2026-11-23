@@ -243,7 +243,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var candidatosJogo by remember { mutableStateOf<List<ChannelEntity>>(emptyList()) }
     var jogoCanalIdx by remember { mutableIntStateOf(0) }
     fun jogoEsperando(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo) =
-        j.estado == "pre" && j.inicio - System.currentTimeMillis() > 60_000L
+        j.estado == "pre" && j.inicio - System.currentTimeMillis() > 60 * 60_000L // libera o canal 1 hora antes do jogo
     // Chegou a hora do jogo aberto que estava esperando: liga o canal sozinho.
     LaunchedEffect(jogoAberto) {
         val j = jogoAberto ?: return@LaunchedEffect
