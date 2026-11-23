@@ -315,7 +315,7 @@ private fun AjustesCelular(onParental: () -> Unit, onAvancado: () -> Unit, conte
                         Secao.AVANCADO -> "Rede, VPN e reprodução"
                     }
                     Row(
-                        Modifier.fillMaxWidth().heightIn(min = 64.dp).clip(RoundedCornerShape(12.dp)).clickable {
+                        Modifier.fillMaxWidth().padding(bottom = 6.dp).heightIn(min = 64.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1C1C1F)).clickable {
                             when (item) { Secao.PARENTAL -> onParental(); Secao.AVANCADO -> onAvancado(); else -> aberta = item }
                         }.padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,

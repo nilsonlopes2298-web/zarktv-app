@@ -744,13 +744,20 @@ fun ParedeDeCapas(capas: List<String>) {
 @Composable
 fun ParedeCapas() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    val capas = remember {
-        ctx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getString("capas_parede", "").orEmpty()
+    // Mistura: capas de séries famosas + capas do servidor do cliente (guardadas da última vez),
+    // escudos de times (Brasileirão, Europa), logos de campeonatos e de canais. Igual ao Web Play.
+    val tiles = remember {
+        val minhas = ctx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getString("capas_parede", "").orEmpty()
             .split('\n').filter { it.startsWith("http") }
+        val capas = (minhas.shuffled().take(20) + ParedeEntrada.SERIES).shuffled()
+        val logos = (ParedeEntrada.ESCUDOS + ParedeEntrada.LIGAS + ParedeEntrada.CANAIS).shuffled()
+        buildList {
+            var c = 0; var l = 0
+            repeat(120) { i -> if (i % 3 == 1) add(false to logos[l++ % logos.size]) else add(true to capas[c++ % capas.size]) }
+        }
     }
     val anda = rememberInfiniteTransition(label = "parede")
-    val desloca by anda.animateFloat(0f, 1f, infiniteRepeatable(tween(40_000, easing = LinearEasing), RepeatMode.Restart), label = "d")
-    val icones = listOf(AppIcons.Trofeu, AppIcons.Play, AppIcons.Tv, AppIcons.AoVivo)
+    val desloca by anda.animateFloat(0f, 1f, infiniteRepeatable(tween(60_000, easing = LinearEasing), RepeatMode.Restart), label = "d")
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
         val tile = 96.dp
         val passo = tile + 8.dp
@@ -758,24 +765,49 @@ fun ParedeCapas() {
         val linhas = (maxHeight / (tile * 1.5f + 8.dp)).toInt() + 1
         Column(Modifier.fillMaxSize().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             repeat(linhas) { linha ->
-                val dir = if (linha % 2 == 0) -1f else 1f
+                // Linhas pares andam para a direita, ímpares para a esquerda.
+                val dir = if (linha % 2 == 0) 1f else -1f
                 Row(
-                    Modifier.offset(x = passo * ((desloca * 3f * dir) % 1f) - passo).wrapContentWidth(Alignment.Start, unbounded = true),
+                    Modifier.offset(x = passo * ((desloca * 6f * dir) % 1f) - passo).wrapContentWidth(Alignment.Start, unbounded = true),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     repeat(porLinha) { k ->
-                        val i = linha * porLinha + k
+                        val (capa, url) = tiles[(linha * 7 + k) % tiles.size]
                         Box(
-                            Modifier.width(tile).height(tile * 1.5f).clip(RoundedCornerShape(8.dp)).background(Color(0xFF1C1C1F)),
+                            Modifier.width(tile).height(tile * 1.5f).clip(RoundedCornerShape(10.dp))
+                                .background(if (capa) Color(0xFF1C1C1F) else Color(0xFF18181B)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            if (capas.isNotEmpty()) coil.compose.AsyncImage(capas[i % capas.size], null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                            else AppIcon(icones[i % icones.size], tint = Color(0x33FFFFFF), size = 28.dp)
+                            coil.compose.AsyncImage(
+                                url, null,
+                                contentScale = if (capa) androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit,
+                                modifier = if (capa) Modifier.fillMaxSize() else Modifier.fillMaxSize().padding(18.dp),
+                            )
                         }
                     }
                 }
             }
         }
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xE60F0F10), Color(0xCC0F0F10), Color(0xF20F0F10)))))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xD90F0F10), Color(0xA60F0F10), Color(0xF20F0F10)))))
     }
+}
+
+/** Imagens públicas da parede da entrada (não dependem da conta do cliente). */
+object ParedeEntrada {
+    private const val TVM = "https://static.tvmaze.com/uploads/images/medium_portrait/"
+    val SERIES = listOf(
+        "595/1489169", "586/1466410", "576/1440521", "594/1486674", "614/1535959", "563/1409008", "627/1568449",
+        "619/1547768", "48/122213", "501/1253519", "536/1340290", "504/1262352", "646/1617244", "536/1340287",
+        "362/905246", "424/1061900", "498/1245274", "286/715906", "635/1589150",
+    ).map { "$TVM$it.jpg" }
+    private const val ESC = "https://a.espncdn.com/i/teamlogos/soccer/500/"
+    val ESCUDOS = listOf(
+        // Brasileirão
+        819, 2029, 874, 2026, 2674, 3454, 3445, 6086, 6273, 1936, 2022, 7632, 9967, 3458,
+        // Europa
+        86, 83, 1068, 364, 382, 360, 359, 363, 132, 160, 111, 110, 103, 114,
+    ).map { "$ESC$it.png" }
+    val LIGAS = listOf(85, 58, 528, 2, 23, 15, 12).map { "https://a.espncdn.com/i/leaguelogos/soccer/500-dark/$it.png" }
+    val CANAIS = listOf("premiere", "sportv", "globo", "tnt", "hbo", "band-sports", "espn-4", "warner-channel", "cartoon-network")
+        .map { "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/brazil/$it-br.png" }
 }

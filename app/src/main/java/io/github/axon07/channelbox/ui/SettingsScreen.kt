@@ -240,7 +240,7 @@ fun SettingsScreen(
                 if (cat == null) {
                     cel.forEach { c ->
                         Row(
-                            Modifier.fillMaxWidth().heightIn(min = 64.dp).clip(RoundedCornerShape(12.dp))
+                            Modifier.fillMaxWidth().padding(bottom = 6.dp).heightIn(min = 64.dp).clip(RoundedCornerShape(12.dp)).background(CelCartao)
                                 .tap { category = c; aberta = c }.padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -256,7 +256,10 @@ fun SettingsScreen(
                 } else {
                     val current = page
                     if (current != null) SubPage(current, settings, vm, onClose = { closePage() }, onOpen = { openPage(it) }, playlistId = playlistId, onEditSource = onEditSource)
-                    else conteudo(cat)
+                    else {
+                        Text(cat.blurb, fontSize = 13.sp, color = Color(0xFF85858B), modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+                        conteudo(cat)
+                    }
                 }
             }
         }
@@ -1474,6 +1477,10 @@ private fun SettingCard(
     highlight: Boolean = false,
     onClick: () -> Unit,
 ) {
+    if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
+        LinhaCelular(title, description, value, toggle, highlight, onClick)
+        return
+    }
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
@@ -1581,6 +1588,23 @@ private fun ChoiceList(
     /** Pages opened from a card take focus; a list shown beside the categories waits for ▶. */
     autoFocus: Boolean = true,
 ) {
+    if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { (key, label) ->
+                val sel = key == selected
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(12.dp)).background(CelCartao)
+                        .border(1.dp, if (sel) Color(0xFFE50914) else Color.Transparent, RoundedCornerShape(12.dp))
+                        .tap { onSelect(key) }.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(label, fontSize = 15.sp, color = Color(0xFFEDEDED), modifier = Modifier.weight(1f))
+                    RadioDot(sel)
+                }
+            }
+        }
+        return
+    }
     val first = remember { FocusRequester() }
     val touch = LocalInputModeManager.current.inputMode == InputMode.Touch
     LaunchedEffect(Unit) {
@@ -1665,3 +1689,31 @@ private val BUFFER_CHOICES = listOf(
     "large" to "Large",
     "xlarge" to "Very large – for shaky connections",
 )
+
+/** Fundo dos cartões das Configurações no celular (mesmo da lista de fora). */
+internal val CelCartao = Color(0xFF1C1C1F)
+
+/** Celular: uma linha de configuração do mesmo jeito da lista de seções (cartão escuro, texto claro, seta). */
+@Composable
+private fun LinhaCelular(title: String, description: String?, value: String?, toggle: Boolean?, highlight: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 6.dp).heightIn(min = 64.dp).clip(RoundedCornerShape(12.dp)).background(CelCartao)
+            .border(1.dp, if (highlight) Color(0xFFE50914) else Color.Transparent, RoundedCornerShape(12.dp))
+            .tap(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 16.sp, color = Color(0xFFEDEDED))
+            if (!description.isNullOrBlank()) Text(description, fontSize = 13.sp, lineHeight = 18.sp, color = Color(0xFF85858B), maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        when {
+            toggle != null -> ToggleSwitch(toggle)
+            value != null -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(value, fontSize = 13.sp, color = Color(0xFFA1A1A6), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 110.dp))
+                Text("  ›", fontSize = 20.sp, color = Color(0xFF85858B))
+            }
+            else -> Text("›", fontSize = 20.sp, color = Color(0xFF85858B))
+        }
+    }
+}
