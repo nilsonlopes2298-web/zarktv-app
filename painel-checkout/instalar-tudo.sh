@@ -10,6 +10,10 @@ echo "==> 1/4 Baixando o checkout"
 mkdir -p "$PASTA"
 curl -fsSL "$BASE/server.js" -o "$PASTA/server.js"
 curl -fsSL "$BASE/zarktv-checkout.service" -o "$PASTA/zarktv-checkout.service"
+if [ ! -d "$PASTA/node_modules/qrcode" ] && command -v npm >/dev/null; then
+  echo "    Instalando o gerador de QR Code…"
+  (cd "$PASTA" && npm install --silent --no-audit --no-fund qrcode@1 >/dev/null 2>&1) || echo "    (não deu para instalar o QR Code; a página mostra só o Copia e Cola)"
+fi
 
 echo "==> 2/4 Node.js"
 if ! command -v node >/dev/null; then

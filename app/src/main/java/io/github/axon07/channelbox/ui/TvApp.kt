@@ -1320,6 +1320,24 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             if (mode == Mode.PLAYBACK) startVod(prox, sh, 0)
         }
     }
+    // Celular: assistindo a série na janelinha da ficha, terminou o episódio, começa o próximo sozinho.
+    LaunchedEffect(mode) {
+        if (!io.github.axon07.channelbox.system.Aparelho.soCelular || mode != Mode.VOD) return@LaunchedEffect
+        var avancado: String? = null
+        while (mode == Mode.VOD) {
+            delay(1_000)
+            val ep = vodPreviewItem ?: continue
+            val sh = vodPreviewShow ?: continue
+            if (vm.player.exo.playbackState != androidx.media3.common.Player.STATE_ENDED || avancado == ep.id) continue
+            if (vodBrowser.previewId != ep.id) continue
+            val lista = vodBrowser.episodes.orEmpty()
+            val prox = lista.getOrNull(lista.indexOfFirst { it.id == ep.id }.takeIf { it >= 0 }?.plus(1) ?: -1) ?: continue
+            avancado = ep.id
+            vm.showToast("Próximo episódio: T${prox.season} E${prox.episode}")
+            delay(1_500)
+            if (mode == Mode.VOD) { vodBrowser.focusId = prox.id; previewVod(prox, sh, 0L) }
+        }
+    }
     LaunchedEffect(playbackToken) {
         playbackOverlay = true
         delay(4_000)

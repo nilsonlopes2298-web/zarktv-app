@@ -30,7 +30,10 @@ fs.mkdirSync(DADOS, { recursive: true, mode: 0o700 });
 // ---------- armazenamento ----------------------------------------------------------------
 
 const CONFIG_PADRAO = {
-  gateway: 'mercadopago', // 'mercadopago' ou 'infinitepay'
+  gateway: 'chave', // 'chave' (Pix na sua chave, cliente manda o comprovante), 'mercadopago' ou 'infinitepay'
+  pixChave: '',
+  pixNome: '',
+  pixCidade: 'QUIXERAMOBIM',
   urlPublica: process.env.URL_PUBLICA || 'https://painel.zarktvqx.cfd',
   mpToken: '',
   mpEmailPagador: 'cliente@zarktvqx.cfd',
@@ -143,6 +146,38 @@ async function whats(numero, texto) {
 }
 
 // ---------- gateways -------------------------------------------------------------------
+
+// Pix na própria chave (padrão do Banco Central, "BR Code" estático com valor).
+function campo(id, valor) { return id + String(valor.length).padStart(2, '0') + valor; }
+function crc16(t) {
+  let c = 0xffff;
+  for (const b of Buffer.from(t, 'utf8')) {
+    c ^= b << 8;
+    for (let i = 0; i < 8; i++) c = c & 0x8000 ? ((c << 1) ^ 0x1021) & 0xffff : (c << 1) & 0xffff;
+  }
+  return c.toString(16).toUpperCase().padStart(4, '0');
+}
+const semAcento = (t, n) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 ]/g, '').toUpperCase().trim().slice(0, n);
+function brCode(chave, nome, cidade, valor, txid) {
+  let chaveLimpa = String(chave).trim();
+  // Telefone sem +55 vira +55…; CPF/CNPJ só números.
+  if (/^\(?\d{2}\)?\s?9?\d{4}-?\d{4}$/.test(chaveLimpa)) chaveLimpa = '+55' + chaveLimpa.replace(/\D/g, '');
+  else if (/^[\d.\-\/]+$/.test(chaveLimpa)) chaveLimpa = chaveLimpa.replace(/\D/g, '');
+  const conta = campo('00', 'br.gov.bcb.pix') + campo('01', chaveLimpa);
+  let t = campo('00', '01') + campo('26', conta) + campo('52', '0000') + campo('53', '986') +
+    campo('54', Number(valor).toFixed(2)) + campo('58', 'BR') + campo('59', semAcento(nome, 25) || 'ZARKTV') +
+    campo('60', semAcento(cidade, 15) || 'BRASIL') + campo('62', campo('05', String(txid).replace(/[^A-Za-z0-9]/g, '').slice(0, 25) || '***')) + '6304';
+  return t + crc16(t);
+}
+let QR = null;
+try { QR = require('qrcode'); } catch (e) { console.error('Pacote qrcode não instalado: a página do checkout mostra só o Copia e Cola.'); }
+async function criarPixChave(cfg, p) {
+  if (!cfg.pixChave) throw new Error('Chave Pix não cadastrada no admin.');
+  const copia = brCode(cfg.pixChave, cfg.pixNome, cfg.pixCidade, p.valor, p.id);
+  let qr = '';
+  if (QR) qr = (await QR.toDataURL(copia, { margin: 1, width: 360 })).split(',')[1];
+  return { pixCopiaCola: copia, pixQrBase64: qr, manual: true };
+}
 
 async function criarPixMercadoPago(cfg, p) {
   if (!cfg.mpToken) throw new Error('Mercado Pago sem token configurado no admin.');
@@ -279,7 +314,7 @@ function paginaCheckout(q) {
   const planos = cfg.planos.map((p, i) => `<label class="plano"><span><input type="radio" name="plano" value="${esc(p.id)}" ${i === 0 ? 'checked' : ''}>${esc(p.nome)} <span class="dica">· ${p.dias} dias</span></span><span class="preco">${brl(p.valor)}</span></label>`).join('');
   return pagina('Renovar ZarkTV', `
 <form class="card" method="post" action="/checkout/pedido">
-  <h1>Renovar meu acesso</h1><p>Escolha o plano e pague no Pix. A liberação é automática após o pagamento.</p>
+  <h1>Renovar meu acesso</h1><p>Escolha o plano e pague no Pix.${cfg.gateway === 'chave' ? ' Depois envie o comprovante no WhatsApp.' : ' A liberação é automática após o pagamento.'}</p>
   <label>Seu usuário do ZarkTV</label><input name="usuario" required maxlength="60" value="${esc(q.usuario)}" autocomplete="username">
   <label>Servidor</label><select name="servidor">${servidores}</select>
   <label>Seu WhatsApp (opcional, para receber a confirmação)</label><input name="whatsapp" inputmode="tel" maxlength="20" placeholder="(85) 9 9999-9999">
@@ -297,14 +332,17 @@ function paginaPedido(p) {
 <a class="btn cinza" href="${esc(cfg.suporte)}">Falar com o suporte</a></div>`);
   }
   const pix = p.pixCopiaCola ? `
-<img class="qr" alt="QR Code Pix" src="data:image/png;base64,${esc(p.pixQrBase64)}">
+${p.pixQrBase64 ? `<img class="qr" alt="QR Code Pix" src="data:image/png;base64,${esc(p.pixQrBase64)}">` : ''}
 <label>Pix copia e cola</label><textarea id="cc" rows="4" readonly>${esc(p.pixCopiaCola)}</textarea>
 <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('cc').value).then(()=>this.textContent='Copiado! ✅')">Copiar código Pix</button>` :
     p.linkPagamento ? `<a class="btn" href="${esc(p.linkPagamento)}">Abrir pagamento Pix</a>` : '<p class="erro">Não foi possível gerar o Pix.</p>';
   return pagina('Pague com Pix', `<div class="card" style="text-align:center">
 <h1>Pague com Pix</h1><p>${esc(p.planoNome)} · usuário <b>${esc(p.usuario)}</b> · servidor ${esc(p.servidor)}</p>
 <div class="preco" style="font-size:28px">${brl(p.valor)}</div>${pix}
-<p id="st" class="pend" style="margin-top:14px">⏳ Aguardando pagamento…</p></div>
+${p.manual
+    ? `<p style="margin-top:14px">Depois de pagar, envie o comprovante para liberarmos o seu acesso.</p>
+<a class="btn" href="${esc(cfg.suporte)}?text=${encodeURIComponent(`Olá! Paguei o Pix do ZarkTV.\nUsuário: ${p.usuario} (${p.servidor})\nPlano: ${p.planoNome} · ${brl(p.valor)}\nPedido: ${p.id}`)}">Enviar comprovante no WhatsApp</a>`
+    : `<p id="st" class="pend" style="margin-top:14px">⏳ Aguardando pagamento…</p>`}</div>
 <a class="btn cinza" href="${esc(cfg.suporte)}">Falar com o suporte</a>
 <script>
 setInterval(async()=>{try{const r=await fetch('/checkout/api/pedido/${encodeURIComponent(p.id)}');const d=await r.json();
@@ -335,8 +373,13 @@ ${msg ? `<div class="card ok">${esc(msg)}</div>` : ''}
 <h1>Checkout Pix — configuração</h1>
 <p>Link para os clientes: <b>${esc(c.urlPublica)}/checkout?usuario=NOME&amp;servidor=Club</b></p>
 <label>Gateway de pagamento</label><select name="gateway">
+<option value="chave" ${c.gateway === 'chave' ? 'selected' : ''}>Minha chave Pix (cliente manda o comprovante no WhatsApp)</option>
 <option value="mercadopago" ${c.gateway === 'mercadopago' ? 'selected' : ''}>Mercado Pago (QR Code Pix na própria página)</option>
 <option value="infinitepay" ${c.gateway === 'infinitepay' ? 'selected' : ''}>InfinitePay (página de pagamento da InfinitePay)</option></select>
+<h2>Minha chave Pix</h2>
+<label>Chave Pix (CPF, CNPJ, e-mail, telefone ou chave aleatória)</label><input name="pixChave" value="${esc(c.pixChave || '')}">
+<label>Nome do recebedor (como está no banco)</label><input name="pixNome" maxlength="25" value="${esc(c.pixNome || '')}">
+<label>Cidade</label><input name="pixCidade" maxlength="15" value="${esc(c.pixCidade || '')}">
 <h2>Mercado Pago</h2>
 <label>Access Token de produção (APP_USR-…)</label><input name="mpToken" type="password" placeholder="${c.mpToken ? '•••••••• (salvo — deixe vazio para manter)' : 'APP_USR-...'}">
 <label>E-mail do pagador padrão</label><input name="mpEmailPagador" value="${esc(c.mpEmailPagador)}">
@@ -391,7 +434,7 @@ async function rotas(req, res) {
       whatsapp: '', planoId: plano.id, planoNome: plano.nome, dias: plano.dias, valor: plano.valor,
     };
     try {
-      Object.assign(p, cfg.gateway === 'infinitepay' ? await criarLinkInfinitePay(cfg, p) : await criarPixMercadoPago(cfg, p));
+      Object.assign(p, cfg.gateway === 'chave' ? await criarPixChave(cfg, p) : cfg.gateway === 'infinitepay' ? await criarLinkInfinitePay(cfg, p) : await criarPixMercadoPago(cfg, p));
     } catch (e) {
       console.error('Falha ao gerar Pix (app):', e.message);
       return json(res, 502, { erro: 'Não foi possível gerar o Pix agora. Tente de novo ou fale com o suporte.' });
@@ -401,6 +444,7 @@ async function rotas(req, res) {
     return json(res, 200, {
       id: p.id, plano: p.planoNome, dias: p.dias, valor: Number(p.valor),
       pixCopiaCola: p.pixCopiaCola || null, link: p.linkPagamento || null,
+      manual: !!p.manual, comprovante: cfg.suporte,
     });
   }
 
@@ -417,7 +461,7 @@ async function rotas(req, res) {
       whatsapp: soDigitos(b.whatsapp).slice(0, 13), planoId: plano.id, planoNome: plano.nome, dias: plano.dias, valor: plano.valor,
     };
     try {
-      Object.assign(p, cfg.gateway === 'infinitepay' ? await criarLinkInfinitePay(cfg, p) : await criarPixMercadoPago(cfg, p));
+      Object.assign(p, cfg.gateway === 'chave' ? await criarPixChave(cfg, p) : cfg.gateway === 'infinitepay' ? await criarLinkInfinitePay(cfg, p) : await criarPixMercadoPago(cfg, p));
     } catch (e) {
       console.error('Falha ao gerar Pix:', e.message);
       return enviar(res, 502, pagina('Erro', `<div class="card"><p class="erro">Não foi possível gerar o Pix agora. Tente de novo ou fale com o suporte.</p><a class="btn cinza" href="${esc(cfg.suporte)}">Suporte</a></div>`));
@@ -506,7 +550,10 @@ async function rotas(req, res) {
       }
       gravar(ARQ_CONFIG, {
         ...atual,
-        gateway: b.gateway === 'infinitepay' ? 'infinitepay' : 'mercadopago',
+        gateway: ['chave', 'infinitepay', 'mercadopago'].includes(b.gateway) ? b.gateway : 'chave',
+        pixChave: String(b.pixChave || '').trim(),
+        pixNome: String(b.pixNome || '').trim(),
+        pixCidade: String(b.pixCidade || '').trim(),
         mpToken: String(b.mpToken || '').trim() || atual.mpToken,
         mpEmailPagador: String(b.mpEmailPagador || '').trim() || atual.mpEmailPagador,
         ipHandle: String(b.ipHandle || '').trim().replace(/^\$/, ''),

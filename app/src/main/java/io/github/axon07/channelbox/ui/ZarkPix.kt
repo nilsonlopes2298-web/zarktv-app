@@ -65,7 +65,7 @@ fun PixDialogo(
     onSuporte: () -> Unit,
 ) {
     data class Plano(val id: String, val nome: String, val dias: Int, val valor: Double)
-    data class Pix(val id: String, val plano: String, val valor: Double, val copia: String?, val link: String?)
+    data class Pix(val id: String, val plano: String, val valor: Double, val copia: String?, val link: String?, val manual: Boolean = false)
 
     var planos by remember { mutableStateOf<List<Plano>?>(null) }
     var pix by remember { mutableStateOf<Pix?>(null) }
@@ -101,7 +101,7 @@ fun PixDialogo(
                 erro = r?.s("erro") ?: "Não foi possível gerar o Pix agora."
                 return@launch
             }
-            pix = Pix(id, r.s("plano") ?: plano.nome, r.s("valor")?.toDoubleOrNull() ?: plano.valor, r.s("pixCopiaCola"), r.s("link"))
+            pix = Pix(id, r.s("plano") ?: plano.nome, r.s("valor")?.toDoubleOrNull() ?: plano.valor, r.s("pixCopiaCola"), r.s("link"), r.s("manual") == "true")
         }
     }
 
@@ -120,6 +120,7 @@ fun PixDialogo(
     // Confere o pagamento enquanto o QR está na tela.
     LaunchedEffect(pix?.id) {
         val id = pix?.id ?: return@LaunchedEffect
+        if (pix?.manual == true) return@LaunchedEffect // Pix na chave: quem confere é o dono, pelo comprovante
         while (!pago) {
             delay(5000)
             val st = pegar("$checkout/api/pedido/$id")?.s("status")
@@ -229,16 +230,24 @@ fun PixDialogo(
                         }
                         Spacer(Modifier.height(10.dp))
                         Text("Abra o app do seu banco, escolha Pix → Ler QR Code e aponte para a tela.", color = Color(0xCCFFFFFF), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Spacer(Modifier.height(12.dp))
-                        BotaoPix("Copiar código Pix", false, Modifier.fillMaxWidth()) {
-                            val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            cm.setPrimaryClip(android.content.ClipData.newPlainText("Pix", p.copia))
-                        }
                     } else if (p.link != null) {
                         BotaoPix("Abrir página do Pix", true, Modifier.fillMaxWidth()) { onAbrirPagina() }
                     }
-                    Spacer(Modifier.height(10.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.height(if (cel) 16.dp else 10.dp))
+                    if (p.manual && cel) {
+                        BotaoPix("Enviar comprovante no WhatsApp", !p.copia.isNullOrBlank() && abaQr, Modifier.fillMaxWidth()) {
+                            val msg = "Olá! Paguei o Pix do ZarkTV.\nUsuário: $usuario ($servidor)\nPlano: ${p.plano} · ${brl(p.valor)}\nPedido: ${p.id}"
+                            runCatching {
+                                ctx.startActivity(
+                                    android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(io.github.axon07.channelbox.data.ZarkConfig.WHATSAPP + "?text=" + android.net.Uri.encode(msg)))
+                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                        }
+                        Text("Depois de pagar, mande o comprovante para liberarmos o seu acesso.", color = Color(0xFFA1A1A6), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
+                    } else if (p.manual) {
+                        Text("Depois de pagar, mande o comprovante no WhatsApp (85) 8789-0473 para liberarmos o seu acesso.", color = Color(0xCCFFFFFF), fontSize = 13.sp, textAlign = TextAlign.Center)
+                    } else Row(verticalAlignment = Alignment.CenterVertically) {
                         BarrinhaCarregando(Modifier.width(80.dp))
                         Text("  Aguardando o pagamento…", color = Color(0xB3FFFFFF), fontSize = 12.sp)
                     }
