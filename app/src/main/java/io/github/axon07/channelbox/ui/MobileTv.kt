@@ -62,7 +62,7 @@ fun AbaTvCelular(
     onGroup: (ChannelFilter) -> Unit,
 ) {
     val ctx = LocalContext.current
-    val vermelho = Color(0xFFE53935)
+    val vermelho = Color(0xFFE50914)
     Column(Modifier.fillMaxSize()) {
         // ---- Vídeo ----
         Box(
@@ -70,7 +70,7 @@ fun AbaTvCelular(
                 .onGloballyPositioned { onPreviewRect(it.boundsInRoot()) }
                 .clickable { if (current != null) onFull() }
         ) {
-            if (current == null) Text("Escolha um canal na lista", color = Color(0xAAFFFFFF), fontSize = 15.sp, modifier = Modifier.align(Alignment.Center))
+            if (current == null) Text("Escolha um canal na lista", color = Color(0xFFA1A1A6), fontSize = 15.sp, modifier = Modifier.align(Alignment.Center))
             Row(
                 Modifier.align(Alignment.TopEnd).padding(6.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -99,15 +99,15 @@ fun AbaTvCelular(
 
         // ---- Canais | Favoritos ----
         val favoritos = currentGroup == ChannelFilter.Favorites
-        Row(Modifier.fillMaxWidth().background(Color(0xFF17181D)).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().background(Color(0xFF19191B)).padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "Canais", color = if (!favoritos) vermelho else Color(0xCCFFFFFF), fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                "Canais", color = if (!favoritos) vermelho else Color(0xFFA1A1A6), fontSize = 15.sp, fontWeight = FontWeight.Medium,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.weight(1f).clickable { if (favoritos) onGroup(groups.firstOrNull { it.first != ChannelFilter.Favorites }?.first ?: ChannelFilter.All) },
             )
-            Box(Modifier.width(1.dp).height(18.dp).background(Color(0x44FFFFFF)))
+            Box(Modifier.width(1.dp).height(18.dp).background(Color(0x14EDEDED)))
             Text(
-                "Favoritos", color = if (favoritos) vermelho else Color(0xCCFFFFFF), fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                "Favoritos", color = if (favoritos) vermelho else Color(0xFFA1A1A6), fontSize = 15.sp, fontWeight = FontWeight.Medium,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.weight(1f).clickable { onGroup(ChannelFilter.Favorites) },
             )
@@ -116,16 +116,16 @@ fun AbaTvCelular(
         // ---- Grupos | Canais ----
         Row(Modifier.fillMaxWidth().weight(1f)) {
             val grupos = groups.filter { it.first != ChannelFilter.Favorites }
-            LazyColumn(Modifier.width(118.dp).fillMaxHeight().background(Color(0xFF121317))) {
+            LazyColumn(Modifier.width(118.dp).fillMaxHeight().background(Color(0xFF0F0F10))) {
                 items(grupos, key = { it.second }) { (f, nome) ->
                     val sel = f == currentGroup
                     Row(
-                        Modifier.fillMaxWidth().height(52.dp).background(if (sel) Color(0xFF26272D) else Color.Transparent).clickable { onGroup(f) },
+                        Modifier.fillMaxWidth().height(52.dp).background(if (sel) Color(0xFF232325) else Color.Transparent).clickable { onGroup(f) },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(Modifier.width(3.dp).fillMaxHeight().background(if (sel) vermelho else Color.Transparent))
                         Text(
-                            nome.trim(), color = if (sel) Color.White else Color(0xAAFFFFFF), fontSize = 14.sp,
+                            nome.trim(), color = if (sel) Color.White else Color(0xFFA1A1A6), fontSize = 14.sp,
                             fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
                             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 10.dp),
                         )
@@ -134,11 +134,11 @@ fun AbaTvCelular(
             }
             val estado = rememberLazyListState()
             LaunchedEffect(currentGroup) { runCatching { estado.scrollToItem(0) } }
-            LazyColumn(Modifier.weight(1f).fillMaxHeight(), state = estado) {
+            LazyColumn(Modifier.weight(1f).fillMaxHeight().background(Color(0xFF141415)), state = estado) {
                 if (channels.isEmpty()) item {
                     Text(
                         if (favoritos) "Nenhum favorito ainda. Toque na ☆ do vídeo para favoritar." else "Nenhum canal neste grupo.",
-                        color = Color(0x99FFFFFF), fontSize = 14.sp, modifier = Modifier.padding(16.dp),
+                        color = Color(0xFF85858B), fontSize = 14.sp, modifier = Modifier.padding(16.dp),
                     )
                 }
                 items(channels, key = { it.id }) { ch ->
@@ -146,7 +146,7 @@ fun AbaTvCelular(
                     val agora = ch.epgId?.let { upcoming[it] }?.firstOrNull { it.start <= now && it.stop > now }?.title
                     Row(
                         Modifier.fillMaxWidth().height(60.dp)
-                            .background(if (tocando) vermelho.copy(alpha = 0.85f) else Color.Transparent)
+                            .background(if (tocando) Color(0xFF2A1215) else Color.Transparent)
                             .clickable { if (tocando) onFull() else onPick(ch) }
                             .padding(horizontal = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -161,7 +161,7 @@ fun AbaTvCelular(
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                agora ?: "Sem programação", color = if (tocando) Color(0xEEFFFFFF) else Color(0x88FFFFFF), fontSize = 12.sp,
+                                agora ?: "Sem programação", color = if (tocando) Color(0xEEFFFFFF) else Color(0xFF85858B), fontSize = 12.sp,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
                         }

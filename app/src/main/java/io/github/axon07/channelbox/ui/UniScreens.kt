@@ -1295,13 +1295,18 @@ internal val voltouDoCanal = androidx.compose.runtime.mutableStateOf(false)
 // no Início as abas Recomendações · Jogos · Filmes · Séries em cima.
 
 private val VermelhoCel = Color(0xFFE50914)
-private val FundoCel = Color(0xFF0B0B0F)
-private val CartaoCel = Color(0xFF1A1A20)
+private val FundoCel = Color(0xFF0F0F10)
+private val CartaoCel = Color(0xFF19191B)
+private val ElevadoCel = Color(0xFF232325)
+private val Texto1 = Color(0xFFEDEDED)
+private val Texto2 = Color(0xFFA1A1A6)
+private val Texto3 = Color(0xFF85858B)
+private val LinhaCel = Color(0x14EDEDED)
 
 /** Barra de baixo do celular (também usada por cima do Perfil). */
 @Composable
 fun BarraCelular(ativo: Int, onInicio: () -> Unit, onTv: () -> Unit, onPerfil: () -> Unit) {
-    Row(Modifier.fillMaxWidth().background(Color(0xFF111116)).padding(top = 6.dp, bottom = 8.dp)) {
+    Row(Modifier.fillMaxWidth().background(FundoCel).padding(top = 6.dp, bottom = 8.dp)) {
         ItemBarraCel("Início", AppIcons.Home, ativo == 0, Modifier.weight(1f), onInicio)
         ItemBarraCel("TV", AppIcons.Tv, ativo == 1, Modifier.weight(1f), onTv)
         ItemBarraCel("Perfil", AppIcons.User, ativo == 2, Modifier.weight(1f), onPerfil)
@@ -1310,11 +1315,11 @@ fun BarraCelular(ativo: Int, onInicio: () -> Unit, onTv: () -> Unit, onPerfil: (
 
 @Composable
 private fun ItemBarraCel(nome: String, icone: ImageVector, ativo: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val cor = if (ativo) VermelhoCel else Color(0x88FFFFFF)
+    val cor = if (ativo) VermelhoCel else Texto3
     Column(modifier.clickable(onClick = onClick).padding(vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         AppIcon(icone, tint = cor, size = 22.dp)
         Spacer(Modifier.height(3.dp))
-        Text(nome, color = if (ativo) Color.White else Color(0x88FFFFFF), fontSize = 11.sp, fontWeight = if (ativo) FontWeight.SemiBold else FontWeight.Normal)
+        Text(nome, color = if (ativo) Color.White else Texto3, fontSize = 11.sp, fontWeight = if (ativo) FontWeight.SemiBold else FontWeight.Normal)
     }
 }
 
@@ -1363,13 +1368,13 @@ private fun ShellCelular(
             Text("TV", color = VermelhoCel, fontSize = 21.sp, fontWeight = FontWeight.Black, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
             Spacer(Modifier.width(12.dp))
             Row(
-                Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF1C1C22))
-                    .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(10.dp)).clickable { onSearch() }.padding(horizontal = 12.dp),
+                Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(10.dp)).background(ElevadoCel)
+                    .border(1.dp, LinhaCel, RoundedCornerShape(10.dp)).clickable { onSearch() }.padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                AppIcon(AppIcons.Search, tint = Color(0x99FFFFFF), size = 16.dp)
+                AppIcon(AppIcons.Search, tint = Texto3, size = 16.dp)
                 Spacer(Modifier.width(8.dp))
-                Text("Pesquisar pelo título…", color = Color(0x77FFFFFF), fontSize = 14.sp, maxLines = 1)
+                Text("Pesquisar", color = Texto3, fontSize = 14.sp, maxLines = 1)
             }
         }
         // ---- Abas de cima (só no Início): botões arredondados, o escolhido em vermelho ----
@@ -1382,11 +1387,11 @@ private fun ShellCelular(
                 items(subAbas) { (nome, aba) ->
                     val sel = aba == tab
                     Text(
-                        nome, color = if (sel) Color.White else Color(0xCCFFFFFF), fontSize = 14.sp,
-                        fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium, maxLines = 1,
-                        modifier = Modifier.clip(RoundedCornerShape(20.dp))
-                            .background(if (sel) VermelhoCel else Color(0xFF1C1C22))
-                            .border(1.dp, if (sel) VermelhoCel else Color(0x1FFFFFFF), RoundedCornerShape(20.dp))
+                        nome, color = if (sel) Color.White else Texto2, fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium, maxLines = 1,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                            .background(if (sel) VermelhoCel else ElevadoCel)
+                            .border(1.dp, if (sel) VermelhoCel else LinhaCel, RoundedCornerShape(8.dp))
                             .clickable { onTab(aba) }.padding(horizontal = 16.dp, vertical = 8.dp),
                     )
                 }
@@ -1414,11 +1419,11 @@ private fun ShellCelular(
 @Composable
 private fun TituloCel(titulo: String, extra: String? = null, icone: ImageVector? = null, onTodos: (() -> Unit)?) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (icone != null) { AppIcon(icone, tint = VermelhoCel, size = 18.dp); Spacer(Modifier.width(6.dp)) }
-        Text(titulo, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (extra != null) { Spacer(Modifier.width(6.dp)); Text(extra, color = Color(0x88FFFFFF), fontSize = 12.sp) }
+        if (icone != null) { AppIcon(icone, tint = Texto3, size = 18.dp); Spacer(Modifier.width(8.dp)) }
+        Text(titulo, color = Texto1, fontSize = 18.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (extra != null) { Spacer(Modifier.width(8.dp)); Text(extra, color = Texto3, fontSize = 12.sp) }
         Spacer(Modifier.weight(1f))
-        if (onTodos != null) Text("Ver todos", color = VermelhoCel, fontSize = 13.sp, modifier = Modifier.clickable(onClick = onTodos).padding(4.dp))
+        if (onTodos != null) Text("Ver todos", color = Texto2, fontSize = 13.sp, modifier = Modifier.clickable(onClick = onTodos).padding(horizontal = 4.dp, vertical = 8.dp))
     }
 }
 
@@ -1429,25 +1434,25 @@ private fun CapaCel(vm: TvViewModel, item: VodEntity, modifier: Modifier = Modif
     var fav by remember(item.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.favoritos(ctx).contains(item.id)) }
     val novo = item.added > 0 && System.currentTimeMillis() / 1000 - item.added < 7 * 86400
     Column(modifier.clickable(onClick = onClick)) {
-        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)).background(Color(0xFF26262C))) {
+        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)).background(ElevadoCel)) {
             if (!item.poster.isNullOrBlank()) AsyncImage(item.poster, item.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            else Text(iniciaisCel(item.title), color = Color(0x88FFFFFF), fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
-            Column(Modifier.align(Alignment.TopStart).padding(5.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                if (novo) Text(if (item.kind == VodKind.SERIES) "EP. NOVO" else "NOVO", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.background(VermelhoCel, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp, vertical = 1.dp))
+            else Text(iniciaisCel(item.title), color = Texto3, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+            Column(Modifier.align(Alignment.TopStart).padding(4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                if (novo) Text(if (item.kind == VodKind.SERIES) "Episódio novo" else "Novo", color = Texto1, fontSize = 11.sp, fontWeight = FontWeight.Medium,
+                    modifier = Modifier.background(Color(0xE60F0F10), RoundedCornerShape(4.dp)).padding(horizontal = 4.dp, vertical = 2.dp))
                 item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let { nota ->
-                    Text("★ " + String.format(java.util.Locale.US, "%.1f", nota), color = Color(0xFFFFD54F), fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.background(Color(0xCC000000), RoundedCornerShape(4.dp)).padding(horizontal = 5.dp, vertical = 1.dp))
+                    Text("★ " + String.format(java.util.Locale.US, "%.1f", nota), color = Texto1, fontSize = 11.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier.background(Color(0xE60F0F10), RoundedCornerShape(4.dp)).padding(horizontal = 4.dp, vertical = 2.dp))
                 }
             }
             Box(
-                Modifier.align(Alignment.TopEnd).padding(5.dp).size(24.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                Modifier.align(Alignment.TopEnd).padding(4.dp).size(24.dp).clip(androidx.compose.foundation.shape.CircleShape)
                     .background(Color(0xAA000000)).clickable { fav = vm.zarkFavoritar(item) },
                 contentAlignment = Alignment.Center,
             ) { Text(if (fav) "♥" else "♡", color = if (fav) VermelhoCel else Color.White, fontSize = 13.sp) }
         }
-        Spacer(Modifier.height(5.dp))
-        Text(item.title, color = Color(0xDDFFFFFF), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(8.dp))
+        Text(item.title, color = Texto1, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -1491,31 +1496,31 @@ private fun CarrosselCel(vm: TvViewModel, itens: List<Pair<VodEntity, String>>, 
                 Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(
                     0f to Color.Transparent, 0.35f to Color(0x22000000), 1f to Color(0xF00B0B0F))))
                 Text(
-                    rotulo, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.TopStart).padding(10.dp)
-                        .background(if (rotulo.contains("ALTA")) VermelhoCel else Color(0xCC000000), RoundedCornerShape(6.dp))
+                    rotulo, color = Texto1, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                    modifier = Modifier.align(Alignment.TopStart).padding(12.dp)
+                        .background(Color(0xCC0F0F10), RoundedCornerShape(6.dp))
                         .padding(horizontal = 8.dp, vertical = 3.dp),
                 )
-                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(14.dp)) {
-                    Text(item.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 25.sp)
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(16.dp)) {
+                    Text(item.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 28.sp)
                     val info = listOfNotNull(
                         item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let { "★ " + String.format(java.util.Locale.US, "%.1f", it) },
                         item.year?.take(4)?.takeIf { it.isNotBlank() },
                         if (item.kind == VodKind.SERIES) "Série" else "Filme",
                     )
-                    Text(info.joinToString("  ·  "), color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(10.dp))
+                    Text(info.joinToString("  ·  "), color = Texto2, fontSize = 13.sp)
+                    Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("▶  Assistir", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color.White).clickable { onOpen(item) }.padding(horizontal = 18.dp, vertical = 9.dp))
-                        Text(if (fav) "✓  Na lista" else "+  Minha Lista", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0x44FFFFFF)).clickable { fav = vm.zarkFavoritar(item) }.padding(horizontal = 16.dp, vertical = 9.dp))
+                        Text("▶  Assistir", color = FundoCel, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color.White).clickable { onOpen(item) }.padding(horizontal = 20.dp, vertical = 12.dp))
+                        Text(if (fav) "✓  Na lista" else "+  Minha Lista", color = Texto1, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0x33EDEDED)).clickable { fav = vm.zarkFavoritar(item) }.padding(horizontal = 16.dp, vertical = 12.dp))
                     }
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             itens.indices.forEach { k ->
                 val sel = k == estado.currentPage
                 Box(Modifier.size(width = if (sel) 18.dp else 6.dp, height = 6.dp).clip(RoundedCornerShape(3.dp)).background(if (sel) VermelhoCel else Color(0x55FFFFFF)))
@@ -1540,13 +1545,13 @@ private fun RecomendacoesCel(
     val canais by vm.allChannels.collectAsState()
     var jogos by remember { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkJogos.Jogo>>(emptyList()) }
     LaunchedEffect(Unit) { jogos = runCatching { io.github.axon07.channelbox.data.ZarkJogos.hoje(vm.zarkHttp) }.getOrDefault(emptyList()).filter { it.estado != "post" }.take(15) }
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(20.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { Column { Spacer(Modifier.height(4.dp)); CarrosselCel(vm, destaques, onOpen) } }
         if (jogos.isNotEmpty()) item {
             Column {
                 TituloCel("Jogos de hoje", icone = AppIcons.Trofeu, onTodos = { onTab(Aba.JOGOS) })
                 Spacer(Modifier.height(8.dp))
-                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(jogos, key = { it.id.ifBlank { it.casa.nome + it.inicio } }) { j -> CartaoJogoCel(j) { onAbrirJogo(j) } }
                 }
             }
@@ -1555,7 +1560,7 @@ private fun RecomendacoesCel(
             Column {
                 TituloCel("Continue Assistindo", onTodos = null)
                 Spacer(Modifier.height(8.dp))
-                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(continuar, key = { it.id }) { item -> CapaCel(vm, item, Modifier.width(150.dp)) { onOpen(item) } }
                 }
             }
@@ -1564,7 +1569,7 @@ private fun RecomendacoesCel(
             Column {
                 TituloCel("Ao vivo agora", icone = AppIcons.AoVivo, extra = "${canais.size} canais", onTodos = { onTab(Aba.TV) })
                 Spacer(Modifier.height(8.dp))
-                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(canais.take(20), key = { it.id }) { ch -> CanalCel(ch) { onCanal(ch) } }
                 }
             }
@@ -1573,8 +1578,8 @@ private fun RecomendacoesCel(
         item { FileiraVodCel(vm, "Séries", series, onOpen) { onTab(Aba.SERIES) } }
         if (filmes?.isEmpty() == true && series?.isEmpty() == true) item {
             Column(Modifier.padding(horizontal = 12.dp)) {
-                Text("Os filmes e séries ainda estão chegando do servidor…", color = Color(0xCCFFFFFF), fontSize = 14.sp)
-                Spacer(Modifier.height(10.dp))
+                Text("Os filmes e séries ainda estão chegando do servidor…", color = Texto2, fontSize = 14.sp)
+                Spacer(Modifier.height(12.dp))
                 PillButton("Atualizar conteúdo agora", primary = true) { vm.refreshNow() }
             }
         }
@@ -1587,7 +1592,7 @@ private fun FileiraVodCel(vm: TvViewModel, titulo: String, lista: List<VodEntity
     Column {
         TituloCel(titulo, onTodos = onTodos)
         Spacer(Modifier.height(8.dp))
-        LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (lista == null) items(4) { Box(Modifier.width(118.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)).background(CartaoCel)) }
             else items(lista, key = { it.id }) { item -> CapaCel(vm, item) { onOpen(item) } }
         }
@@ -1598,17 +1603,17 @@ private fun FileiraVodCel(vm: TvViewModel, titulo: String, lista: List<VodEntity
 @Composable
 private fun CanalCel(ch: ChannelEntity, onClick: () -> Unit) {
     Row(
-        Modifier.width(200.dp).height(64.dp).clip(RoundedCornerShape(10.dp)).background(CartaoCel).clickable(onClick = onClick).padding(10.dp),
+        Modifier.width(200.dp).height(64.dp).clip(RoundedCornerShape(10.dp)).background(CartaoCel).clickable(onClick = onClick).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF2A2A31)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(ElevadoCel), contentAlignment = Alignment.Center) {
             if (!ch.logoUrl.isNullOrBlank()) AsyncImage(ch.logoUrl, ch.name, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(4.dp))
-            else Text(iniciaisCel(ch.name), color = Color(0xAAFFFFFF), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            else Text(iniciaisCel(ch.name), color = Texto2, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
         Column {
-            if (ch.number > 0) Text(ch.number.toString(), color = Color(0x88FFFFFF), fontSize = 11.sp)
-            Text(ch.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (ch.number > 0) Text(ch.number.toString(), color = Texto3, fontSize = 11.sp)
+            Text(ch.name, color = Texto1, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -1617,13 +1622,13 @@ private fun CanalCel(ch: ChannelEntity, onClick: () -> Unit) {
 private fun CartaoJogoCel(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, onClick: () -> Unit) {
     val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
     Column(Modifier.width(250.dp).clip(RoundedCornerShape(12.dp)).background(CartaoCel).clickable(onClick = onClick).padding(12.dp)) {
-        Text(j.liga, color = Color(0xAAFFFFFF), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(j.liga, color = Texto2, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             TimeCel(j.casa.nome, j.casa.logo, Modifier.weight(1f))
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(0.8f)) {
-                Text(if (j.estado == "in") "${j.casa.placar ?: 0} x ${j.fora.placar ?: 0}" else hora, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                if (j.estado == "in") Text("AO VIVO", color = VermelhoCel, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(if (j.estado == "in") "${j.casa.placar ?: 0} x ${j.fora.placar ?: 0}" else hora, color = Texto1, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                if (j.estado == "in") Text("Ao vivo", color = VermelhoCel, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
             TimeCel(j.fora.nome, j.fora.logo, Modifier.weight(1f))
         }
@@ -1652,17 +1657,17 @@ private fun GradeCel(vm: TvViewModel, kind: String, onOpen: (VodEntity) -> Unit)
         }
         val lista = itens
         when {
-            lista == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Carregando…", color = Color(0x99FFFFFF)) }
+            lista == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Carregando…", color = Texto3) }
             lista.isEmpty() -> Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Nada aqui ainda.", color = Color(0xCCFFFFFF), fontSize = 15.sp)
+                Text("Nada aqui ainda.", color = Texto2, fontSize = 15.sp)
                 Spacer(Modifier.height(12.dp))
                 PillButton("Atualizar conteúdo agora", primary = true) { vm.refreshNow() }
             }
             else -> androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
                 columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(3),
                 contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(lista.size, key = { lista[it].id }) { i -> CapaCel(vm, lista[i], Modifier.fillMaxWidth()) { onOpen(lista[i]) } }
             }
@@ -1673,10 +1678,10 @@ private fun GradeCel(vm: TvViewModel, kind: String, onOpen: (VodEntity) -> Unit)
 @Composable
 private fun ChipCel(nome: String, sel: Boolean, onClick: () -> Unit) {
     Text(
-        nome, color = Color.White, fontSize = 13.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal, maxLines = 1,
-        modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(if (sel) VermelhoCel else Color(0xFF1E1E24))
-            .border(1.dp, if (sel) VermelhoCel else Color(0x22FFFFFF), RoundedCornerShape(18.dp)).clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 7.dp),
+        nome, color = if (sel) FundoCel else Texto1, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (sel) Texto1 else ElevadoCel)
+            .border(1.dp, if (sel) Texto1 else LinhaCel, RoundedCornerShape(8.dp)).clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     )
 }
 
