@@ -1568,6 +1568,12 @@ private fun RecomendacoesCel(
     onCanal: (ChannelEntity) -> Unit,
 ) {
     val destaques by remember { vm.vodDestaquesWeb() }.collectAsState(initial = emptyList())
+    // Guarda umas capas para o fundo animado da entrada.
+    val ctxP = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(destaques) {
+        val urls = destaques.mapNotNull { it.first.poster }.filter { it.startsWith("http") }
+        if (urls.size >= 4) ctxP.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).edit().putString("capas_parede", urls.joinToString("\n")).apply()
+    }
     val continuar by remember { vm.vodContinuar() }.collectAsState(initial = emptyList())
     val filmes by remember { vm.vodTop(VodKind.MOVIE, null, 20) }.collectAsState(initial = null)
     val series by remember { vm.vodTop(VodKind.SERIES, null, 20) }.collectAsState(initial = null)

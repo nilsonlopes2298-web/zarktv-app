@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -212,6 +215,7 @@ fun ZarkLoginScreen(
             }
         androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF0F0F10))) {
             val alturaTela = maxHeight
+            ParedeCapas()
             // Tudo centralizado no meio da tela (rola se o teclado apertar).
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).heightIn(min = alturaTela).padding(horizontal = 32.dp),
@@ -497,6 +501,36 @@ private fun ZarkCarregandoEtapas(refreshState: RefreshState) {
     val giro = rememberInfiniteTransition(label = "giro")
     val angulo by giro.animateFloat(0f, 360f, infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Restart), label = "a")
 
+    if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
+        // Celular: carregando simples — marca, o que está carregando e uma barrinha que vai e volta.
+        val vai by giro.animateFloat(0f, 1f, infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Reverse), label = "barra")
+        Box(Modifier.fillMaxSize().background(Color(0xFF0F0F10)), contentAlignment = Alignment.Center) {
+            ParedeCapas()
+            Column(Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AppIcon(AppIcons.Play, tint = Palette.Accent, size = 24.dp)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Zark", color = Color(0xFFEDEDED), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Text("TV", color = Palette.Accent, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(28.dp))
+                androidx.compose.foundation.layout.BoxWithConstraints(Modifier.width(220.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x33FFFFFF))) {
+                    Box(Modifier.offset(x = (maxWidth - 80.dp) * vai).width(80.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(Palette.Accent))
+                }
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    when (etapa) {
+                        0 -> "Carregando canais" + (numero?.let { " ($it)" } ?: "") + "…"
+                        1 -> "Carregando filmes e séries" + (numero?.let { " ($it)" } ?: "") + "…"
+                        else -> "Carregando a programação…"
+                    },
+                    color = Color(0xFFA1A1A6), fontSize = 13.sp,
+                )
+            }
+        }
+        return
+    }
+
     ZarkFundo {
         Column(
             Modifier.widthIn(max = 760.dp).padding(24.dp),
@@ -699,5 +733,48 @@ fun ParedeDeCapas(capas: List<String>) {
         }
         // Escurece para o texto e o cartão ficarem legíveis.
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xE60A0A0A), Color(0xB30A0A0A), Color(0xD90A0A0A)))))
+    }
+}
+
+
+/**
+ * ZarkTV Mobile: fundo animado da entrada — capas de filmes e séries (as últimas que o app viu)
+ * deslizando devagar em fileiras, bem escurecidas. Sem capas guardadas, quadros com ícones.
+ */
+@Composable
+fun ParedeCapas() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val capas = remember {
+        ctx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getString("capas_parede", "").orEmpty()
+            .split('\n').filter { it.startsWith("http") }
+    }
+    val anda = rememberInfiniteTransition(label = "parede")
+    val desloca by anda.animateFloat(0f, 1f, infiniteRepeatable(tween(40_000, easing = LinearEasing), RepeatMode.Restart), label = "d")
+    val icones = listOf(AppIcons.Trofeu, AppIcons.Play, AppIcons.Tv, AppIcons.AoVivo)
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+        val tile = 96.dp
+        val passo = tile + 8.dp
+        val porLinha = (maxWidth / passo).toInt() + 3
+        Column(Modifier.fillMaxSize().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            repeat(((maxHeight / (tile * 1.5f + 8.dp)).toInt() + 1)) { linha ->
+                val dir = if (linha % 2 == 0) -1f else 1f
+                Row(
+                    Modifier.offset(x = passo * ((desloca * 3f * dir) % 1f) - passo).wrapContentWidth(Alignment.Start, unbounded = true),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    repeat(porLinha) { k ->
+                        val i = linha * porLinha + k
+                        Box(
+                            Modifier.width(tile).height(tile * 1.5f).clip(RoundedCornerShape(8.dp)).background(Color(0xFF1C1C1F)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (capas.isNotEmpty()) coil.compose.AsyncImage(capas[i % capas.size], null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                            else AppIcon(icones[i % icones.size], tint = Color(0x33FFFFFF), size = 28.dp)
+                        }
+                    }
+                }
+            }
+        }
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xE60F0F10), Color(0xCC0F0F10), Color(0xF20F0F10)))))
     }
 }
