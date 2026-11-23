@@ -323,6 +323,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var pixAberto by remember { mutableStateOf(false) }
     // Celular: Configurações avançadas/parental abertas a partir de Configurações voltam para lá.
     var settingsDeAjustes by remember { mutableStateOf(false) }
+    // Celular: cartão "Verificando atualização…" aberto pelo Perfil.
+    var verificandoCel by remember { mutableStateOf(false) }
     var previewPergunta by remember { mutableStateOf<Triple<VodEntity, VodEntity?, Long>?>(null) }
     val scope = rememberCoroutineScope()
     /** Last key press or touch, for closing the guide/menus when idle. */
@@ -2075,7 +2077,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onControleParental = { settingsDeAjustes = false; settingsSection = "parental"; openSettings() },
                     onConfiguracoes = { ajustesVolta = Mode.PROFILE; mode = Mode.AJUSTES },
                     onPlayer = { ajustesVolta = Mode.PROFILE; mode = Mode.AJUSTES },
-                    onAtualizar = { vm.checkForUpdates(manual = true) },
+                    onAtualizar = {
+                        if (io.github.axon07.channelbox.system.Aparelho.soCelular) verificandoCel = true
+                        vm.checkForUpdates(manual = true)
+                    },
                     onTema = { ZarkTema.proximo(ctx) },
                     onPlayerFilmes = {
                         playerExterno = !playerExterno
@@ -2528,6 +2533,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     }, onEsqueci = if (r.setup) null else ({ vm.esqueciPin.value = true }))
                 }
             }
+            if (verificandoCel) VerificandoAtualizacao(vm, vm.appVersion) { verificandoCel = false }
             vm.zarkManutencao.collectAsStateWithLifecycle().value?.let { texto ->
                 if (mode != Mode.SETUP) AvisoManutencao(texto) { vm.zarkManutencao.value = null }
             }

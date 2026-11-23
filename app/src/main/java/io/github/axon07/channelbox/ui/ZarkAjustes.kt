@@ -423,3 +423,21 @@ private fun VerificarCelular(vm: TvViewModel, versao: String) {
         }
     }
 }
+
+/** Celular (Perfil → Verificar atualização): o mesmo cartão animado, no meio da tela. */
+@Composable
+fun VerificandoAtualizacao(vm: TvViewModel, versao: String, onFechar: () -> Unit) {
+    val estado by vm.update.collectAsStateWithLifecycle()
+    // Achou versão nova: o aviso de atualização assume.
+    LaunchedEffect(estado) { if (estado is TvViewModel.UpdateState.Available) { delay(1_600); onFechar() } }
+    androidx.activity.compose.BackHandler { onFechar() }
+    Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(enabled = false) {}, contentAlignment = Alignment.Center) {
+        Column(Modifier.padding(horizontal = 28.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            VerificarCelular(vm, versao)
+            Box(
+                Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF2C2C2F)).clickable(onClick = onFechar),
+                contentAlignment = Alignment.Center,
+            ) { Text("Fechar", color = Color(0xFFEDEDED), fontSize = 15.sp) }
+        }
+    }
+}
