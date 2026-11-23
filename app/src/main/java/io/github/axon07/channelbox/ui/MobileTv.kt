@@ -146,7 +146,7 @@ fun AbaTvCelular(
                     val agora = ch.epgId?.let { upcoming[it] }?.firstOrNull { it.start <= now && it.stop > now }?.title
                     Row(
                         Modifier.fillMaxWidth().height(60.dp)
-                            .background(if (tocando) Color(0xFF2A1215) else Color.Transparent)
+                            .background(if (tocando) vermelho else Color.Transparent)
                             .clickable { if (tocando) onFull() else onPick(ch) }
                             .padding(horizontal = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,

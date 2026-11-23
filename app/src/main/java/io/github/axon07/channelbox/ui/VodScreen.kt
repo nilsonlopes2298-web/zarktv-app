@@ -137,8 +137,9 @@ fun VodScreen(b: VodBrowser, vm: TvViewModel, onPlay: (item: VodEntity, show: Vo
         val movie = b.movie
         // Na ficha a tela não "desce" sozinha ao focar o botão (na TV o Compose centraliza o foco):
         // só rola quando o foco sai da tela.
-        if (movie != null) SemPivo { MovieDetail(b, movie, progress[movie.id], vm, onPlay) }
-        else if (show != null) SemPivo { ShowScreen(b, show, progress, vm, onPlay) }
+        val cel = io.github.axon07.channelbox.system.Aparelho.soCelular
+        if (movie != null) { if (cel) FichaFilmeCel(b, movie, progress[movie.id], vm, onPlay) else SemPivo { MovieDetail(b, movie, progress[movie.id], vm, onPlay) } }
+        else if (show != null) { if (cel) FichaSerieCel(b, show, progress, vm, onPlay) else SemPivo { ShowScreen(b, show, progress, vm, onPlay) } }
         else LibraryScreen(b, progress, vm, onPlay, onCategoryMenu = { cat, locked -> categoryMenu = cat to locked })
         categoryMenu?.let { (cat, locked) -> CategoryMenu(b, vm, cat, locked) { categoryMenu = null } }
     }
