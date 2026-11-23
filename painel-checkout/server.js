@@ -535,4 +535,4 @@ http.createServer((req, res) => {
     console.error('Erro:', e);
     if (!res.headersSent) enviar(res, 500, pagina('Erro', '<div class="card"><p class="erro">Erro interno. Tente de novo.</p></div>'));
   });
-}).listen(PORTA, '127.0.0.1', () => console.log(`Checkout ZarkTV rodando em http://127.0.0.1:${PORTA}/checkout`));
+}).listen(PORTA, process.env.ENDERECO || '127.0.0.1', () => console.log(`Checkout ZarkTV rodando em http://${process.env.ENDERECO || '127.0.0.1'}:${PORTA}/checkout`));
