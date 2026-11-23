@@ -494,7 +494,7 @@ private fun AbaTv(
     }
     val lista: @Composable (Modifier) -> Unit = { mod ->
         // Como na UniTV: 1º clique abre o canal na janelinha, 2º clique no mesmo canal abre em tela cheia.
-        ListaDeCanais(mod, channels, groupLabel, current, favorites, onPrevGroup, onNextGroup, onPick, onFull, onFavorite, groups, currentGroup, onGroup)
+        ListaDeCanais(mod, channels, groupLabel, current, favorites, onPrevGroup, onNextGroup, onPick, onFull, onFavorite, groups, currentGroup, onGroup, upcoming, now)
     }
     if (compacto) {
         // Celular em pé: vídeo em cima, Canais | Favoritos, grupos | canais (como na UniTV Mobile).
@@ -523,8 +523,16 @@ fun ListaDeCanais(
     groups: List<Pair<ChannelFilter, String>> = emptyList(),
     currentGroup: ChannelFilter = ChannelFilter.All,
     onGroup: (ChannelFilter) -> Unit = {},
+    upcoming: Map<String, List<ProgramEntity>> = emptyMap(),
+    now: Long = System.currentTimeMillis(),
 ) {
     var verGrupos by remember { mutableStateOf(false) }
+    // Programação de cada canal (pelo id do guia ou pelo nome), com horário e barrinha de progresso.
+    val porNome = remember(upcoming) {
+        val m = HashMap<String, List<ProgramEntity>>()
+        upcoming.forEach { (id, l) -> m.putIfAbsent(chaveEpg(id.substringBeforeLast('.')), l) }
+        m
+    }
     val listState = rememberLazyListState()
     val inicio = channels.indexOfFirst { it.id == current?.id }.coerceAtLeast(0)
     LaunchedEffect(channels) { runCatching { listState.scrollToItem((inicio - 2).coerceAtLeast(0)) } }
@@ -577,16 +585,30 @@ fun ListaDeCanais(
                     onLongClick = { onFavorite(ch) },
                     onClick = { if (tocando) onFull() else onPick(ch) },
                 ) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x22FFFFFF)), contentAlignment = Alignment.Center) {
+                    val prog = (ch.epgId?.let { upcoming[it] } ?: porNome[chaveEpg(ch.name)])?.firstOrNull { it.start <= now && it.stop > now }
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(width = 56.dp, height = 40.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x22FFFFFF)), contentAlignment = Alignment.Center) {
                             ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize().padding(3.dp))
                         }
                         Spacer(Modifier.width(12.dp))
                         Text("${ch.number}", color = Color(0xCCFFFFFF), fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(38.dp))
-                        Text(
-                            ch.name.uppercase(), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
-                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                ch.name.uppercase(), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                            if (prog != null) {
+                                val f = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR"))
+                                Text(
+                                    f.format(java.util.Date(prog.start)) + " – " + f.format(java.util.Date(prog.stop)) + "  " + prog.title,
+                                    color = Color(0xCCFFFFFF), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                )
+                                val frac = ((now - prog.start).toFloat() / (prog.stop - prog.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                                Box(Modifier.padding(top = 4.dp).fillMaxWidth(0.9f).height(2.dp).background(Color(0x33FFFFFF))) {
+                                    Box(Modifier.fillMaxWidth(frac).height(2.dp).background(Color(0xFFE53935)))
+                                }
+                            } else Text("Sem programação", color = Color(0x88FFFFFF), fontSize = 12.sp)
+                        }
                         if (ch.id in favorites) Text("★", color = Palette.Favorite, fontSize = 15.sp)
                         if (tocando) Text("  ▶", color = Color.White, fontSize = 14.sp)
                     }
