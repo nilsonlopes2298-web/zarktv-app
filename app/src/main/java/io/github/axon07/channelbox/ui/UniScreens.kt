@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.foundation.focusGroup
@@ -1290,9 +1291,30 @@ internal val voltouDoCanal = androidx.compose.runtime.mutableStateOf(false)
 
 
 // ================================ ZarkTV Mobile ================================================
+// Mesmas telas do Web Play no celular (tv.zarktvqx.cfd): Início · TV · Perfil embaixo;
+// no Início as abas Recomendações · Jogos · Filmes · Séries em cima.
 
-private val VermelhoCel = Color(0xFFE53935)
-private val FundoCel = Color(0xFF16171C)
+private val VermelhoCel = Color(0xFFE50914)
+private val FundoCel = Color(0xFF0B0B0F)
+private val CartaoCel = Color(0xFF1A1A20)
+
+/** Barra de baixo do celular (também usada por cima do Perfil). */
+@Composable
+fun BarraCelular(ativo: Int, onInicio: () -> Unit, onTv: () -> Unit, onPerfil: () -> Unit) {
+    Row(Modifier.fillMaxWidth().background(Color(0xFF111116)).padding(top = 6.dp, bottom = 8.dp)) {
+        ItemBarraCel("Início", "🏠", ativo == 0, Modifier.weight(1f), onInicio)
+        ItemBarraCel("TV", "📺", ativo == 1, Modifier.weight(1f), onTv)
+        ItemBarraCel("Perfil", "👤", ativo == 2, Modifier.weight(1f), onPerfil)
+    }
+}
+
+@Composable
+private fun ItemBarraCel(nome: String, icone: String, ativo: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Column(modifier.clickable(onClick = onClick).padding(vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(icone, fontSize = 20.sp)
+        Text(nome, color = if (ativo) Color.White else Color(0x88FFFFFF), fontSize = 12.sp, fontWeight = if (ativo) FontWeight.Bold else FontWeight.Normal)
+    }
+}
 
 @Composable
 private fun ShellCelular(
@@ -1324,83 +1346,109 @@ private fun ShellCelular(
     onSearch: () -> Unit,
     onProfile: () -> Unit,
 ) {
-    // Abas de cima do Início (cada uma é uma aba do app: o resto do app continua igual).
-    val subAbas = buildList {
-        add("Recomendações" to Aba.DESTAQUES); add("Filmes" to Aba.FILMES); add("Séries" to Aba.SERIES)
-        add("Jogos" to Aba.JOGOS); add("Desenhos" to Aba.KIDS); add("Animes" to Aba.ANIME)
-        if (adultoLiberado) add("Adulto" to Aba.EXPLORAR)
-    }
+    val subAbas = listOf("Recomendações" to Aba.DESTAQUES, "Jogos" to Aba.JOGOS, "Filmes" to Aba.FILMES, "Séries" to Aba.SERIES)
     val naTv = tab == Aba.TV
-    LaunchedEffect(Unit) { onPreviewRect(null) }
+    if (!naTv && !(tab == Aba.JOGOS && jogoAberto != null)) LaunchedEffect(tab) { onPreviewRect(null) }
     Column(Modifier.fillMaxSize().background(FundoCel)) {
-        if (!naTv) {
-            // ---- Topo: logo, pesquisa e ajuda ----
-            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Zark", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text("TV", color = VermelhoCel, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.width(12.dp))
-                Row(
-                    Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF2A2C33)).clickable { onSearch() }.padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    AppIcon(AppIcons.Search, tint = Color(0xAAFFFFFF), size = 18.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Pesquisar pelo título…", color = Color(0x88FFFFFF), fontSize = 14.sp, maxLines = 1)
-                }
+        // ---- Topo: ZarkTV e pesquisa ----
+        Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("▷", color = VermelhoCel, fontSize = 22.sp, fontWeight = FontWeight.Black)
+            Text("Zark", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Black, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+            Text("TV", color = VermelhoCel, fontSize = 21.sp, fontWeight = FontWeight.Black, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+            Spacer(Modifier.width(12.dp))
+            Row(
+                Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF1C1C22))
+                    .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(10.dp)).clickable { onSearch() }.padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("⌕", color = Color(0x99FFFFFF), fontSize = 16.sp)
+                Spacer(Modifier.width(8.dp))
+                Text("Pesquisar pelo título…", color = Color(0x77FFFFFF), fontSize = 14.sp, maxLines = 1)
             }
-            // ---- Abas de cima ----
-            val rolAbas = androidx.compose.foundation.lazy.rememberLazyListState()
-            LazyRow(state = rolAbas, contentPadding = PaddingValues(horizontal = 10.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+        }
+        // ---- Abas de cima (só no Início) ----
+        if (!naTv) {
+            LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 items(subAbas) { (nome, aba) ->
                     val sel = aba == tab
-                    Column(Modifier.clickable { onTab(aba) }.padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(nome, color = if (sel) VermelhoCel else Color(0xDDFFFFFF), fontSize = 17.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium)
-                        Spacer(Modifier.height(4.dp))
-                        Box(Modifier.width(22.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(if (sel) VermelhoCel else Color.Transparent))
+                    Column(Modifier.clickable { onTab(aba) }, horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(nome, color = if (sel) VermelhoCel else Color(0xDDFFFFFF), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(6.dp))
+                        Box(Modifier.width(if (sel) 110.dp else 0.dp).height(3.dp).background(if (sel) VermelhoCel else Color.Transparent))
                     }
                 }
             }
-            Spacer(Modifier.height(6.dp))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x14FFFFFF)))
         }
         Box(Modifier.fillMaxWidth().weight(1f)) {
             when (tab) {
-                Aba.TV -> AbaTvCelular(channels, current, favorites, upcoming, now, onPickChannel, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup)
+                Aba.TV -> TvCelular(channels, current, favorites, upcoming, now, onPickChannel, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup)
                 Aba.JOGOS -> if (jogoAberto != null) SemPivo { JogoAberto(vm, jogoAberto, canalJogo, canalJogoInfo, true, onPreviewRect, onFull, onMudarCanalJogo, onFecharJogo) }
                     else AbaJogos(vm, true, onAbrirJogo)
-                Aba.FILMES -> CatalogoCel(vm, VodKind.MOVIE, null, onOpenItem, onOpenLibrary)
-                Aba.SERIES -> CatalogoCel(vm, VodKind.SERIES, null, onOpenItem, onOpenLibrary)
-                Aba.KIDS -> CatalogoCel(vm, null, REGEX_KIDS, onOpenItem, onOpenLibrary, onOpenFiltrado)
-                Aba.ANIME -> CatalogoCel(vm, null, REGEX_ANIME, onOpenItem, onOpenLibrary, onOpenFiltrado)
-                Aba.EXPLORAR -> CatalogoCel(vm, null, Regex("adult|xxx|\\+18|18\\+|hot", RegexOption.IGNORE_CASE), onOpenItem, onOpenLibrary, onOpenFiltrado)
-                else -> RecomendacoesCel(vm, onOpenItem, onOpenLibrary, onAbrirJogo = { onTab(Aba.JOGOS); onAbrirJogo(it) }, onVerJogos = { onTab(Aba.JOGOS) })
+                Aba.FILMES -> GradeCel(vm, VodKind.MOVIE, onOpenItem)
+                Aba.SERIES -> GradeCel(vm, VodKind.SERIES, onOpenItem)
+                else -> RecomendacoesCel(
+                    vm, onOpenItem, onTab,
+                    onAbrirJogo = { onTab(Aba.JOGOS); onAbrirJogo(it) },
+                    onCanal = { ch -> onTab(Aba.TV); onPickChannel(ch) },
+                )
             }
         }
-        // ---- Barra de baixo: Início · TV · Perfil ----
-        Row(Modifier.fillMaxWidth().background(Color(0xFF1E1F25)).padding(vertical = 6.dp)) {
-            ItemBarraCel("Início", AppIcons.Home, !naTv, Modifier.weight(1f)) { if (naTv) onTab(Aba.DESTAQUES) }
-            ItemBarraCel("TV", AppIcons.Tv, naTv, Modifier.weight(1f)) { onTab(Aba.TV) }
-            ItemBarraCel("Perfil", AppIcons.User, false, Modifier.weight(1f)) { onProfile() }
-        }
+        BarraCelular(if (naTv) 1 else 0, onInicio = { onTab(Aba.DESTAQUES) }, onTv = { onTab(Aba.TV) }, onPerfil = onProfile)
     }
 }
 
+/** Título de fileira com "Ver todos" em vermelho. */
 @Composable
-private fun ItemBarraCel(nome: String, icone: ImageVector, ativo: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Column(modifier.clickable(onClick = onClick).padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        AppIcon(icone, tint = if (ativo) VermelhoCel else Color(0x99FFFFFF), size = 24.dp)
-        Spacer(Modifier.height(2.dp))
-        Text(nome, color = if (ativo) VermelhoCel else Color(0x99FFFFFF), fontSize = 12.sp)
+private fun TituloCel(titulo: String, extra: String? = null, onTodos: (() -> Unit)?) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(titulo, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (extra != null) { Spacer(Modifier.width(6.dp)); Text(extra, color = Color(0x88FFFFFF), fontSize = 12.sp) }
+        Spacer(Modifier.weight(1f))
+        if (onTodos != null) Text("Ver todos", color = VermelhoCel, fontSize = 13.sp, modifier = Modifier.clickable(onClick = onTodos).padding(4.dp))
     }
 }
 
-/** Banner grande que desliza (com bolinhas), como no topo da UniTV Mobile. */
+/** Capa do Web Play: pôster alto, selo NOVO / EP. NOVO, nota, coração e nome embaixo. */
+@Composable
+private fun CapaCel(vm: TvViewModel, item: VodEntity, modifier: Modifier = Modifier.width(118.dp), onClick: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var fav by remember(item.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.favoritos(ctx).contains(item.id)) }
+    val novo = item.added > 0 && System.currentTimeMillis() / 1000 - item.added < 7 * 86400
+    Column(modifier.clickable(onClick = onClick)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)).background(Color(0xFF26262C))) {
+            if (!item.poster.isNullOrBlank()) AsyncImage(item.poster, item.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            else Text(iniciaisCel(item.title), color = Color(0x88FFFFFF), fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+            Column(Modifier.align(Alignment.TopStart).padding(5.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                if (novo) Text(if (item.kind == VodKind.SERIES) "EP. NOVO" else "NOVO", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.background(VermelhoCel, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp, vertical = 1.dp))
+                item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let { nota ->
+                    Text("★ " + String.format(java.util.Locale.US, "%.1f", nota), color = Color(0xFFFFD54F), fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.background(Color(0xCC000000), RoundedCornerShape(4.dp)).padding(horizontal = 5.dp, vertical = 1.dp))
+                }
+            }
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(5.dp).size(24.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(Color(0xAA000000)).clickable { fav = vm.zarkFavoritar(item) },
+                contentAlignment = Alignment.Center,
+            ) { Text(if (fav) "♥" else "♡", color = if (fav) VermelhoCel else Color.White, fontSize = 13.sp) }
+        }
+        Spacer(Modifier.height(5.dp))
+        Text(item.title, color = Color(0xDDFFFFFF), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+private fun iniciaisCel(t: String) = t.split(' ').filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1).uppercase() }
+
+/** Carrossel do topo: os mais vistos da semana (🔥 EM ALTA) + os que acabaram de chegar (NOVO NO CATÁLOGO). */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun CarrosselCel(itens: List<VodEntity>, onOpen: (VodEntity) -> Unit) {
+private fun CarrosselCel(vm: TvViewModel, itens: List<Pair<VodEntity, String>>, onOpen: (VodEntity) -> Unit) {
     if (itens.isEmpty()) {
-        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)).background(Color(0xFF24262D)))
+        Box(Modifier.fillMaxWidth().padding(12.dp).aspectRatio(16f / 10f).clip(RoundedCornerShape(14.dp)).background(CartaoCel))
         return
     }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     val estado = androidx.compose.foundation.pager.rememberPagerState { itens.size }
     LaunchedEffect(itens.size) {
         while (true) {
@@ -1409,111 +1457,130 @@ private fun CarrosselCel(itens: List<VodEntity>, onOpen: (VodEntity) -> Unit) {
         }
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        androidx.compose.foundation.pager.HorizontalPager(
-            state = estado,
-            contentPadding = PaddingValues(horizontal = 26.dp),
-            pageSpacing = 10.dp,
-        ) { i ->
-            val item = itens[i]
-            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)).background(Color(0xFF24262D)).clickable { onOpen(item) }) {
-                AsyncImage(item.poster, item.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
-                Text(item.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.align(Alignment.BottomStart).padding(14.dp))
+        androidx.compose.foundation.pager.HorizontalPager(state = estado, modifier = Modifier.padding(top = 12.dp)) { i ->
+            val (item, rotulo) = itens[i]
+            var fav by remember(item.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.favoritos(ctx).contains(item.id)) }
+            Box(
+                Modifier.padding(horizontal = 12.dp).fillMaxWidth().aspectRatio(16f / 11f).clip(RoundedCornerShape(14.dp))
+                    .background(CartaoCel).clickable { onOpen(item) }
+            ) {
+                // Fundo borrado com o próprio pôster e o pôster inteiro à direita (sem cortar).
+                AsyncImage(item.poster, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(18.dp), alpha = 0.55f)
+                Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color(0xF00B0B0F), Color(0x330B0B0F)))))
+                AsyncImage(item.poster, item.title, contentScale = ContentScale.Fit,
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().padding(10.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)))
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(0.58f).padding(14.dp)) {
+                    Text(rotulo, color = VermelhoCel, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(item.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black, maxLines = 3, overflow = TextOverflow.Ellipsis, lineHeight = 22.sp)
+                    item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let {
+                        Text("★ " + String.format(java.util.Locale.US, "%.1f", it), color = Color(0xFFFFD54F), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("▶ Assistir", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(VermelhoCel).clickable { onOpen(item) }.padding(horizontal = 12.dp, vertical = 8.dp))
+                        Text(if (fav) "✓ Na lista" else "+ Minha Lista", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0x33FFFFFF)).clickable { fav = vm.zarkFavoritar(item) }.padding(horizontal = 12.dp, vertical = 8.dp))
+                    }
+                }
             }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             itens.indices.forEach { k ->
                 val sel = k == estado.currentPage
-                Box(Modifier.size(width = if (sel) 18.dp else 6.dp, height = 6.dp).clip(RoundedCornerShape(3.dp)).background(if (sel) VermelhoCel else Color(0x66FFFFFF)))
+                Box(Modifier.size(width = if (sel) 16.dp else 6.dp, height = 6.dp).clip(RoundedCornerShape(3.dp)).background(if (sel) VermelhoCel else Color(0x55FFFFFF)))
             }
         }
     }
 }
 
-/** Título de fileira com "Ver todos" em vermelho. */
-@Composable
-private fun TituloCel(titulo: String, icone: String? = null, onTodos: (() -> Unit)?) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (icone != null) { Text(icone, fontSize = 20.sp); Spacer(Modifier.width(8.dp)) }
-        Text(titulo, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-        if (onTodos != null) Text("Ver todos", color = VermelhoCel, fontSize = 15.sp, modifier = Modifier.clickable(onClick = onTodos).padding(4.dp))
-    }
-}
-
-/** Fileira de capas altas com título embaixo (e etiqueta de episódios nas séries). */
-@Composable
-private fun FileiraCel(vm: TvViewModel, kind: String, categoria: String?, titulo: String, onOpen: (VodEntity) -> Unit, onTodos: () -> Unit) {
-    val itens by remember(kind, categoria) { vm.vodTop(kind, categoria, 20) }.collectAsState(initial = null)
-    val lista = itens
-    if (lista != null && lista.isEmpty()) return
-    Column {
-        TituloCel(titulo, onTodos = onTodos)
-        Spacer(Modifier.height(8.dp))
-        LazyRow(contentPadding = PaddingValues(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(lista.orEmpty(), key = { it.id }) { item -> CapaCel(item) { onOpen(item) } }
-        }
-    }
-}
-
-@Composable
-private fun CapaCel(item: VodEntity, largura: androidx.compose.ui.unit.Dp = 118.dp, onClick: () -> Unit) {
-    Column(Modifier.width(largura).clickable(onClick = onClick)) {
-        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(10.dp)).background(Color(0xFF24262D))) {
-            if (!item.poster.isNullOrBlank()) AsyncImage(item.poster, item.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let { nota ->
-                Text(
-                    String.format(java.util.Locale.US, "%.1f", nota), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.TopStart).background(Color(0xFFFF6D00), RoundedCornerShape(bottomEnd = 6.dp)).padding(horizontal = 5.dp, vertical = 2.dp),
-                )
-            }
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(item.title, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-/** Início → Recomendações: banner, jogos, continue assistindo e fileiras. */
+/** Início → Recomendações, na mesma ordem do Web Play. */
 @Composable
 private fun RecomendacoesCel(
     vm: TvViewModel,
     onOpen: (VodEntity) -> Unit,
-    onLibrary: (String, String?) -> Unit,
+    onTab: (Int) -> Unit,
     onAbrirJogo: (io.github.axon07.channelbox.data.ZarkJogos.Jogo) -> Unit,
-    onVerJogos: () -> Unit,
+    onCanal: (ChannelEntity) -> Unit,
 ) {
-    val filmes by remember { vm.vodDestaques(VodKind.MOVIE, 4) }.collectAsState(initial = emptyList())
-    val series by remember { vm.vodDestaques(VodKind.SERIES, 3) }.collectAsState(initial = emptyList())
-    val destaque = remember(filmes, series) { (filmes.zip(series).flatMap { listOf(it.first, it.second) } + filmes.drop(series.size)).take(6) }
+    val destaques by remember { vm.vodDestaquesWeb() }.collectAsState(initial = emptyList())
     val continuar by remember { vm.vodContinuar() }.collectAsState(initial = emptyList())
+    val filmes by remember { vm.vodTop(VodKind.MOVIE, null, 20) }.collectAsState(initial = null)
+    val series by remember { vm.vodTop(VodKind.SERIES, null, 20) }.collectAsState(initial = null)
+    val canais by vm.allChannels.collectAsState()
     var jogos by remember { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkJogos.Jogo>>(emptyList()) }
-    LaunchedEffect(Unit) { jogos = runCatching { io.github.axon07.channelbox.data.ZarkJogos.hoje(vm.zarkHttp) }.getOrDefault(emptyList()) }
-    val catsFilmes by remember { vm.vodCategories(VodKind.MOVIE) }.collectAsState(initial = emptyList())
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(18.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
-        item { CarrosselCel(destaque, onOpen) }
+    LaunchedEffect(Unit) { jogos = runCatching { io.github.axon07.channelbox.data.ZarkJogos.hoje(vm.zarkHttp) }.getOrDefault(emptyList()).filter { it.estado != "post" }.take(15) }
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(20.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
+        item { CarrosselCel(vm, destaques, onOpen) }
         if (jogos.isNotEmpty()) item {
             Column {
-                TituloCel("Jogos", icone = "🏆", onTodos = onVerJogos)
+                TituloCel("🏆 Jogos de hoje", onTodos = { onTab(Aba.JOGOS) })
                 Spacer(Modifier.height(8.dp))
-                LazyRow(contentPadding = PaddingValues(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(jogos.sortedBy { if (it.estado == "in") 0 else if (it.estado == "pre") 1 else 2 }.take(15)) { j -> CartaoJogoCel(j) { onAbrirJogo(j) } }
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(jogos, key = { it.id.ifBlank { it.casa.nome + it.inicio } }) { j -> CartaoJogoCel(j) { onAbrirJogo(j) } }
                 }
             }
         }
         if (continuar.isNotEmpty()) item {
             Column {
-                TituloCel("Continue assistindo", onTodos = null)
+                TituloCel("Continue Assistindo", onTodos = null)
                 Spacer(Modifier.height(8.dp))
-                LazyRow(contentPadding = PaddingValues(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(continuar, key = { it.id }) { item -> CapaCel(item) { onOpen(item) } }
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(continuar, key = { it.id }) { item -> CapaCel(vm, item, Modifier.width(150.dp)) { onOpen(item) } }
                 }
             }
         }
-        item { FileiraCel(vm, VodKind.MOVIE, null, "Filmes novos", onOpen) { onLibrary(VodKind.MOVIE, null) } }
-        item { FileiraCel(vm, VodKind.SERIES, null, "Séries novas", onOpen) { onLibrary(VodKind.SERIES, null) } }
-        items(catsFilmes.take(6), key = { "r|" + it.name }) { c ->
-            FileiraCel(vm, VodKind.MOVIE, c.name, c.name.trim(), onOpen) { onLibrary(VodKind.MOVIE, c.name) }
+        if (canais.isNotEmpty()) item {
+            Column {
+                TituloCel("Ao vivo agora", extra = "${canais.size} canais", onTodos = { onTab(Aba.TV) })
+                Spacer(Modifier.height(8.dp))
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(canais.take(20), key = { it.id }) { ch -> CanalCel(ch) { onCanal(ch) } }
+                }
+            }
+        }
+        item { FileiraVodCel(vm, "Filmes em Alta", filmes, onOpen) { onTab(Aba.FILMES) } }
+        item { FileiraVodCel(vm, "Séries", series, onOpen) { onTab(Aba.SERIES) } }
+        if (filmes?.isEmpty() == true && series?.isEmpty() == true) item {
+            Column(Modifier.padding(horizontal = 12.dp)) {
+                Text("Os filmes e séries ainda estão chegando do servidor…", color = Color(0xCCFFFFFF), fontSize = 14.sp)
+                Spacer(Modifier.height(10.dp))
+                PillButton("Atualizar conteúdo agora", primary = true) { vm.refreshNow() }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FileiraVodCel(vm: TvViewModel, titulo: String, lista: List<VodEntity>?, onOpen: (VodEntity) -> Unit, onTodos: () -> Unit) {
+    if (lista != null && lista.isEmpty()) return
+    Column {
+        TituloCel(titulo, onTodos = onTodos)
+        Spacer(Modifier.height(8.dp))
+        LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (lista == null) items(4) { Box(Modifier.width(118.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)).background(CartaoCel)) }
+            else items(lista, key = { it.id }) { item -> CapaCel(vm, item) { onOpen(item) } }
+        }
+    }
+}
+
+/** Cartão de canal da fileira "Ao vivo agora". */
+@Composable
+private fun CanalCel(ch: ChannelEntity, onClick: () -> Unit) {
+    Row(
+        Modifier.width(200.dp).height(64.dp).clip(RoundedCornerShape(10.dp)).background(CartaoCel).clickable(onClick = onClick).padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF2A2A31)), contentAlignment = Alignment.Center) {
+            if (!ch.logoUrl.isNullOrBlank()) AsyncImage(ch.logoUrl, ch.name, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(4.dp))
+            else Text(iniciaisCel(ch.name), color = Color(0xAAFFFFFF), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column {
+            if (ch.number > 0) Text(ch.number.toString(), color = Color(0x88FFFFFF), fontSize = 11.sp)
+            Text(ch.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -1521,30 +1588,14 @@ private fun RecomendacoesCel(
 @Composable
 private fun CartaoJogoCel(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, onClick: () -> Unit) {
     val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
-    val dia = java.text.SimpleDateFormat("dd/MM", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
-    Column(
-        Modifier.width(300.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF2A2C33)).clickable(onClick = onClick).padding(12.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (j.ligaLogo != null) AsyncImage(j.ligaLogo, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(j.liga, color = Color(0xDDFFFFFF), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+    Column(Modifier.width(250.dp).clip(RoundedCornerShape(12.dp)).background(CartaoCel).clickable(onClick = onClick).padding(12.dp)) {
+        Text(j.liga, color = Color(0xAAFFFFFF), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             TimeCel(j.casa.nome, j.casa.logo, Modifier.weight(1f))
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                if (j.estado == "pre") {
-                    Text(hora, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Text(dia, color = Color(0xAAFFFFFF), fontSize = 13.sp)
-                } else {
-                    Text("${j.casa.placar ?: ""} x ${j.fora.placar ?: ""}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text(if (j.estado == "in") "AO VIVO" else "Encerrado", color = if (j.estado == "in") VermelhoCel else Color(0xAAFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.height(6.dp))
-                Box(Modifier.border(1.dp, VermelhoCel, RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 4.dp)) {
-                    Text(if (j.estado == "in") "Assistir" else "Ver jogo", color = Color.White, fontSize = 12.sp)
-                }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(0.8f)) {
+                Text(if (j.estado == "in") "${j.casa.placar ?: 0} x ${j.fora.placar ?: 0}" else hora, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                if (j.estado == "in") Text("AO VIVO", color = VermelhoCel, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
             TimeCel(j.fora.nome, j.fora.logo, Modifier.weight(1f))
         }
@@ -1554,51 +1605,75 @@ private fun CartaoJogoCel(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, on
 @Composable
 private fun TimeCel(nome: String, logo: String?, modifier: Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(46.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xFF3A3C44)), contentAlignment = Alignment.Center) {
-            if (logo != null) AsyncImage(logo, nome, modifier = Modifier.size(34.dp))
-        }
+        Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) { if (logo != null) AsyncImage(logo, nome, modifier = Modifier.size(34.dp)) }
         Spacer(Modifier.height(4.dp))
-        Text(nome, color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(nome, color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
-/** Filmes / Séries / Desenhos / Animes: banner e fileiras com "Ver todos". */
+/** Filmes / Séries: categorias em botões (Todos + cada categoria) e grade de 3 capas por linha. */
 @Composable
-private fun CatalogoCel(
-    vm: TvViewModel,
-    kind: String?,
-    filtro: Regex?,
-    onOpen: (VodEntity) -> Unit,
-    onLibrary: (String, String?) -> Unit,
-    onFiltrado: (String, Regex) -> Unit = { k, _ -> onLibrary(k, null) },
-) {
-    val catsFilmes by remember { vm.vodCategories(VodKind.MOVIE) }.collectAsState(initial = emptyList())
-    val catsSeries by remember { vm.vodCategories(VodKind.SERIES) }.collectAsState(initial = emptyList())
-    val tipos = if (kind != null) listOf(kind) else listOf(VodKind.MOVIE, VodKind.SERIES)
-    val fileiras = remember(catsFilmes, catsSeries, kind, filtro) {
-        buildList {
-            tipos.forEach { t ->
-                val cats = if (t == VodKind.MOVIE) catsFilmes else catsSeries
-                cats.filter { filtro == null || filtro.containsMatchIn(it.name) }.take(if (filtro == null) 12 else 10).forEach { add(t to it.name) }
-            }
+private fun GradeCel(vm: TvViewModel, kind: String, onOpen: (VodEntity) -> Unit) {
+    val cats by remember(kind) { vm.vodCategories(kind) }.collectAsState(initial = emptyList())
+    var cat by remember(kind) { mutableStateOf<String?>(null) }
+    val itens by remember(kind, cat) { vm.vodTop(kind, cat, 300) }.collectAsState(initial = null)
+    Column(Modifier.fillMaxSize()) {
+        LazyRow(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item { ChipCel("Todos", cat == null) { cat = null } }
+            items(cats, key = { it.name }) { c -> ChipCel(c.name.trim(), cat == c.name) { cat = c.name } }
         }
-    }
-    val primeira = fileiras.firstOrNull()
-    val topo by remember(kind, primeira) { if (kind != null) vm.vodDestaques(kind, 6) else if (primeira != null) vm.vodTop(primeira.first, primeira.second, 6) else kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = emptyList())
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(18.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
-        item { CarrosselCel(topo, onOpen) }
-        if (kind != null) item {
-            FileiraCel(vm, kind, null, if (kind == VodKind.MOVIE) "Adicionados recentemente" else "No ar", onOpen) { onLibrary(kind, null) }
-        }
-        if (fileiras.isEmpty()) item {
-            Column(Modifier.padding(horizontal = 14.dp)) {
-                Text(if (filtro != null) "Nenhuma categoria encontrada no seu servidor." else "Carregando filmes e séries…", color = Color.White, fontSize = 15.sp)
-                Spacer(Modifier.height(10.dp))
+        val lista = itens
+        when {
+            lista == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Carregando…", color = Color(0x99FFFFFF)) }
+            lista.isEmpty() -> Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Nada aqui ainda.", color = Color(0xCCFFFFFF), fontSize = 15.sp)
+                Spacer(Modifier.height(12.dp))
                 PillButton("Atualizar conteúdo agora", primary = true) { vm.refreshNow() }
             }
-        }
-        items(fileiras, key = { "${it.first}|${it.second}" }) { (t, cat) ->
-            FileiraCel(vm, t, cat, cat.trim(), onOpen) { if (filtro != null) onFiltrado(t, filtro) else onLibrary(t, cat) }
+            else -> androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(3),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                items(lista.size, key = { lista[it].id }) { i -> CapaCel(vm, lista[i], Modifier.fillMaxWidth()) { onOpen(lista[i]) } }
+            }
         }
     }
+}
+
+@Composable
+private fun ChipCel(nome: String, sel: Boolean, onClick: () -> Unit) {
+    Text(
+        nome, color = Color.White, fontSize = 13.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal, maxLines = 1,
+        modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(if (sel) VermelhoCel else Color(0xFF1E1E24))
+            .border(1.dp, if (sel) VermelhoCel else Color(0x22FFFFFF), RoundedCornerShape(18.dp)).clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+    )
+}
+
+/**
+ * Aba TV do Web Play: vídeo em cima, programação, Canais | Favoritos, grupos à esquerda e canais à
+ * direita. Ao entrar já abre o último canal (ou o primeiro); tocar de novo no mesmo canal = tela cheia.
+ */
+@Composable
+private fun TvCelular(
+    channels: List<ChannelEntity>,
+    current: ChannelEntity?,
+    favorites: Set<String>,
+    upcoming: Map<String, List<ProgramEntity>>,
+    now: Long,
+    onPick: (ChannelEntity) -> Unit,
+    onFull: () -> Unit,
+    onFavorite: (ChannelEntity) -> Unit,
+    onPreviewRect: (Rect?) -> Unit,
+    groups: List<Pair<ChannelFilter, String>>,
+    currentGroup: ChannelFilter,
+    onGroup: (ChannelFilter) -> Unit,
+) {
+    // Abre sozinho um canal (o Web Play faz igual), senão o vídeo fica preto.
+    LaunchedEffect(channels.isNotEmpty()) {
+        if (current == null) channels.firstOrNull()?.let(onPick)
+    }
+    AbaTvCelular(channels, current, favorites, upcoming, now, onPick, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup)
 }

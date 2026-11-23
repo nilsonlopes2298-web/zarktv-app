@@ -1005,6 +1005,29 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         (base.take(3) + base.drop(3).shuffled(java.util.Random(dia * 31 + kind.hashCode()))).take(n)
     }
 
+    /**
+     * ZarkTV Mobile (igual ao Web Play): destaques = os mais assistidos da semana no ZarkTV
+     * (tv.zarktvqx.cfd/api/em-alta, "🔥 EM ALTA") + os que acabaram de chegar ("NOVO NO CATÁLOGO").
+     * Muda sozinho conforme os clientes assistem e conforme entra filme novo no servidor.
+     */
+    fun vodDestaquesWeb(): Flow<List<Pair<VodEntity, String>>> = combine(vodTop(VodKind.MOVIE, null, 60), vodTop(VodKind.SERIES, null, 60)) { f, s -> f to s }
+        .mapLatest { (filmes, series) ->
+            val alta = runCatching {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    c.http.newCall(okhttp3.Request.Builder().url("http://tv.zarktvqx.cfd/api/em-alta").build()).execute().use { r ->
+                        if (!r.isSuccessful) emptyList() else (kotlinx.serialization.json.Json.parseToJsonElement(r.body?.string().orEmpty()) as? kotlinx.serialization.json.JsonArray)
+                            ?.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }.orEmpty()
+                    }
+                }
+            }.getOrDefault(emptyList())
+            fun chave(t: String) = java.text.Normalizer.normalize(t, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "").lowercase().trim()
+            val pool = filmes + series
+            val achados = alta.mapNotNull { t -> pool.firstOrNull { chave(it.title) == chave(t) } }.filter { !it.poster.isNullOrBlank() }.distinctBy { it.id }.take(4)
+            val ids = achados.map { it.id }.toSet()
+            achados.map { it to "🔥 EM ALTA" } +
+                filmes.filter { !it.poster.isNullOrBlank() && it.id !in ids }.take(8 - achados.size).map { it to "NOVO NO CATÁLOGO" }
+        }
+
     /** [category]: null = all, [VOD_CONTINUE] = started but not finished. */
     fun vodItems(kind: String, category: String?, query: String): Flow<List<VodEntity>> = libraryRaw(kind, category, query)
         .map { list ->

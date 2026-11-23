@@ -1,16 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ZarkTV Mobile: celular e tablet. Abre o Web Play tv.zarktvqx.cfd dentro do APK.
-     Em pé no uso normal; a tela cheia do vídeo vira na horizontal. -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<!-- ZarkTV Mobile: celular e tablet, app nativo com as telas do Web Play. Em pé; a tela cheia gira. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <application>
         <activity
-            android:name=".WebCelularActivity"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|density"
-            android:exported="true"
-            android:launchMode="singleTask"
-            android:hardwareAccelerated="true"
+            android:name=".MainActivity"
             android:screenOrientation="sensorPortrait"
-            android:windowSoftInputMode="adjustResize">
+            tools:replace="android:screenOrientation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

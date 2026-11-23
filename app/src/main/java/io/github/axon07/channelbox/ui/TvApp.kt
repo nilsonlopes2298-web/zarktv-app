@@ -289,12 +289,15 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     val atividade = LocalContext.current as? android.app.Activity
     LaunchedEffect(mode) {
         if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
-            // Sempre em pé (pedido do Nilson), inclusive na tela cheia.
-            atividade?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            // Em pé no app; na tela cheia (canal, filme ou série) vira deitado, como no Web Play.
+            val cheia = mode == Mode.PLAYER || mode == Mode.PLAYBACK || mode == Mode.CHANNEL_LIST || mode == Mode.GROUPS ||
+                mode == Mode.PROGRAM_MENU || mode == Mode.OPTIONS
+            atividade?.requestedOrientation = if (cheia) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
         }
     }
     var sairAberto by remember { mutableStateOf(false) }
-    var tutorialVisto by remember { mutableStateOf(zarkCtx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getBoolean("tutorial_visto", false)) }
+    var tutorialVisto by remember { mutableStateOf(zarkCtx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getBoolean("tutorial_visto", false) || io.github.axon07.channelbox.system.Aparelho.soCelular) } // o tutorial é do controle remoto
     var playerExterno by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkConfig.playerExterno(zarkCtx)) }
     /** When the groups menu was opened (for [groupsBack]). */
     var groupsOpenedAt by remember { mutableLongStateOf(0L) }
@@ -2044,6 +2047,12 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     },
                     onVoltar = { mode = Mode.HOME },
                 )
+                // ZarkTV Mobile: no Perfil a barra Início · TV · Perfil continua embaixo (igual ao Web Play).
+                if (mode == Mode.PROFILE && io.github.axon07.channelbox.system.Aparelho.soCelular) Box(Modifier.fillMaxSize()) {
+                    Box(Modifier.align(Alignment.BottomCenter)) {
+                        BarraCelular(2, onInicio = { homeTab = Aba.DESTAQUES; mode = Mode.HOME }, onTv = { homeTab = Aba.TV; mode = Mode.HOME }, onPerfil = {})
+                    }
+                }
                 if (pixAberto) {
                     androidx.activity.compose.BackHandler { pixAberto = false }
                     PixDialogo(
