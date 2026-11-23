@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -186,17 +187,17 @@ fun ZarkLoginScreen(
         val campo: @Composable (String, String, (String) -> Unit, Boolean, androidx.compose.ui.graphics.vector.ImageVector, (@Composable () -> Unit)?) -> Unit =
             { rotulo, valor, mudar, senha, icone, fim ->
                 Row(
-                    Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF1C1C1F))
+                    Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF1C1C1F))
                         .border(1.dp, Color(0x14EDEDED), RoundedCornerShape(10.dp)).padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     AppIcon(icone, tint = t3, size = 18.dp)
                     Spacer(Modifier.width(10.dp))
                     Box(Modifier.weight(1f)) {
-                        if (valor.isEmpty()) Text(rotulo, color = t3, fontSize = 15.sp)
+                        if (valor.isEmpty()) Text(rotulo, color = t3, fontSize = 14.sp)
                         androidx.compose.foundation.text.BasicTextField(
                             valor, mudar, singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(color = t1, fontSize = 15.sp),
+                            textStyle = androidx.compose.ui.text.TextStyle(color = t1, fontSize = 14.sp),
                             cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.Accent),
                             visualTransformation = if (senha) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -209,22 +210,24 @@ fun ZarkLoginScreen(
                     fim?.invoke()
                 }
             }
-        Box(Modifier.fillMaxSize().background(Color(0xFF0F0F10))) {
+        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF0F0F10))) {
+            val alturaTela = maxHeight
+            // Tudo centralizado no meio da tela (rola se o teclado apertar).
             Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).heightIn(min = alturaTela).padding(horizontal = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
             ) {
-                Spacer(Modifier.height(72.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    AppIcon(AppIcons.Play, tint = Palette.Accent, size = 28.dp)
+                    AppIcon(AppIcons.Play, tint = Palette.Accent, size = 24.dp)
                     Spacer(Modifier.width(4.dp))
-                    Text("Zark", color = t1, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                    Text("TV", color = Palette.Accent, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    Text("Zark", color = t1, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Text("TV", color = Palette.Accent, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.height(6.dp))
-                Text("Canais ao vivo, jogos, filmes e séries", color = t2, fontSize = 14.sp)
-                Spacer(Modifier.height(40.dp))
-                Column(Modifier.widthIn(max = 420.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Canais ao vivo, jogos, filmes e séries", color = t2, fontSize = 13.sp)
+                Spacer(Modifier.height(32.dp))
+                Column(Modifier.widthIn(max = 360.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     campo("Usuário", user, { user = it; erro = null }, false, AppIcons.User, null)
                     campo("Senha", pass, { pass = it; erro = null }, !verSenha, AppIcons.Lock) {
                         Box(Modifier.clip(RoundedCornerShape(6.dp)).clickable { verSenha = !verSenha }.padding(6.dp)) {
@@ -262,7 +265,7 @@ fun ZarkLoginScreen(
                     if (submitted && refreshState is RefreshState.Failed) Text(refreshState.message, color = Color(0xFFE5484D), fontSize = 13.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(4.dp))
                     Box(
-                        Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(10.dp))
+                        Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(10.dp))
                             .background(if (canEnter) Palette.Accent else Color(0xFF3A1A1C)).clickable(enabled = canEnter) { entrar() },
                         contentAlignment = Alignment.Center,
                     ) { Text(if (testing) "Conferindo…" else "Entrar", color = if (canEnter) Color.White else t3, fontSize = 16.sp, fontWeight = FontWeight.Medium) }
@@ -276,7 +279,7 @@ fun ZarkLoginScreen(
                         }.padding(10.dp))
                     }
                 }
-                Spacer(Modifier.height(40.dp))
+                Spacer(Modifier.height(32.dp))
                 Text("Versão ${io.github.axon07.channelbox.BuildConfig.VERSION_NAME}", color = Color(0x66EDEDED), fontSize = 11.sp)
                 Text("Opções avançadas", color = Color(0x33EDEDED), fontSize = 10.sp, modifier = Modifier.tap(onClick = onAdvanced).padding(8.dp))
                 Spacer(Modifier.height(16.dp))
