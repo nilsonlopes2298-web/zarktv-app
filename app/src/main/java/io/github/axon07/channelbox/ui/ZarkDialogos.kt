@@ -88,9 +88,10 @@ fun DialogoContinuar(titulo: String, detalhe: String?, posicao: Long, onContinua
     val hhmmss = "%02d:%02d:%02d".format(s / 3600, (s % 3600) / 60, s % 60)
     // Celular: aviso pequeno embaixo, sem tampar a tela.
     if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+        // Em cima, por cima do vídeo (onde a pessoa está olhando).
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Row(
-                Modifier.padding(12.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xF0232325))
+                Modifier.padding(start = 24.dp, end = 24.dp, top = 64.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xF0232325))
                     .border(1.dp, Color(0x14EDEDED), RoundedCornerShape(12.dp)).padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

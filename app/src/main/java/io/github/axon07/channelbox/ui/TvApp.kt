@@ -2493,14 +2493,14 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             // Baixar pelos dados móveis: avisa que vai gastar o pacote de dados.
             vm.zarkConfirmarDados.collectAsStateWithLifecycle().value?.let { baixar ->
                 androidx.compose.ui.window.Dialog(onDismissRequest = { vm.zarkConfirmarDados.value = null }) {
-                    Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xFF232325)).padding(20.dp)) {
+                    Column(Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).background(Color(0xFF232325)).padding(20.dp)) {
                         Text("Você está nos dados móveis", color = Color(0xFFEDEDED), fontSize = 17.sp)
                         Spacer(Modifier.height(8.dp))
                         Text("Baixar um filme pode gastar bastante do seu pacote de dados. Quer baixar mesmo assim ou esperar o Wi-Fi?", color = Color(0xFFA1A1A6), fontSize = 14.sp)
                         Spacer(Modifier.height(16.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            Text("Esperar o Wi-Fi", color = Color(0xFFA1A1A6), fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { vm.zarkConfirmarDados.value = null }.padding(12.dp))
-                            Text("Baixar", color = Color.White, fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFFE50914)).clickable { vm.zarkConfirmarDados.value = null; baixar() }.padding(horizontal = 16.dp, vertical = 12.dp))
+                            Text("Esperar o Wi-Fi", color = Color(0xFFA1A1A6), fontSize = 14.sp, modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).clickable { vm.zarkConfirmarDados.value = null }.padding(12.dp))
+                            Text("Baixar", color = Color.White, fontSize = 14.sp, modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).background(Color(0xFFE50914)).clickable { vm.zarkConfirmarDados.value = null; baixar() }.padding(horizontal = 16.dp, vertical = 12.dp))
                         }
                     }
                 }
