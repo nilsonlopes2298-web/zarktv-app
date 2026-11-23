@@ -486,11 +486,8 @@ private fun AbaTv(
         ListaDeCanais(mod, channels, groupLabel, current, favorites, onPrevGroup, onNextGroup, onPick, onFull, onFavorite, groups, currentGroup, onGroup)
     }
     if (compacto) {
-        Column(Modifier.fillMaxSize()) {
-            previa(Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            lista(Modifier.fillMaxWidth().weight(1f))
-        }
+        // Celular em pé: vídeo em cima, Canais | Favoritos, grupos | canais (como na UniTV Mobile).
+        AbaTvCelular(channels, current, favorites, upcoming, now, onPick, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup)
     } else {
         Row(Modifier.fillMaxSize()) {
             lista(Modifier.weight(0.38f).fillMaxHeight())
