@@ -72,6 +72,8 @@ fun PixDialogo(
     var gerando by remember { mutableStateOf(false) }
     var erro by remember { mutableStateOf<String?>(null) }
     var pago by remember { mutableStateOf(false) }
+    var copiado by remember { mutableStateOf(false) }
+    val cel = io.github.axon07.channelbox.system.Aparelho.soCelular
     val scope = rememberCoroutineScope()
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val brl = { v: Double -> "R$ " + String.format(java.util.Locale("pt", "BR"), "%.2f", v) }
@@ -109,7 +111,7 @@ fun PixDialogo(
                 Plano(o.s("id") ?: return@let null, o.s("nome") ?: "Plano", o.s("dias")?.toIntOrNull() ?: 30, o.s("valor")?.toDoubleOrNull() ?: 0.0)
             }
         }
-        if (lista.isNullOrEmpty()) erro = "O pagamento pelo app ainda não está disponível." else {
+        if (lista.isNullOrEmpty()) erro = "Pagamento pelo app em desenvolvimento. Fale com o suporte para renovar." else {
             planos = lista
             if (lista.size == 1) gerar(lista.first())
         }
@@ -129,7 +131,7 @@ fun PixDialogo(
 
     Box(Modifier.fillMaxSize().background(Color(0xB3000000)).clickable(enabled = false) {}, contentAlignment = Alignment.Center) {
         Column(
-            Modifier.width(440.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xF2181A20))
+            (if (cel) Modifier.fillMaxWidth().padding(horizontal = 20.dp) else Modifier.width(440.dp)).clip(RoundedCornerShape(16.dp)).background(Color(0xF2181A20))
                 .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(16.dp))
                 .verticalScroll(rememberScrollState()).padding(22.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -148,7 +150,7 @@ fun PixDialogo(
                     BotaoPix("Fechar", true, Modifier.fillMaxWidth().focusRequester(foco), onFechar)
                 }
                 erro != null -> {
-                    Text(erro!!, color = Color(0xFFFF8A80), fontSize = 14.sp, textAlign = TextAlign.Center)
+                    Text(erro!!, color = if (cel) Color(0xFFEDEDED) else Color(0xFFFF8A80), fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(16.dp))
                     BotaoPix("Abrir página de pagamento", true, Modifier.fillMaxWidth().focusRequester(foco), onAbrirPagina)
                     Spacer(Modifier.height(8.dp))
@@ -161,7 +163,20 @@ fun PixDialogo(
                     Text("${p.plano} · ${brl(p.valor)}", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                     Text("Usuário $usuario", color = Color(0x99FFFFFF), fontSize = 12.sp)
                     Spacer(Modifier.height(12.dp))
-                    if (p.copia != null) {
+                    if (p.copia != null && cel) {
+                        // Celular: o cliente paga no próprio aparelho, então o principal é o Copia e Cola.
+                        BotaoPix(if (copiado) "Código copiado" else "Copiar código Pix", true, Modifier.fillMaxWidth()) {
+                            val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            cm.setPrimaryClip(android.content.ClipData.newPlainText("Pix", p.copia))
+                            copiado = true
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            if (copiado) "Agora abra o app do seu banco, entre em Pix → Copia e Cola e cole o código."
+                            else "Copie o código e cole no app do seu banco em Pix → Copia e Cola.",
+                            color = Color(0xFFEDEDED), fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center,
+                        )
+                    } else if (p.copia != null) {
                         val qr = remember(p.copia) { runCatching { io.github.axon07.channelbox.system.PhoneLink.qrCode(p.copia, 520).asImageBitmap() }.getOrNull() }
                         qr?.let {
                             Box(Modifier.size(220.dp).background(Color.White, RoundedCornerShape(10.dp)).padding(10.dp)) {
