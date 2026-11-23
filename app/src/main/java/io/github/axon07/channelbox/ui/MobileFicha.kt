@@ -250,7 +250,7 @@ fun FichaFilmeCel(b: VodBrowser, movie: VodEntity, progress: VodProgressEntity?,
     LaunchedEffect(movie.id) { rol.scrollTo(0) }
     val voltar = { b.movie = null; b.focusToken++; b.voltarInicio?.invoke(); Unit }
     var transmitir by remember { mutableStateOf(false) }
-    if (transmitir) TransmitirDialog(vm, movie.url, movie.title) { transmitir = false }
+    if (transmitir) TransmitirDialog(vm, movie.url, movie.title, capa = movie.poster) { transmitir = false }
     Column(Modifier.fillMaxSize()) {
         VideoTopo(b, vm.player.exo, ficha?.fundo ?: movie.poster, movie.title, voltar, { transmitir = true }) { b.acaoPreview?.invoke(movie, null) ?: onPlay(movie, null) }
         Column(Modifier.fillMaxWidth().weight(1f).background(Fundo).verticalScroll(rol).padding(horizontal = 16.dp, vertical = 16.dp)) {

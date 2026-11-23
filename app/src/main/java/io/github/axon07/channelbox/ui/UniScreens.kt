@@ -1800,7 +1800,7 @@ private fun TvCelular(
         if (current == null) channels.firstOrNull()?.let(onPick)
     }
     var transmitir by remember { mutableStateOf(false) }
-    if (transmitir) TransmitirDialog(vm, current?.streamUrl, current?.name ?: "ZarkTV") { transmitir = false }
+    if (transmitir) TransmitirDialog(vm, current?.streamUrl, current?.name ?: "ZarkTV", aoVivo = true, capa = current?.logoUrl) { transmitir = false }
     AbaTvCelular(channels, current, favorites, upcoming, now, onPick, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup) { transmitir = true }
 }
 

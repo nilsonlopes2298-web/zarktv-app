@@ -41,7 +41,7 @@ import kotlinx.coroutines.launch
  * espelhar a tela pelo Android (Chromecast / Smart View).
  */
 @Composable
-fun TransmitirDialog(vm: TvViewModel, url: String?, titulo: String, onFechar: () -> Unit) {
+fun TransmitirDialog(vm: TvViewModel, url: String?, titulo: String, aoVivo: Boolean = false, capa: String? = null, onFechar: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var tvs by remember { mutableStateOf<List<Dlna.Tv>?>(null) }
@@ -49,6 +49,22 @@ fun TransmitirDialog(vm: TvViewModel, url: String?, titulo: String, onFechar: ()
     var busca by remember { mutableIntStateOf(0) }
     var enviando by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(busca) { procurando = true; tvs = Dlna.procurar(ctx, vm.zarkHttp); procurando = false }
+    // Chromecast / Google TV (Google Cast), achados pelo próprio Android.
+    var casts by remember { mutableStateOf<List<androidx.mediarouter.media.MediaRouter.RouteInfo>>(emptyList()) }
+    val temCast = remember { io.github.axon07.channelbox.data.Chromecast.contexto(ctx) != null }
+    if (temCast) androidx.compose.runtime.DisposableEffect(Unit) {
+        val router = androidx.mediarouter.media.MediaRouter.getInstance(ctx)
+        val sel = io.github.axon07.channelbox.data.Chromecast.seletor
+        fun atualizar() { casts = router.routes.filter { !it.isDefault && it.isEnabled && it.matchesSelector(sel) } }
+        val cb = object : androidx.mediarouter.media.MediaRouter.Callback() {
+            override fun onRouteAdded(r: androidx.mediarouter.media.MediaRouter, i: androidx.mediarouter.media.MediaRouter.RouteInfo) = atualizar()
+            override fun onRouteChanged(r: androidx.mediarouter.media.MediaRouter, i: androidx.mediarouter.media.MediaRouter.RouteInfo) = atualizar()
+            override fun onRouteRemoved(r: androidx.mediarouter.media.MediaRouter, i: androidx.mediarouter.media.MediaRouter.RouteInfo) = atualizar()
+        }
+        router.addCallback(sel, cb, androidx.mediarouter.media.MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN)
+        atualizar()
+        onDispose { router.removeCallback(cb) }
+    }
     val t1 = Color(0xFFEDEDED); val t2 = Color(0xFFA1A1A6); val t3 = Color(0xFF85858B)
     Dialog(onDismissRequest = onFechar, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().clickable(onClick = onFechar), contentAlignment = Alignment.BottomCenter) {
@@ -63,6 +79,33 @@ fun TransmitirDialog(vm: TvViewModel, url: String?, titulo: String, onFechar: ()
                 }
                 Text("A TV e o celular precisam estar no mesmo Wi-Fi.", color = t3, fontSize = 12.sp)
                 Spacer(Modifier.height(4.dp))
+                if (temCast) {
+                    Text("Chromecast e Google TV", color = t2, fontSize = 13.sp)
+                    if (casts.isEmpty()) Text("Procurando…", color = t3, fontSize = 14.sp, modifier = Modifier.padding(vertical = 4.dp))
+                    casts.forEach { rota ->
+                        Row(
+                            Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF232325))
+                                .clickable(enabled = enviando == null && url != null) {
+                                    enviando = rota.name
+                                    scope.launch {
+                                        val final = vm.zarkUrlAcessivel(url!!)
+                                        io.github.axon07.channelbox.data.Chromecast.tocar(ctx, rota, final, titulo, capa, aoVivo) { ok ->
+                                            enviando = null
+                                            vm.showToast(if (ok) "Tocando em ${rota.name}" else "${rota.name} não conseguiu abrir este vídeo")
+                                            if (ok) onFechar()
+                                        }
+                                    }
+                                }.padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AppIcon(AppIcons.Transmitir, tint = t2, size = 18.dp)
+                            Spacer(Modifier.width(12.dp))
+                            Text(rota.name, color = t1, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                            if (enviando == rota.name) Text("Conectando…", color = t3, fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
                 Text("Smart TV (DLNA)", color = t2, fontSize = 13.sp)
                 when {
                     procurando -> Text("Procurando TVs na rede…", color = t3, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))

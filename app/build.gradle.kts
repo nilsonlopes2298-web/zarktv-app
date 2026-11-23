@@ -154,6 +154,8 @@ dependencies {
     implementation(libs.wireguard.tunnel)
     implementation(libs.smbj)
     implementation(libs.coil.compose)
+    // ZarkTV Mobile: transmitir para Chromecast / Google TV (o mesmo botão do YouTube).
+    implementation("com.google.android.gms:play-services-cast-framework:21.5.0")
     implementation("androidx.profileinstaller:profileinstaller:1.3.1") // telas compiladas já na instalação (abre mais rápido)
     implementation(libs.zxing.core) // QR code for "add a playlist from your phone"
     implementation(libs.kotlinx.serialization.json)

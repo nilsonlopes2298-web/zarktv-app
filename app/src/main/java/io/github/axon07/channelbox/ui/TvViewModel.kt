@@ -1097,6 +1097,51 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Baixa filme/episódio para ver sem internet. Se o endereço direto recusar (404), usa o caminho do Web Play. */
+    private val idAparelho: String by lazy {
+        val p = getApplication<Application>().getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE)
+        p.getString("id_aparelho", null) ?: (java.util.UUID.randomUUID().toString().replace("-", "").take(16)).also { p.edit().putString("id_aparelho", it).apply() }
+    }
+
+    private fun tipoAparelho(): String {
+        val cfg = getApplication<Application>().resources.configuration
+        return when {
+            io.github.axon07.channelbox.system.Aparelho.ehTv(cfg) -> "TV/Box (app)"
+            cfg.smallestScreenWidthDp >= 600 -> "Tablet (app)"
+            else -> "Celular (app)"
+        }
+    }
+
+    /** O que está tocando agora (filme/episódio ou canal), para o painel. */
+    private fun assistindoAgora(): String {
+        if (!player.exo.isPlaying) return ""
+        playingVod?.let { (item, _) -> return item.title }
+        return _current.value?.name.orEmpty()
+    }
+
+    /** Mesmo aviso do Web Play (/api/acesso): entrou, vivo (a cada 2 min) e saiu. */
+    fun zarkAvisarAcesso(ev: String) {
+        val pl = settings.value?.playlists?.firstOrNull { it.enabled } ?: return
+        val user = pl.xtUser?.takeIf { it.isNotBlank() } ?: return
+        val corpo = kotlinx.serialization.json.buildJsonObject {
+            put("ev", kotlinx.serialization.json.JsonPrimitive(ev))
+            put("a", kotlinx.serialization.json.JsonPrimitive(idAparelho))
+            put("t", kotlinx.serialization.json.JsonPrimitive(tipoAparelho()))
+            put("u", kotlinx.serialization.json.JsonPrimitive(user))
+            put("sv", kotlinx.serialization.json.JsonPrimitive(pl.name))
+            put("vendo", kotlinx.serialization.json.JsonPrimitive(assistindoAgora()))
+            put("exp", kotlinx.serialization.json.JsonPrimitive((zarkConta.value?.expira ?: 0L) / 1000))
+            put("app", kotlinx.serialization.json.JsonPrimitive("ZarkTV ${io.github.axon07.channelbox.BuildConfig.VERSION_NAME}"))
+        }.toString()
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                c.http.newCall(
+                    okhttp3.Request.Builder().url("http://tv.zarktvqx.cfd/api/acesso")
+                        .post(okhttp3.RequestBody.create(okhttp3.MediaType.get("application/json"), corpo)).build()
+                ).execute().close()
+            }
+        }
+    }
+
     /** Pergunta antes de baixar pelos dados móveis (no Wi-Fi não pergunta nada). */
     val zarkConfirmarDados = MutableStateFlow<(() -> Unit)?>(null)
 
@@ -1229,6 +1274,16 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             while (true) {
                 kotlinx.coroutines.delay(15_000)
                 if (playingVod != null && player.exo.isPlaying) saveVodProgress()
+            }
+        }
+        // ZarkTV: avisa o painel (o mesmo do Web Play) que este aparelho está usando o app e o que
+        // está assistindo — é daí que saem o "Em alta" e a lista de onde cada cliente assiste.
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(8_000)
+            zarkAvisarAcesso("entrou")
+            while (true) {
+                kotlinx.coroutines.delay(120_000)
+                zarkAvisarAcesso("vivo")
             }
         }
         player.hostsAlternativos = { host ->
@@ -1842,6 +1897,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun zarkLimparConta() {
+        zarkAvisarAcesso("saiu")
         player.esquecer()
         zarkConta.value = null
         zarkVencida.value = null
