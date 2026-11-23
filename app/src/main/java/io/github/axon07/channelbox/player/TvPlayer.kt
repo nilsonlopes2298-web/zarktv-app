@@ -397,6 +397,14 @@ class TvPlayer(
         else if (spec != null) start()
     }
 
+    /** ZarkTV: saiu da conta / conta vencida — para e esquece o canal ou filme (voltar ao app não toca nada). */
+    fun esquecer() {
+        stop()
+        spec = null
+        onDemand = false
+        runCatching { exo.clearMediaItems() }
+    }
+
     fun stop() {
         startToken++
         handler.removeCallbacksAndMessages(null)

@@ -214,7 +214,8 @@ fun ZarkLoginScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Caixinha("Lembrar de mim", lembrar) { lembrar = !lembrar }
                 Spacer(Modifier.weight(1f))
-                BotaoIconeTexto(if (manual) "Servidor automático" else "Escolher servidor", AppIcons.Globe, Modifier.height(38.dp)) { manual = !manual }
+                // Botão curto, numa linha só (antes quebrava em duas e ficava desproporcional).
+                BotaoIconeTexto(if (manual) "Automático" else "Servidor", AppIcons.Globe, Modifier.height(40.dp)) { manual = !manual }
             }
             if (manual) {
                 androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

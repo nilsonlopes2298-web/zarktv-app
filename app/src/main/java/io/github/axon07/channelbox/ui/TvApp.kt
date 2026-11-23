@@ -1242,6 +1242,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         when (mode) {
             // Telas que não são de canais: nada de TV ao vivo tocando por trás.
             Mode.VOD, Mode.PROFILE, Mode.AJUSTES, Mode.SETTINGS, Mode.ORGANISE -> vm.enterLibrary()
+            // Tela de entrada (sem conta / saiu da conta): nada toca.
+            Mode.SETUP -> { vm.enterLibrary(); vm.player.esquecer() }
             // Tutorial da primeira vez na tela: nada toca até ele terminar.
             Mode.HOME -> if (tutorialVisto && !ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
@@ -2418,7 +2420,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             if (vencida != null && mode != Mode.SETUP) {
                 LaunchedEffect(vencida, mode) {
                     vm.stopVod()
-                    vm.player.stop()
+                    vm.player.esquecer()
                     runCatching { vm.player.exo.clearMediaItems() }
                     vodBrowser.previewId = null
                     jogoAberto = null
