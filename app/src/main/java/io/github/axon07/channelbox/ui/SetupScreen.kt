@@ -136,7 +136,8 @@ fun SetupScreen(
 
     // The QR code panel is for TV boxes: on a phone or tablet you can type right here.
     val config = androidx.compose.ui.platform.LocalConfiguration.current
-    val isTv = io.github.axon07.channelbox.system.Aparelho.ehTv(config)
+    val isTv = (config.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK) ==
+        android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
     val showPhone = isTv || config.screenWidthDp >= 960
 
     Row(Modifier.fillMaxSize().background(Palette.Background)) {
@@ -461,7 +462,8 @@ fun TvTextField(
     // On a TV the remote first lands on the field (no keyboard); OK starts typing. Phones and
     // tablets type straight away when the field is tapped.
     val config = androidx.compose.ui.platform.LocalConfiguration.current
-    val tv = io.github.axon07.channelbox.system.Aparelho.ehTv(config)
+    val tv = (config.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK) ==
+        android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
     var editing by remember { mutableStateOf(!tv) }
     var focused by remember { mutableStateOf(false) }
     var hovered by remember { mutableStateOf(false) }
@@ -542,14 +544,6 @@ fun TvTextField(
                     focused = it.isFocused
                 }
                 .padding(horizontal = 14.dp, vertical = 11.dp),
-        )
-        // Tela de toque com o app no modo TV (ex.: ZarkTV TV num tablet ou TV Box com mouse):
-        // o toque no campo também começa a digitar.
-        if (tv && !editing) Box(
-            Modifier.matchParentSize().clickable(
-                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                indication = null,
-            ) { editing = true }
         )
         }
         }

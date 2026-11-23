@@ -40,8 +40,11 @@
             android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
             android:screenOrientation="sensorLandscape">
-            <!-- ZarkTV: o ícone de abrir (celular e/ou TV) fica no manifest de cada versão:
-                 src/unico, src/tv e src/mobile. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
         </activity>
 
         <!-- Disabled by default. Settings → "Use as home screen" turns it on so the box

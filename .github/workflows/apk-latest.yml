@@ -52,36 +52,24 @@ jobs:
           if [ "${{ github.ref_name }}" = "beta" ]; then echo "TAG=beta" >> "$GITHUB_ENV"; else echo "TAG=latest" >> "$GITHUB_ENV"; fi
 
       - name: Compilar APK
-        # main: só o app dos clientes (unico). beta: o app dos clientes + ZarkTV TV + ZarkTV Mobile.
-        run: |
-          if [ "$TAG" = "beta" ]; then
-            ./gradlew --no-daemon assembleUnicoRelease assembleTvRelease assembleMobileRelease -PappVersionName="$VERSAO"
-          else
-            ./gradlew --no-daemon assembleUnicoRelease -PappVersionName="$VERSAO"
-          fi
+        run: ./gradlew --no-daemon assembleRelease -PappVersionName="$VERSAO"
 
       - name: Renomear e gerar version.json
         run: |
+          APK=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          echo "APK encontrado: $APK"
+          cp "$APK" zarktv.apk
           NOTAS=$(git log -1 --pretty=%s | sed 's/"/\\"/g')
-          publicar() { # $1 = versão do app (unico/tv/mobile), $2 = nome do APK, $3 = nome do json
-            APK=$(find "app/build/outputs/apk/$1/release" -name '*.apk' | head -1)
-            [ -n "$APK" ] || return 0
-            echo "APK $1: $APK -> $2"
-            cp "$APK" "$2"
-            cat > "$3" <<JSON
+          cat > version.json <<JSON
           {
             "version": "$VERSAO",
-            "url": "https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/$TAG/$2",
+            "url": "https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/$TAG/zarktv.apk",
             "obrigatoria": false,
-            "tamanho": $(stat -c %s "$2"),
+            "tamanho": $(stat -c %s zarktv.apk),
             "notas": "$NOTAS"
           }
           JSON
-            cat "$3"
-          }
-          publicar unico zarktv.apk version.json
-          publicar tv zarktv-tv.apk version-tv.json
-          publicar mobile zarktv-mobile.apk version-mobile.json
+          cat version.json
 
       - name: Publicar (latest ou beta)
         uses: softprops/action-gh-release@v2
@@ -91,11 +79,9 @@ jobs:
           name: ${{ env.TAG == 'beta' && 'ZarkTV (versao de teste)' || 'ZarkTV (versao atual)' }}
           prerelease: true
           files: |
-            zarktv*.apk
-            version*.json
+            zarktv.apk
+            version.json
           body: |
-            APK do ZarkTV (base Channelbox, GPLv3).
-            zarktv.apk = app atual (celular + TV). Na versão de teste também saem:
-            zarktv-tv.apk (ZarkTV TV: TV Box, Android TV, Fire Stick) e zarktv-mobile.apk (ZarkTV Mobile: celular e tablet).
+            APK do ZarkTV (base Channelbox, GPLv3). Mesmo APK para celular, tablet e Android TV.
             Link fixo sempre atualizado:
             https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/latest/zarktv.apk

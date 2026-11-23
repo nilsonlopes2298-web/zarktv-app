@@ -285,15 +285,6 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     val filtrosLista by vm.filters.collectAsStateWithLifecycle()
     val zarkCtx = LocalContext.current
     var ajustesVolta by remember { mutableStateOf(Mode.HOME) }
-    // ZarkTV Mobile: tela cheia vira o celular deitado (como na UniTV); fora dela, gira livre.
-    val atividade = LocalContext.current as? android.app.Activity
-    LaunchedEffect(mode) {
-        if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
-            atividade?.requestedOrientation = if (mode == Mode.PLAYER || mode == Mode.PLAYBACK)
-                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_USER
-        }
-    }
     var sairAberto by remember { mutableStateOf(false) }
     var tutorialVisto by remember { mutableStateOf(zarkCtx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getBoolean("tutorial_visto", false)) }
     var playerExterno by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkConfig.playerExterno(zarkCtx)) }
