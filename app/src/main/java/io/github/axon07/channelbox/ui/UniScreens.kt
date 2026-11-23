@@ -579,7 +579,6 @@ fun ListaDeCanais(
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x22FFFFFF)), contentAlignment = Alignment.Center) {
                             ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize().padding(3.dp))
-                            else Text(ch.name.take(2).uppercase(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.width(12.dp))
                         Text("${ch.number}", color = Color(0xCCFFFFFF), fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(38.dp))
