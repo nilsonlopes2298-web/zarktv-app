@@ -263,7 +263,7 @@ internal fun RoundButton(
 }
 
 @Composable
-private fun LoadingRing() {
+internal fun LoadingRing() {
     Box(
         Modifier.size(72.dp).clip(CircleShape).background(Color(0x99000000)),
         contentAlignment = Alignment.Center,

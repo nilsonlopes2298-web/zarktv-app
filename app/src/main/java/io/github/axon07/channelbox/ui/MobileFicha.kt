@@ -165,7 +165,7 @@ private fun AcaoCel(icone: androidx.compose.ui.graphics.vector.ImageVector, nome
 private fun ParecidosCel(vm: TvViewModel, atual: VodEntity, onOpen: (VodEntity) -> Unit) {
     val parecidos by remember(atual.id) {
         vm.vodTop(atual.kind, atual.category, 13).let { f ->
-            kotlinx.coroutines.flow.flow { f.collect { l -> emit(l.filter { it.id != atual.id }.take(12)) } }
+            kotlinx.coroutines.flow.flow { f.collect { l -> emit(l.filter { it.id != atual.id }.take(9)) } }
         }
     }.collectAsState(initial = emptyList())
     if (parecidos.isEmpty()) return
@@ -173,7 +173,7 @@ private fun ParecidosCel(vm: TvViewModel, atual: VodEntity, onOpen: (VodEntity) 
     Spacer(Modifier.height(16.dp))
     Text("Você também pode gostar", color = T1, fontSize = 17.sp, fontWeight = FontWeight.Medium)
     Spacer(Modifier.height(12.dp))
-    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(16.dp), maxItemsInEachRow = 3) {
+    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(20.dp), maxItemsInEachRow = 3) {
         parecidos.forEach { p ->
             Column(Modifier.weight(1f).clickable { onOpen(p) }) {
                 Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)).background(Elevado)) {

@@ -1745,7 +1745,24 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     )
                 }
                 // Timelines and remote directions stay left-to-right in every language.
-                LtrBox {
+                if (io.github.axon07.channelbox.system.Aparelho.soCelular) Box(Modifier.fillMaxSize()) {
+                    PlaybackCel(
+                        vm = vm,
+                        ui = PlaybackUi(
+                            title = playbackTitle, subtitle = pbSubtitle, position = pbPosition, duration = pbDuration,
+                            buffered = pbBuffered, playing = pbPlaying, buffering = pbBuffering, ended = pbEnded,
+                            skipped = pbSkipped, poster = if (playbackReturn == Mode.VOD) vodPosterAtual else null,
+                        ),
+                        item = vodPreviewItem,
+                        onToggle = { togglePause() },
+                        onSeek = { seekBy(it) },
+                        onSeekTo = { seekTo(it) },
+                        onOptions = { openOptions() },
+                        onClose = { leavePlayback() },
+                        onCaptions = { playbackToken++; toggleCaptions(); captionsTick++ },
+                        captionsOn = remember(captionsTick, playbackToken) { vm.player.captionsOn },
+                    )
+                } else LtrBox {
                     PlaybackControls(
                         ui = PlaybackUi(
                             title = playbackTitle,
