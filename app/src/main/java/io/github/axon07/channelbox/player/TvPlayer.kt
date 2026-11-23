@@ -229,7 +229,7 @@ class TvPlayer(
 
     val exo: ExoPlayer = ExoPlayer.Builder(context, renderers)
         .setBandwidthMeter(bandwidthMeter)
-        .setLoadControl(loadControl(options.buffer).let { if (options.buffer == "medium" || options.buffer.isBlank()) BufferAutomatico(it) { velocidadeMBs() } else it })
+        .setLoadControl(if (options.buffer == "medium" || options.buffer.isBlank()) BufferAutomatico { velocidadeMBs() } else loadControl(options.buffer))
         .build()
         .apply {
             // ZarkTV: registro do que o player recebe (formato, codec, erros) para diagnosticar canais que não abrem.
@@ -930,9 +930,12 @@ private fun loadControl(size: String): androidx.media3.exoplayer.LoadControl {
  * para não ficar parando. O resto (quanto baixar, quando parar) fica com o controle padrão.
  */
 private class BufferAutomatico(
-    private val base: androidx.media3.exoplayer.LoadControl,
     private val velocidade: () -> Double,
-) : androidx.media3.exoplayer.LoadControl by base {
+) : androidx.media3.exoplayer.DefaultLoadControl(
+    androidx.media3.exoplayer.upstream.DefaultAllocator(true, androidx.media3.common.C.DEFAULT_BUFFER_SEGMENT_SIZE),
+    15_000, 40_000, 2_500, 5_000,
+    androidx.media3.common.C.LENGTH_UNSET, true, 0, false,
+) {
     override fun shouldStartPlayback(parameters: androidx.media3.exoplayer.LoadControl.Parameters): Boolean {
         val mbs = runCatching { velocidade() }.getOrDefault(0.0)
         val alvoMs = when {
@@ -942,6 +945,7 @@ private class BufferAutomatico(
             else -> 1_200L       // internet boa: rápido
         } * (if (parameters.rebuffering) 2 else 1)
         val guardadoMs = parameters.bufferedDurationUs / 1000 / parameters.playbackSpeed.coerceAtLeast(0.1f).toDouble()
-        return guardadoMs >= alvoMs || base.shouldStartPlayback(parameters) && guardadoMs >= alvoMs / 2
+        // Buffer cheio (o controle padrão parou de baixar) também libera, para não travar esperando.
+        return guardadoMs >= alvoMs || (super.shouldStartPlayback(parameters) && guardadoMs >= alvoMs / 2)
     }
 }
