@@ -35,7 +35,8 @@ import android.widget.Toast
  */
 class WebCelularActivity : Activity() {
 
-    private val endereco = "https://zark.zarktvqx.cfd/celular"
+    // O Web Play (o mesmo que roda no navegador do celular). Fica em http porque os servidores de vídeo são http.
+    private val endereco = "http://tv.zarktvqx.cfd/"
     private lateinit var raiz: FrameLayout
     private lateinit var web: WebView
     private lateinit var telaErro: LinearLayout
@@ -72,6 +73,8 @@ class WebCelularActivity : Activity() {
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
             addJavascriptInterface(Ponte(), "ZarkApp")
             webViewClient = Cliente()
+            // Link de download (ex.: APK) abre no navegador, em vez de deixar a tela preta.
+            setDownloadListener { url, _, _, _, _ -> abrirFora(Uri.parse(url)) }
             webChromeClient = Chrome()
         }
         raiz.addView(web, FrameLayout.LayoutParams(-1, -1))

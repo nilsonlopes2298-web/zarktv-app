@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ZarkTV Mobile: celular e tablet. Abre o app web zark.zarktvqx.cfd/celular dentro do APK.
+<!-- ZarkTV Mobile: celular e tablet. Abre o Web Play tv.zarktvqx.cfd dentro do APK.
      Em pé no uso normal; a tela cheia do vídeo vira na horizontal. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
