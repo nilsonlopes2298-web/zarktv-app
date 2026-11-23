@@ -1142,7 +1142,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
      * Movies & TV Shows browser open: live TV stops, so nothing streams until you press play on
      * something (most accounts allow only one or two streams at a time).
      */
-    private var libraryOpen = false
+    private var libraryOpen = io.github.axon07.channelbox.system.Aparelho.soCelular // celular abre no Início: nada toca até a aba TV
 
     fun enterLibrary() {
         endShift()
@@ -1525,10 +1525,12 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             if (jaTentados.size > 20) jaTentados.clear()
             previous = _current.value
             _current.value = channel
-            player.play(StreamSpecs.from(channel))
+            // ZarkTV Mobile: fora da aba TV só escolhe o canal; ele toca quando a aba TV abrir
+            // (nada de canal tocando escondido no Início, nos filmes ou no perfil).
+            if (!(io.github.axon07.channelbox.system.Aparelho.soCelular && libraryOpen)) player.play(StreamSpecs.from(channel))
             viewModelScope.launch { c.settings.setLastChannel(channel.id) }
-        } else if (!player.isLive) {
-            player.play(StreamSpecs.from(channel))
+        } else if (!player.isLive || (io.github.axon07.channelbox.system.Aparelho.soCelular && !libraryOpen && !player.exo.isPlaying)) {
+            if (!(io.github.axon07.channelbox.system.Aparelho.soCelular && libraryOpen)) player.play(StreamSpecs.from(channel))
         }
         showBanner()
     }

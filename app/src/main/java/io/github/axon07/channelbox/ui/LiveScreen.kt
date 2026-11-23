@@ -231,12 +231,7 @@ fun LiveScreen(
                         ) {
                             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Box(Modifier.size(40.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x22FFFFFF)), contentAlignment = Alignment.Center) {
-                                    if (!ch.logoUrl.isNullOrBlank()) {
-                                        coil.compose.AsyncImage(
-                                            model = ch.logoUrl, contentDescription = null, contentScale = ContentScale.Fit,
-                                            modifier = Modifier.fillMaxSize().padding(3.dp),
-                                        )
-                                    } else Text(ch.name.take(2).uppercase(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize().padding(3.dp))
                                 }
                                 Spacer(Modifier.width(10.dp))
                                 Text("${ch.number}", color = Palette.TextDim, fontSize = 13.sp, modifier = Modifier.width(34.dp))

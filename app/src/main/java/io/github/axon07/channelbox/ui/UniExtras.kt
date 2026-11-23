@@ -138,7 +138,7 @@ fun CanaisOverlay(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(Modifier.size(width = 46.dp, height = 34.dp), contentAlignment = Alignment.Center) {
-                            if (!ch.logoUrl.isNullOrBlank()) AsyncImage(ch.logoUrl, null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                            ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize())
                         }
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {

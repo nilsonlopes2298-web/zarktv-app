@@ -578,7 +578,7 @@ fun ListaDeCanais(
                 ) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x22FFFFFF)), contentAlignment = Alignment.Center) {
-                            if (!ch.logoUrl.isNullOrBlank()) AsyncImage(ch.logoUrl, null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(3.dp))
+                            ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize().padding(3.dp))
                             else Text(ch.name.take(2).uppercase(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.width(12.dp))
@@ -1604,8 +1604,7 @@ private fun CanalCel(ch: ChannelEntity, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(ElevadoCel), contentAlignment = Alignment.Center) {
-            if (!ch.logoUrl.isNullOrBlank()) AsyncImage(ch.logoUrl, ch.name, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(4.dp))
-            else Text(iniciaisCel(ch.name), color = Texto2, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize().padding(4.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column {

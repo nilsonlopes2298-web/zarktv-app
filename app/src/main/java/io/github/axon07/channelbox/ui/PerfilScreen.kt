@@ -78,6 +78,11 @@ fun PerfilUni(
     onAbrir: (VodEntity) -> Unit,
     onVoltar: () -> Unit,
 ) {
+    if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
+        PerfilCel(vm, usuario, servidor, conta, adultoLiberado, playerFilmes, onRenovar, onConvidar, onSuporte, onSair, onOutraConta,
+            onAdulto, onControleParental, onConfiguracoes, onAtualizar, onPlayerFilmes, onFavoritosCanais, onFavoritosVod, onAbrir)
+        return
+    }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val foco = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(150); runCatching { foco.requestFocus() } }

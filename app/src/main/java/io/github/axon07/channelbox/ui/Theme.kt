@@ -70,39 +70,52 @@ fun rememberTimeFormatter(): (Long) -> String {
 }
 
 /**
- * Channel logo. Transparent PNGs are drawn as-is (no box behind them); a small
- * placeholder with the channel's initials only shows when there's no logo or it fails to load.
+ * ZarkTV: logo do canal. Tenta, nesta ordem: o logo que o servidor mandou, o logo do acervo
+ * aberto tv-logos (pelo nome do canal: Globo, CNN Brasil, Paramount…) e, se nada vier, um
+ * quadradinho neutro com as iniciais — assim a lista fica sempre arrumada.
  */
 @Composable
 fun ChannelLogo(url: String?, name: String, modifier: Modifier = Modifier) {
-    var failed by remember(url) { mutableStateOf(false) }
-    val placeholder = url.isNullOrBlank() || failed
-    Box(
-        modifier.then(
-            if (placeholder) Modifier.clip(RoundedCornerShape(4.dp)).background(Palette.Surface) else Modifier
-        ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (placeholder) {
-            Text(
-                text = name.take(3).uppercase(),
-                color = Palette.TextDim,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-            )
+    val candidatos = remember(url, name) { listOfNotNull(url?.takeIf { it.isNotBlank() }, logoAcervo(name)) }
+    var tentativa by remember(url, name) { mutableStateOf(0) }
+    val atual = candidatos.getOrNull(tentativa)
+    Box(modifier, contentAlignment = Alignment.Center) {
+        if (atual == null) {
+            Box(Modifier.fillMaxWidth().fillMaxHeight().clip(RoundedCornerShape(6.dp)).background(Color(0xFF232325)), contentAlignment = Alignment.Center) {
+                Text(
+                    text = iniciaisCanal(name),
+                    color = Color(0xFFA1A1A6),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip,
+                )
+            }
         } else {
             AsyncImage(
-                model = url,
+                model = atual,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                onError = { failed = true },
+                onError = { tentativa++ },
                 modifier = Modifier.fillMaxWidth().fillMaxHeight(),
             )
         }
     }
 }
+
+/** "Globo SP FHD²" → "globo-sp", para achar o arquivo no acervo tv-logos (Brasil). */
+fun logoAcervo(nome: String): String? {
+    val base = java.text.Normalizer.normalize(nome, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "").lowercase()
+        .replace(Regex("""[²³¹]|\b(fhd|uhd|4k|hd|sd|h265|hevc|alt|backup|24h)\b|\(.*?\)|\[.*?\]|\|.*$"""), " ")
+        .replace(Regex("""^\s*\d+\s*[-.:]?\s*"""), "")
+        .replace("&", " and ").replace("+", " plus ")
+        .replace(Regex("""[^a-z0-9]+"""), "-").trim('-')
+    if (base.isBlank()) return null
+    return "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/brazil/$base-br.png"
+}
+
+private fun iniciaisCanal(n: String) = n.replace(Regex("""[^\p{L}\p{N} ]"""), " ").split(' ').filter { it.isNotBlank() }
+    .take(2).joinToString("") { it.take(1).uppercase() }.ifBlank { n.take(2).uppercase() }
 
 @Composable
 fun ProgressBar(fraction: Float, modifier: Modifier = Modifier) {

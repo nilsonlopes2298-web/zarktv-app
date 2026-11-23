@@ -184,9 +184,7 @@ fun BoxScope.StatusMessage(status: PlayerStatus, channel: ChannelEntity?, fallba
                         .clip(androidx.compose.foundation.shape.CircleShape).background(Color(0x26FFFFFF)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (!channel.logoUrl.isNullOrBlank()) {
-                        coil.compose.AsyncImage(channel.logoUrl, null, contentScale = androidx.compose.ui.layout.ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(6.dp))
-                    } else Text(channel.name.take(2).uppercase(), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    ChannelLogo(channel.logoUrl, channel.name, Modifier.fillMaxSize().padding(6.dp))
                 }
             }
             androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
