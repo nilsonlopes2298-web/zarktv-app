@@ -73,6 +73,7 @@ fun PixDialogo(
     var erro by remember { mutableStateOf<String?>(null) }
     var pago by remember { mutableStateOf(false) }
     var copiado by remember { mutableStateOf(false) }
+    var abaQr by remember { mutableStateOf(false) }
     val cel = io.github.axon07.channelbox.system.Aparelho.soCelular
     val scope = rememberCoroutineScope()
     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -143,6 +144,26 @@ fun PixDialogo(
             }
             Spacer(Modifier.height(14.dp))
             when {
+                pago && cel -> {
+                    val p = pix
+                    PagoAnimado()
+                    Spacer(Modifier.height(14.dp))
+                    Text("Pagamento confirmado", color = Color(0xFFEDEDED), fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                    Text("Seu acesso será renovado em instantes.", color = Color(0xFFA1A1A6), fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+                    Spacer(Modifier.height(18.dp))
+                    BotaoPix("Enviar comprovante no WhatsApp", true, Modifier.fillMaxWidth()) {
+                        val msg = "Olá! Paguei o Pix do ZarkTV.\nUsuário: $usuario ($servidor)" +
+                            (p?.let { "\nPlano: ${it.plano} · ${brl(it.valor)}\nPedido: ${it.id}" } ?: "")
+                        runCatching {
+                            ctx.startActivity(
+                                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(io.github.axon07.channelbox.data.ZarkConfig.WHATSAPP + "?text=" + android.net.Uri.encode(msg)))
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    BotaoPix("Fechar", false, Modifier.fillMaxWidth(), onFechar)
+                }
                 pago -> {
                     Text("Pagamento confirmado!", color = Color(0xFF66BB6A), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Text("Seu acesso será renovado em instantes. Obrigado!", color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
@@ -164,18 +185,41 @@ fun PixDialogo(
                     Text("Usuário $usuario", color = Color(0x99FFFFFF), fontSize = 12.sp)
                     Spacer(Modifier.height(12.dp))
                     if (p.copia != null && cel) {
-                        // Celular: o cliente paga no próprio aparelho, então o principal é o Copia e Cola.
-                        BotaoPix(if (copiado) "Código copiado" else "Copiar código Pix", true, Modifier.fillMaxWidth()) {
-                            val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            cm.setPrimaryClip(android.content.ClipData.newPlainText("Pix", p.copia))
-                            copiado = true
+                        // Abinhas: Copia e Cola (pagar neste celular) | QR Code (pagar com outro celular).
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFF232325)).padding(3.dp)) {
+                            listOf(false to "Copia e Cola", true to "QR Code").forEach { (qr, nome) ->
+                                Box(
+                                    Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(8.dp))
+                                        .background(if (abaQr == qr) Color(0xFF3A3A3D) else Color.Transparent)
+                                        .clickable { abaQr = qr },
+                                    contentAlignment = Alignment.Center,
+                                ) { Text(nome, color = if (abaQr == qr) Color(0xFFEDEDED) else Color(0xFF85858B), fontSize = 14.sp) }
+                            }
                         }
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            if (copiado) "Agora abra o app do seu banco, entre em Pix → Copia e Cola e cole o código."
-                            else "Copie o código e cole no app do seu banco em Pix → Copia e Cola.",
-                            color = Color(0xFFEDEDED), fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center,
-                        )
+                        Spacer(Modifier.height(14.dp))
+                        if (abaQr) {
+                            val qr = remember(p.copia) { runCatching { io.github.axon07.channelbox.system.PhoneLink.qrCode(p.copia, 520).asImageBitmap() }.getOrNull() }
+                            qr?.let {
+                                Box(Modifier.size(210.dp).background(Color.White, RoundedCornerShape(12.dp)).padding(10.dp)) {
+                                    Image(it, "QR Code do Pix", modifier = Modifier.fillMaxSize())
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            Text("No outro celular, abra o app do banco, escolha Pix → Ler QR Code e aponte para esta tela.",
+                                color = Color(0xFFEDEDED), fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
+                        } else {
+                            BotaoPix(if (copiado) "Código copiado" else "Copiar código Pix", true, Modifier.fillMaxWidth()) {
+                                val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                cm.setPrimaryClip(android.content.ClipData.newPlainText("Pix", p.copia))
+                                copiado = true
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                if (copiado) "Agora abra o app do seu banco, entre em Pix → Copia e Cola e cole o código."
+                                else "Copie o código e cole no app do seu banco em Pix → Copia e Cola.",
+                                color = Color(0xFFEDEDED), fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center,
+                            )
+                        }
                     } else if (p.copia != null) {
                         val qr = remember(p.copia) { runCatching { io.github.axon07.channelbox.system.PhoneLink.qrCode(p.copia, 520).asImageBitmap() }.getOrNull() }
                         qr?.let {
@@ -232,4 +276,32 @@ private fun BotaoPix(texto: String, principal: Boolean, modifier: Modifier, onCl
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(texto, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) }
+}
+
+/** Celular: círculo verde que cresce e o "✓" sendo desenhado quando o Pix cai. */
+@Composable
+private fun PagoAnimado() {
+    val circulo = remember { androidx.compose.animation.core.Animatable(0f) }
+    val traco = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(Unit) {
+        circulo.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 300f))
+        traco.animateTo(1f, androidx.compose.animation.core.tween(380))
+    }
+    androidx.compose.foundation.Canvas(Modifier.size(96.dp)) {
+        val r = size.minDimension / 2f
+        drawCircle(Color(0x334CC38A), radius = r * circulo.value)
+        drawCircle(Color(0xFF4CC38A), radius = r * 0.72f * circulo.value)
+        if (traco.value > 0f) {
+            val a = androidx.compose.ui.geometry.Offset(size.width * 0.33f, size.height * 0.52f)
+            val b = androidx.compose.ui.geometry.Offset(size.width * 0.45f, size.height * 0.64f)
+            val c = androidx.compose.ui.geometry.Offset(size.width * 0.68f, size.height * 0.40f)
+            val t = traco.value
+            val caminho = androidx.compose.ui.graphics.Path().apply {
+                moveTo(a.x, a.y)
+                if (t < 0.4f) { val k = t / 0.4f; lineTo(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k) }
+                else { lineTo(b.x, b.y); val k = (t - 0.4f) / 0.6f; lineTo(b.x + (c.x - b.x) * k, b.y + (c.y - b.y) * k) }
+            }
+            drawPath(caminho, Color.White, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 7.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+        }
+    }
 }
