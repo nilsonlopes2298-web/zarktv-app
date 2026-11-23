@@ -85,6 +85,8 @@ class VodBrowser {
     var previewRect by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
     var fundoUrl by mutableStateOf<String?>(null)
     var previewId by mutableStateOf<String?>(null)
+    /** Celular: filme ou série dona do que está tocando na janelinha da ficha. */
+    var previewDono by mutableStateOf<String?>(null)
     var acaoPreview: ((VodEntity, VodEntity?) -> Unit)? = null
     var acaoTelaCheia: (() -> Unit)? = null
     /** Aberto da tela principal: o botão Voltar da ficha volta para ela. */

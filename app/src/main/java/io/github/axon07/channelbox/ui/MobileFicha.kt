@@ -74,30 +74,16 @@ private val Laranja = Color(0xFFFF9800)
 private fun VideoTopo(b: VodBrowser, exo: androidx.media3.exoplayer.ExoPlayer, imagem: String?, titulo: String, onVoltar: () -> Unit, onTransmitir: () -> Unit, onTocar: () -> Unit) {
     val tocando = b.previewId != null
     DisposableEffect(Unit) { onDispose { b.previewRect = null } }
-    // Rodinha desde o toque até aparecer a imagem do vídeo.
-    var pediu by remember { mutableStateOf(false) }
-    var pronto by remember { mutableStateOf(false) }
-    LaunchedEffect(tocando, b.previewId) {
-        pronto = false
-        while (true) {
-            pronto = tocando && exo.playbackState == androidx.media3.common.Player.STATE_READY
-            if (pronto) pediu = false
-            kotlinx.coroutines.delay(250)
-        }
-    }
-    LaunchedEffect(pediu) { if (pediu) { kotlinx.coroutines.delay(25_000); pediu = false } }
-    val carregando = pediu || (tocando && !pronto && exo.playbackState != androidx.media3.common.Player.STATE_ENDED)
     Box(
         Modifier.fillMaxWidth().aspectRatio(16f / 9f)
             .background(if (tocando) Color.Transparent else Color.Black)
             .then(if (tocando) Modifier.onGloballyPositioned { b.previewRect = it.boundsInRoot() } else Modifier)
-            .clickable { if (!tocando) { pediu = true; onTocar() } }
+            .clickable { if (!tocando) onTocar() }
     ) {
-        if (!tocando || carregando) {
+        if (!tocando) {
             AsyncImage(imagem, titulo, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Color(0x55000000)))
-            if (carregando) Box(Modifier.align(Alignment.Center)) { BolinhasCarregando(Modifier.size(52.dp)) }
-            else Box(
+            Box(
                 Modifier.align(Alignment.Center).size(56.dp).clip(CircleShape).background(Color(0x66000000)),
                 contentAlignment = Alignment.Center,
             ) { AppIcon(AppIcons.Play, tint = Color.White, size = 30.dp) }
@@ -111,7 +97,7 @@ private fun VideoTopo(b: VodBrowser, exo: androidx.media3.exoplayer.ExoPlayer, i
             Modifier.align(Alignment.TopEnd).padding(8.dp).size(40.dp).clip(CircleShape).clickable(onClick = onTransmitir),
             contentAlignment = Alignment.Center,
         ) { AppIcon(AppIcons.Transmitir, tint = Color.White, size = 20.dp) }
-        if (tocando && !carregando) MiniControles(exo) { b.acaoTelaCheia?.invoke() }
+        if (tocando) MiniControles(exo) { b.acaoTelaCheia?.invoke() }
     }
 }
 
@@ -259,6 +245,7 @@ private fun ParecidosCel(vm: TvViewModel, atual: VodEntity, onOpen: (VodEntity) 
 fun FichaFilmeCel(b: VodBrowser, movie: VodEntity, progress: VodProgressEntity?, vm: TvViewModel, onPlay: (VodEntity, VodEntity?) -> Unit) {
     var ficha by remember(movie.id) { mutableStateOf<ZarkInfo?>(null) }
     LaunchedEffect(movie.id) { ficha = vm.zarkFicha(movie) }
+    PararSeForOutro(b, vm, movie.id)
     LaunchedEffect(ficha, movie.id) { b.fundoUrl = null }
     val rol = rememberScrollState()
     LaunchedEffect(movie.id) { rol.scrollTo(0) }
@@ -280,6 +267,7 @@ fun FichaFilmeCel(b: VodBrowser, movie: VodEntity, progress: VodProgressEntity?,
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FichaSerieCel(b: VodBrowser, show: VodEntity, progress: Map<String, VodProgressEntity>, vm: TvViewModel, onPlay: (VodEntity, VodEntity?) -> Unit) {
+    PararSeForOutro(b, vm, show.id)
     LaunchedEffect(show.id) {
         if (b.episodes == null) {
             val list = vm.episodes(show)
@@ -368,6 +356,19 @@ fun FichaSerieCel(b: VodBrowser, show: VodEntity, progress: Map<String, VodProgr
                     Spacer(Modifier.height(12.dp))
                 }
             }
+        }
+    }
+}
+
+/** Abriu outro filme/série: para o vídeo do anterior que estava na janelinha. */
+@Composable
+private fun PararSeForOutro(b: VodBrowser, vm: TvViewModel, id: String) {
+    LaunchedEffect(id) {
+        if (b.previewId != null && b.previewDono != id) {
+            vm.stopVod()
+            vm.player.exo.stop()
+            b.previewId = null
+            b.previewDono = null
         }
     }
 }

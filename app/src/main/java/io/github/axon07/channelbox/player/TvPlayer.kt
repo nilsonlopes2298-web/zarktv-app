@@ -576,6 +576,10 @@ class TvPlayer(
             if (!confirmed && attempt < candidates.lastIndex) {
                 attempt++
                 handler.post { start() }
+            } else if (!confirmed) {
+                // Este caminho não deu: segue para o próximo (outra identificação, outro DNS, Web Play)
+                // na hora, em vez de esperar o vigia de 12 s.
+                handler.post { failed(describe(error)) }
             }
             return
         }

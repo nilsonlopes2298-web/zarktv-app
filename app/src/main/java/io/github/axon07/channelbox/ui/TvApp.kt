@@ -769,6 +769,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             vodPreviewShow = show
             vodPreviewItem = item
             vodBrowser.previewId = item.id
+            vodBrowser.previewDono = show?.id ?: item.id
             vm.player.exo.stop()
             vm.zarkAplicarPreferencias()
             vm.playVod(item, at, show?.id)
