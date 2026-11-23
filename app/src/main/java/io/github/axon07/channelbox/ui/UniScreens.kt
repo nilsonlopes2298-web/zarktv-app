@@ -1663,6 +1663,8 @@ private fun CanalCel(ch: ChannelEntity, onClick: () -> Unit) {
 /** Cartão do jogo no jeito da UniTV: campeonato em cima, escudos em círculo, hora grande e o botão vermelho. */
 @Composable
 private fun CartaoJogoCel(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, modifier: Modifier = Modifier.width(280.dp), onClick: () -> Unit) {
+    val ctxJ = androidx.compose.ui.platform.LocalContext.current
+    var lembrar by remember(j.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkLembretes.tem(ctxJ, j.id)) }
     val br = java.util.Locale("pt", "BR")
     val hora = java.text.SimpleDateFormat("HH:mm", br).format(java.util.Date(j.inicio))
     val dia = java.text.SimpleDateFormat("dd/MM", br).format(java.util.Date(j.inicio))
@@ -1674,7 +1676,13 @@ private fun CartaoJogoCel(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, mo
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (j.ligaLogo != null) { AsyncImage(j.ligaLogo, null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)) }
-            Text(j.liga, color = Texto2, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(j.liga, color = Texto2, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            // Jogo que ainda vai começar: sininho para lembrar (avisa 10 min antes e na hora).
+            if (j.estado == "pre") Box(
+                Modifier.size(32.dp).clip(androidx.compose.foundation.shape.CircleShape).background(if (lembrar) VermelhoCel else ElevadoCel)
+                    .clickable { lembrar = io.github.axon07.channelbox.data.ZarkLembretes.alternar(ctxJ, j.id, j.inicio, "${j.casa.nome} x ${j.fora.nome}") },
+                contentAlignment = Alignment.Center,
+            ) { AppIcon(AppIcons.Bell, tint = Color.White, size = 16.dp) }
         }
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -2403,6 +2403,50 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 Text("Quando terminar, confirme a instalação.", color = Color(0xAAFFFFFF), fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
             }
         }
+        // ZarkTV Mobile: 10 min antes do jogo marcado aparece um aviso pequeno em cima ("começa em 8 min · Assistir").
+        var lembreteAntes by remember { mutableStateOf<io.github.axon07.channelbox.data.ZarkLembretes.Lembrete?>(null) }
+        val avisados = remember { mutableSetOf<String>() }
+        if (io.github.axon07.channelbox.system.Aparelho.soCelular) LaunchedEffect(Unit) {
+            while (true) {
+                val t = System.currentTimeMillis()
+                io.github.axon07.channelbox.data.ZarkLembretes.lista(zarkCtx)
+                    .firstOrNull { it.id !in avisados && it.inicio - t in 0..10 * 60_000L }
+                    ?.let { avisados += it.id; lembreteAntes = it }
+                delay(30_000)
+            }
+        }
+        val abrirJogoLembrado: (String) -> Unit = { id ->
+            scope.launch {
+                val j = runCatching { io.github.axon07.channelbox.data.ZarkJogos.hoje(vm.zarkHttp) }.getOrDefault(emptyList()).firstOrNull { it.id == id }
+                homeTab = Aba.JOGOS
+                mode = Mode.HOME
+                if (j != null) {
+                    jogoAberto = j
+                    candidatosJogo = canaisDoJogo(j)
+                    jogoCanalIdx = 0
+                    if (!jogoEsperando(j)) candidatosJogo.firstOrNull()?.let { ch -> vm.withChannelAccess(ch) { vm.tune(ch) } }
+                }
+            }
+        }
+        lembreteAntes?.let { l ->
+            LaunchedEffect(l.id) { delay(20_000); if (lembreteAntes?.id == l.id) lembreteAntes = null }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                Row(
+                    Modifier.padding(start = 12.dp, end = 12.dp, top = 40.dp).fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                        .background(Color(0xF0232325)).padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    val min = ((l.inicio - System.currentTimeMillis()) / 60_000L).coerceAtLeast(0)
+                    Column(Modifier.weight(1f)) {
+                        Text(l.titulo.ifBlank { "Seu jogo" }, color = Color(0xFFEDEDED), fontSize = 14.sp, maxLines = 1)
+                        Text(if (min > 0) "Começa em $min min" else "Começando agora", color = Color(0xFFA1A1A6), fontSize = 12.sp)
+                    }
+                    Text("Assistir", color = Color.White, fontSize = 13.sp, modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                        .background(Color(0xFFE50914)).clickable { lembreteAntes = null; abrirJogoLembrado(l.id) }.padding(horizontal = 12.dp, vertical = 8.dp))
+                    Text("✕", color = Color(0xFF85858B), fontSize = 14.sp, modifier = Modifier.clickable { lembreteAntes = null }.padding(8.dp))
+                }
+            }
+        }
         // ZarkTV: confere os lembretes de jogos a cada 30 s e avisa quando o jogo começa.
         LaunchedEffect(Unit) {
             while (true) {
@@ -2423,8 +2467,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 actions = listOf(
                     DialogAction("Assistir agora") {
                         lembreteAviso = null
-                        homeTab = Aba.JOGOS
-                        mode = Mode.HOME
+                        if (io.github.axon07.channelbox.system.Aparelho.soCelular) abrirJogoLembrado(l.id) else { homeTab = Aba.JOGOS; mode = Mode.HOME }
                     },
                     DialogAction("Fechar") { lembreteAviso = null },
                 ),
