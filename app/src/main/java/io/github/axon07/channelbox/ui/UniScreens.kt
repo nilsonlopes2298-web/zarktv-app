@@ -158,7 +158,7 @@ fun UniShell(
         ShellCelular(
             vm, tab, onTab, channels, current, favorites, upcoming, now, onPickChannel, onFull, onFavorite, onPreviewRect,
             groups, currentGroup, onGroup, jogoAberto, canalJogo, canalJogoInfo, onAbrirJogo, onFecharJogo, onMudarCanalJogo,
-            onOpenItem, onOpenLibrary, onOpenFiltrado, adultoLiberado, onSearch, onProfile,
+            onOpenItem, onOpenLibrary, onOpenFiltrado, adultoLiberado, onSearch, onProfile, onAdulto,
         )
         return
     }
@@ -1352,11 +1352,12 @@ private fun ShellCelular(
     adultoLiberado: Boolean,
     onSearch: () -> Unit,
     onProfile: () -> Unit,
+    onAdulto: () -> Unit,
 ) {
     val subAbas = buildList {
         add("Recomendações" to Aba.DESTAQUES); add("Jogos" to Aba.JOGOS); add("Filmes" to Aba.FILMES); add("Séries" to Aba.SERIES)
         add("Animes" to Aba.ANIME); add("Desenhos" to Aba.KIDS)
-        if (adultoLiberado) add("Adulto" to Aba.EXPLORAR) // só aparece com o conteúdo adulto liberado
+        add("Adulto" to Aba.EXPLORAR) // pede a senha do adulto para abrir (como a UniTV)
     }
     // Pesquisa própria do celular (por cima de tudo, com o mais buscado).
     var buscando by remember { mutableStateOf(false) }
@@ -1411,7 +1412,16 @@ private fun ShellCelular(
                     else JogosCel(vm, onAbrirJogo)
                 Aba.ANIME -> FiltradoCel(vm, REGEX_ANIME, onOpenItem, onOpenFiltrado)
                 Aba.KIDS -> FiltradoCel(vm, REGEX_KIDS, onOpenItem, onOpenFiltrado)
-                Aba.EXPLORAR -> FiltradoCel(vm, REGEX_ADULTO, onOpenItem, onOpenFiltrado)
+                Aba.EXPLORAR -> if (adultoLiberado) FiltradoCel(vm, REGEX_ADULTO, onOpenItem, onOpenFiltrado) else {
+                    LaunchedEffect(Unit) { onAdulto() }
+                    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                        AppIcon(AppIcons.Lock, tint = Texto3, size = 32.dp)
+                        Spacer(Modifier.height(12.dp))
+                        Text("Conteúdo adulto bloqueado", color = Texto1, fontSize = 16.sp)
+                        Spacer(Modifier.height(12.dp))
+                        Text("Digitar a senha", color = Color.White, fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(VermelhoCel).clickable { onAdulto() }.padding(horizontal = 16.dp, vertical = 10.dp))
+                    }
+                }
                 Aba.FILMES -> CatalogoCel(vm, VodKind.MOVIE, onOpenItem, onOpenLibrary)
                 Aba.SERIES -> CatalogoCel(vm, VodKind.SERIES, onOpenItem, onOpenLibrary)
                 else -> RecomendacoesCel(
@@ -1790,7 +1800,10 @@ private fun FiltradoCel(vm: TvViewModel, filtro: Regex, onOpen: (VodEntity) -> U
         Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) { Text("Nenhuma categoria encontrada no seu servidor.", color = Texto3, fontSize = 14.sp) }
         return
     }
+    val primeira = fileiras.first()
+    val topo by remember(primeira) { vm.vodTop(primeira.first, primeira.second, 6) }.collectAsState(initial = emptyList())
     LazyColumn(verticalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)) {
+        item { CarrosselCel(vm, topo.map { it to "" }, onOpen) }
         items(fileiras, key = { it.first + "|" + it.second }) { (k, c) -> FileiraCatCel(vm, k, c, onOpen) { onFiltrado(k, filtro) } }
     }
 }
