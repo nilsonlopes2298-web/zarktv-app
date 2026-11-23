@@ -132,11 +132,22 @@ abstract class ChannelDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertAll(channels: List<ChannelEntity>)
 
+    /**
+     * ZarkTV: atualização sem apagar tudo — grava por cima os canais que vieram (mesmo id) e
+     * remove só os que sumiram do servidor. A lista continua aparecendo enquanto atualiza.
+     */
     @Transaction
     open suspend fun replaceAll(channels: List<ChannelEntity>) {
-        clear()
-        insertAll(channels)
+        val novos = channels.mapTo(HashSet()) { it.id }
+        allIds().filter { it !in novos }.chunked(500).forEach { deleteIds(it) }
+        channels.chunked(1000).forEach { insertAll(it) }
     }
+
+    @Query("SELECT id FROM channels")
+    abstract suspend fun allIds(): List<String>
+
+    @Query("DELETE FROM channels WHERE id IN (:ids)")
+    abstract suspend fun deleteIds(ids: List<String>)
 
     @Query("SELECT * FROM channels WHERE playlistId = :playlistId OR (playlistId IS NULL AND :playlistId = 'main')")
     abstract suspend fun forPlaylist(playlistId: String): List<ChannelEntity>

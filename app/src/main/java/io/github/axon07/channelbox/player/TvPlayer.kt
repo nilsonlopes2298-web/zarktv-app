@@ -229,7 +229,7 @@ class TvPlayer(
 
     val exo: ExoPlayer = ExoPlayer.Builder(context, renderers)
         .setBandwidthMeter(bandwidthMeter)
-        .setLoadControl(loadControl(options.buffer))
+        .setLoadControl(loadControl(options.buffer).let { if (options.buffer == "medium" || options.buffer.isBlank()) BufferAutomatico(it) { velocidadeMBs() } else it })
         .build()
         .apply {
             // ZarkTV: registro do que o player recebe (formato, codec, erros) para diagnosticar canais que não abrem.
@@ -921,4 +921,27 @@ private fun loadControl(size: String): androidx.media3.exoplayer.LoadControl {
         .setBufferDurationsMs(min, max, start, restart)
         .setPrioritizeTimeOverSizeThresholds(true)
         .build()
+}
+
+
+/**
+ * ZarkTV: buffer automático. Antes de começar (e depois de travar) espera um tempo que depende da
+ * internet medida no aparelho: rápida = começa logo (troca de canal rápida); lenta = guarda mais
+ * para não ficar parando. O resto (quanto baixar, quando parar) fica com o controle padrão.
+ */
+private class BufferAutomatico(
+    private val base: androidx.media3.exoplayer.LoadControl,
+    private val velocidade: () -> Double,
+) : androidx.media3.exoplayer.LoadControl by base {
+    override fun shouldStartPlayback(parameters: androidx.media3.exoplayer.LoadControl.Parameters): Boolean {
+        val mbs = runCatching { velocidade() }.getOrDefault(0.0)
+        val alvoMs = when {
+            mbs <= 0.0 -> 2_500L // ainda sem medição
+            mbs < 0.7 -> 5_000L  // internet fraca: estável
+            mbs < 2.0 -> 2_500L  // equilibrado
+            else -> 1_200L       // internet boa: rápido
+        } * (if (parameters.rebuffering) 2 else 1)
+        val guardadoMs = parameters.bufferedDurationUs / 1000 / parameters.playbackSpeed.coerceAtLeast(0.1f).toDouble()
+        return guardadoMs >= alvoMs || base.shouldStartPlayback(parameters) && guardadoMs >= alvoMs / 2
+    }
 }

@@ -263,8 +263,8 @@ class TvRepository(
             val failures = ArrayList<String>()
             val errors = HashMap<String, String>()
             sources.forEachIndexed { index, p ->
-                val label = if (sources.size > 1) "${p.displayName} (${index + 1} of ${sources.size})" else "channels"
-                _state.value = RefreshState.Running("Loading $label…")
+                val label = if (sources.size > 1) "${p.displayName} (${index + 1} de ${sources.size})" else "canais"
+                _state.value = RefreshState.Running("Carregando $label…")
                 val start = lineup.size
                 try {
                     val writer = VodWriter(db, p.id)
@@ -273,20 +273,20 @@ class TvRepository(
                     val guides: List<String>
                     if (p.type == SourceType.STALKER) {
                         val client = stalker.client(p)
-                        _state.value = RefreshState.Running("Connecting to ${p.displayName}…")
+                        _state.value = RefreshState.Running("Conectando a ${p.displayName}…")
                         client.connect()
-                        _state.value = RefreshState.Running("Loading $label…")
+                        _state.value = RefreshState.Running("Carregando $label…")
                         val list = StalkerLoader.channels(client, p.id) { n ->
-                            _state.value = RefreshState.Running("Loading $label… $n channels")
+                            _state.value = RefreshState.Running("Carregando $label… $n canais")
                         }
                         list.forEach { lineup.add(p.id, it) }
                         live = list.size
                         guides = listOf(StalkerLoader.guideUrl(p.id))
                         if (p.includeVod && providerVod) {
-                            _state.value = RefreshState.Running("Loading movies & shows from ${p.displayName}…")
+                            _state.value = RefreshState.Running("Carregando filmes e séries de ${p.displayName}…")
                             try {
                                 StalkerLoader.vod(client, p.id, writer::add) { n ->
-                                    _state.value = RefreshState.Running("Loading movies & shows from ${p.displayName}… $n")
+                                    _state.value = RefreshState.Running("Carregando filmes e séries de ${p.displayName}… $n")
                                 }
                             } catch (e: CancellationException) {
                                 throw e
@@ -301,9 +301,9 @@ class TvRepository(
                         live = playlist.channels.size
                         guides = playlist.epgUrls
                         if (p.includeVod && providerVod) {
-                            _state.value = RefreshState.Running("Loading movies & shows from ${p.displayName}…")
+                            _state.value = RefreshState.Running("Carregando filmes e séries de ${p.displayName}…")
                             XtreamClient(http).loadVod(login, p.id, writer) { n ->
-                                _state.value = RefreshState.Running("Loading movies & shows from ${p.displayName}… $n")
+                                _state.value = RefreshState.Running("Carregando filmes e séries de ${p.displayName}… $n")
                             }
                         }
                     } else {
@@ -314,9 +314,9 @@ class TvRepository(
                         // login would: real posters, plots and ratings instead of episode stills.
                         var filesFromApi = false
                         val vodFromApi: suspend (XtreamClient.Login) -> Unit = { login ->
-                            _state.value = RefreshState.Running("Loading movies & shows from ${p.displayName}…")
+                            _state.value = RefreshState.Running("Carregando filmes e séries de ${p.displayName}…")
                             XtreamClient(http).loadVod(login, p.id, writer) { n ->
-                                _state.value = RefreshState.Running("Loading movies & shows from ${p.displayName}… $n")
+                                _state.value = RefreshState.Running("Carregando filmes e séries de ${p.displayName}… $n")
                             }
                             filesFromApi = writer.count > 0
                         }
@@ -324,7 +324,7 @@ class TvRepository(
                         val linkLogin = if (p.includeVod && providerVod) XtreamClient.Login.fromM3uUrl(p.m3uUrl) else null
                         if (linkLogin != null) {
                             vodFromApi(linkLogin)
-                            _state.value = RefreshState.Running("Loading $label…")
+                            _state.value = RefreshState.Running("Carregando $label…")
                         }
                         // 2) Otherwise the movie/episode links may carry the login (…/series/USER/PASS/1.mp4):
                         //    skip those entries and ask the API after the download.
@@ -351,7 +351,7 @@ class TvRepository(
                             vodFromApi(login)
                             if (!filesFromApi && skippedFiles > 0) {
                                 // The API gave nothing: read the playlist's own movie & show entries after all.
-                                _state.value = RefreshState.Running("Loading movies & shows from ${p.displayName}…")
+                                _state.value = RefreshState.Running("Carregando filmes e séries de ${p.displayName}…")
                                 val again = VodBuilder(p.id)
                                 http.download(p.m3uUrl) { input ->
                                     M3uParser.parse(maybeGunzip(input).bufferedReader()) { ch ->

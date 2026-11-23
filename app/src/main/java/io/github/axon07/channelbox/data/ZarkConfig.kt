@@ -51,13 +51,29 @@ object ZarkConfig {
         }
     }.getOrNull()
 
+    /** Links de reserva do config.json (campo "reserva": ["https://…/config.json", …]). */
+    private fun reservasDe(txt: String): List<String> = runCatching {
+        val o = Json.parseToJsonElement(txt) as? JsonObject
+        when (val r = o?.get("reserva") ?: o?.get("backup")) {
+            is kotlinx.serialization.json.JsonArray -> r.mapNotNull { (it as? JsonPrimitive)?.content }
+            is JsonPrimitive -> listOf(r.content)
+            else -> emptyList()
+        }.filter { it.startsWith("http") }
+    }.getOrDefault(emptyList())
+
     /** Identificações testadas no login (alguns servidores recusam uma ou outra). */
     private val IDENTIDADES = listOf(null, "okhttp/4.12.0", "VLC/3.0.20 LibVLC/3.0.20", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36")
 
     /** Servidores do painel; se a internet falhar usa a última cópia boa, senão a lista padrão. */
     suspend fun servers(context: Context, http: OkHttpClient): List<Server> = withContext(Dispatchers.IO) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val fresh = get(http, CONFIG_URL)?.let { txt -> parse(txt).takeIf { it.isNotEmpty() }?.also { prefs.edit().putString(KEY_CONFIG, txt).apply() } }
+        // Endereço principal e, se cair, os de reserva que o próprio config.json informa no campo
+        // "reserva" (lista de links) — guardados da última vez que o principal respondeu.
+        val salvo = prefs.getString(KEY_CONFIG, null)
+        val reservas = salvo?.let { reservasDe(it) }.orEmpty()
+        val fresh = (listOf(CONFIG_URL) + reservas).distinct().firstNotNullOfOrNull { url ->
+            get(http, url)?.takeIf { txt -> parse(txt).isNotEmpty() }
+        }?.also { prefs.edit().putString(KEY_CONFIG, it).apply() }?.let { parse(it) }
         fresh ?: prefs.getString(KEY_CONFIG, null)?.let { parse(it).takeIf { l -> l.isNotEmpty() } } ?: PADRAO
     }
 
