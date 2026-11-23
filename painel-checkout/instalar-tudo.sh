@@ -2,7 +2,7 @@
 # Checkout Pix do ZarkTV — instala tudo de uma vez na VPS (Roxinha). Rode como root:
 #   curl -fsSL https://raw.githubusercontent.com/nilsonlopes2298-web/zarktv-app/mobile-ui/painel-checkout/instalar-tudo.sh -o /root/checkout.sh && bash /root/checkout.sh
 set -e
-BASE="https://raw.githubusercontent.com/nilsonlopes2298-web/zarktv-app/5008f317a0/painel-checkout"
+BASE="https://raw.githubusercontent.com/nilsonlopes2298-web/zarktv-app/8555043d9d/painel-checkout"
 DOMINIO="painel.zarktvqx.cfd"
 PASTA=/opt/zarktv-checkout
 
