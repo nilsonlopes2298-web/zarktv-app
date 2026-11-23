@@ -747,6 +747,11 @@ private fun ParentalSettings(settings: AppSettings, vm: TvViewModel) {
     )
     if (hasPin) {
         SettingCard(
+            title = "Esqueci a senha",
+            description = "Confirme com o usuário e a senha da sua conta e crie uma nova",
+            onClick = { vm.esqueciPin.value = true },
+        )
+        SettingCard(
             title = "Ask for the PIN to open Settings",
             description = "Stops others from changing settings or unlocking things",
             toggle = settings.pinForSettings,

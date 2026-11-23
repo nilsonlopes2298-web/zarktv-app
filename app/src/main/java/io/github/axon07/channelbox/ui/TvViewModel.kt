@@ -350,8 +350,26 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         val setup: Boolean = false,
         /** Asked because a locked channel was chosen (Cancel then opens the menu). */
         val forChannel: Boolean = false,
+        /** Depois de "Esqueci a senha", continua o que estava esperando (false em trocar/remover PIN). */
+        val continuar: Boolean = true,
         val onSuccess: () -> Unit,
     )
+
+    /** "Esqueci a senha": pede o usuário e a senha da conta (os mesmos dos canais). */
+    val esqueciPin = MutableStateFlow(false)
+
+    /** Confere [usuario]/[senha] com a conta salva no app; se bater, pede uma senha nova. */
+    fun esqueciPinConfirmar(usuario: String, senha: String): Boolean {
+        val contas = settings.value?.playlists.orEmpty().filter { it.xtUser.isNotBlank() }
+        val ok = contas.any { it.xtUser.trim() == usuario.trim() && it.xtPass == senha }
+        if (!ok) return false
+        val antes = _pinRequest.value
+        esqueciPin.value = false
+        _pinRequest.value = PinRequest("Crie a nova senha de 4 números", setup = true) {
+            if (antes != null && antes.continuar && !antes.setup) antes.onSuccess()
+        }
+        return true
+    }
 
     private val _pinRequest = MutableStateFlow<PinRequest?>(null)
     val pinRequest: StateFlow<PinRequest?> = _pinRequest.asStateFlow()
@@ -392,15 +410,20 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Choose a new PIN (asks for the old one first). */
-    fun changePin() = requirePin("Enter your current PIN") {
-        _pinRequest.value = PinRequest("Choose a 4-digit PIN", setup = true) {}
+    fun changePin() {
+        val nova = { _pinRequest.value = PinRequest("Choose a 4-digit PIN", setup = true) {} }
+        if (unlocked) nova() else _pinRequest.value = PinRequest("Enter your current PIN", continuar = false, onSuccess = nova)
     }
 
-    fun removePin() = requirePin("Enter your PIN to remove it") {
-        viewModelScope.launch {
-            c.settings.setPinHash(null)
-            showToast("PIN removed – nothing is locked any more")
+    fun removePin() {
+        val tirar = {
+            viewModelScope.launch {
+                c.settings.setPinHash(null)
+                showToast("PIN removed – nothing is locked any more")
+            }
+            Unit
         }
+        if (unlocked) tirar() else _pinRequest.value = PinRequest("Enter your PIN to remove it", continuar = false, onSuccess = tirar)
     }
 
     fun setPinForSettings(on: Boolean) = requirePin("Digite sua senha") {

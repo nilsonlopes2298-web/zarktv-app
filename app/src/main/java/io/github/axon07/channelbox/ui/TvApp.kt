@@ -2506,8 +2506,14 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         vm.cancelPin()
                         // Someone without the PIN: take them to the menu instead of a blank screen.
                         if (r.forChannel && mode == Mode.PLAYER) openGroups()
-                    })
+                    }, onEsqueci = if (r.setup) null else ({ vm.esqueciPin.value = true }))
                 }
+            }
+            if (vm.esqueciPin.collectAsStateWithLifecycle().value) {
+                EsqueciSenhaDialog(
+                    onConfirmar = { u, p -> vm.esqueciPinConfirmar(u, p) },
+                    onCancel = { vm.esqueciPin.value = false },
+                )
             }
             // Conta vencida: bloqueia tudo (nada toca) até renovar.
             val vencida by vm.zarkVencida.collectAsStateWithLifecycle()

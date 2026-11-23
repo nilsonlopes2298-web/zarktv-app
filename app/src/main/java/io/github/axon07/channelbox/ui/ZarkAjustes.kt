@@ -140,11 +140,34 @@ private fun ItemMenu(texto: String, ativo: Boolean, modifier: Modifier, onFoco: 
 
 @Composable
 private fun Grupo(titulo: String) {
+    if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
+        Text(titulo, color = Color(0xFF85858B), fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp, top = 18.dp, bottom = 8.dp))
+        return
+    }
     Text(titulo, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 14.dp, bottom = 10.dp))
 }
 
 @Composable
 private fun <T> Opcoes(opcoes: List<Pair<T, String>>, atual: T, corTexto: (T) -> Color = { Color.White }, onEscolher: (T) -> Unit) {
+    if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFF1C1C1F))) {
+            opcoes.forEachIndexed { i, (v, nome) ->
+                val sel = v == atual
+                if (i > 0) Box(Modifier.fillMaxWidth().padding(start = 16.dp).height(1.dp).background(Color(0x0FFFFFFF)))
+                Row(
+                    Modifier.fillMaxWidth().height(52.dp).clickable { onEscolher(v) }.padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(nome, color = corTexto(v).takeIf { it != Color.White } ?: Color(0xFFEDEDED), fontSize = 15.sp, modifier = Modifier.weight(1f))
+                    Box(
+                        Modifier.size(20.dp).clip(RoundedCornerShape(10.dp)).border(2.dp, if (sel) Color(0xFFE50914) else Color(0xFF4A4A4F), RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) { if (sel) Box(Modifier.size(10.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xFFE50914))) }
+                }
+            }
+        }
+        return
+    }
     LinhaBotoes {
         opcoes.forEach { (v, nome) -> BotaoAjuste(nome, v == atual, corTexto(v)) { onEscolher(v) } }
     }
@@ -154,13 +177,15 @@ private fun <T> Opcoes(opcoes: List<Pair<T, String>>, atual: T, corTexto: (T) ->
 @Composable
 private fun BotaoAjuste(texto: String, marcado: Boolean, cor: Color = Color.White, onClick: () -> Unit) {
     if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
-        Box(
-            Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(10.dp))
-                .background(if (marcado) Color(0x33E50914) else Color(0xFF232325))
-                .border(1.dp, if (marcado) Color(0xFFE50914) else Color(0x14EDEDED), RoundedCornerShape(10.dp))
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1C1C1F))
+                .border(1.dp, if (marcado) Color(0xFFE50914) else Color.Transparent, RoundedCornerShape(12.dp))
                 .clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
-            contentAlignment = Alignment.Center,
-        ) { Text(texto, color = if (cor == Color.White) Color(0xFFEDEDED) else cor, fontSize = 14.sp, maxLines = 1) }
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(texto, color = if (cor == Color.White) Color(0xFFEDEDED) else cor, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            Text("›", color = Color(0xFF85858B), fontSize = 20.sp)
+        }
         return
     }
     var f by remember { mutableStateOf(false) }
@@ -340,6 +365,6 @@ private fun AjustesCelular(onParental: () -> Unit, onAvancado: () -> Unit, conte
 @Composable
 private fun LinhaBotoes(content: @Composable () -> Unit) {
     if (io.github.axon07.channelbox.system.Aparelho.soCelular)
-        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
     else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { content() }
 }

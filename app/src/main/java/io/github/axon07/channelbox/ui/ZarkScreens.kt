@@ -749,11 +749,19 @@ fun ParedeCapas() {
     val tiles = remember {
         val minhas = ctx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getString("capas_parede", "").orEmpty()
             .split('\n').filter { it.startsWith("http") }
-        val capas = (minhas.shuffled().take(20) + ParedeEntrada.SERIES).shuffled()
+        val capas = (minhas.shuffled().take(16) + ParedeEntrada.FILMES + ParedeEntrada.SERIES).shuffled()
         val logos = (ParedeEntrada.ESCUDOS + ParedeEntrada.LIGAS + ParedeEntrada.CANAIS).shuffled()
+        val jogos = ParedeEntrada.CLASSICOS.shuffled()
         buildList {
-            var c = 0; var l = 0
-            repeat(120) { i -> if (i % 3 == 1) add(false to logos[l++ % logos.size]) else add(true to capas[c++ % capas.size]) }
+            var c = 0; var l = 0; var j = 0
+            // Padrão: capa, capa, jogo/logo, capa, capa, logo…
+            repeat(140) { i ->
+                when {
+                    i % 6 == 2 -> add(Triple(2, jogos[j % jogos.size].first, jogos[j++ % jogos.size].second))
+                    i % 3 == 2 -> add(Triple(1, logos[l++ % logos.size], ""))
+                    else -> add(Triple(0, capas[c++ % capas.size], ""))
+                }
+            }
         }
     }
     val anda = rememberInfiniteTransition(label = "parede")
@@ -772,17 +780,22 @@ fun ParedeCapas() {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     repeat(porLinha) { k ->
-                        val (capa, url) = tiles[(linha * 7 + k) % tiles.size]
+                        val (tipo, url, url2) = tiles[(linha * 11 + k) % tiles.size]
                         Box(
                             Modifier.width(tile).height(tile * 1.5f).clip(RoundedCornerShape(10.dp))
-                                .background(if (capa) Color(0xFF1C1C1F) else Color(0xFF18181B)),
+                                .background(if (tipo == 0) Color(0xFF1C1C1F) else Color(0xFF18181B)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            coil.compose.AsyncImage(
-                                url, null,
-                                contentScale = if (capa) androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit,
-                                modifier = if (capa) Modifier.fillMaxSize() else Modifier.fillMaxSize().padding(18.dp),
-                            )
+                            when (tipo) {
+                                0 -> coil.compose.AsyncImage(url, null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                1 -> coil.compose.AsyncImage(url, null, contentScale = androidx.compose.ui.layout.ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(18.dp))
+                                // Clássico: escudo × escudo
+                                else -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                    coil.compose.AsyncImage(url, null, contentScale = androidx.compose.ui.layout.ContentScale.Fit, modifier = Modifier.size(48.dp))
+                                    Text("×", color = Color(0xFFE50914), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    coil.compose.AsyncImage(url2, null, contentScale = androidx.compose.ui.layout.ContentScale.Fit, modifier = Modifier.size(48.dp))
+                                }
+                            }
                         }
                     }
                 }
@@ -800,7 +813,19 @@ object ParedeEntrada {
         "619/1547768", "48/122213", "501/1253519", "536/1340290", "504/1262352", "646/1617244", "536/1340287",
         "362/905246", "424/1061900", "498/1245274", "286/715906", "635/1589150",
     ).map { "$TVM$it.jpg" }
+    private const val TMDB = "https://image.tmdb.org/t/p/w342/"
+    val FILMES = listOf(
+        "gEU2QniE6E77NI6lCU6MxlNBvIx", "8Gxv8gSFCU0XGDykEGv7zR1n2ua", "iuFNMS8U5cb6xfzi51Dbkovj7vM", "or06FN3Dka5tukK1e9sl16pB3iy",
+        "udDclJoHjfjb8Ekgsd4FDteOkCU", "1pdfLvkbY9ohJlCjQH2CZjjYVvJ", "1g0dhYtq4irTY1GPXvft6k4YLjm", "62HCnUTziyWcpDaBO2i1DX17ljH",
+        "74xTEgt7R36Fpooo50r9T25onhq", "9xjZS2rlVxm8SFx8kPC3aIGCOYQ", "f89U3ADr1oiB1s9GkdPOEpXUk5H", "uxzzxijgPIY7slzFvMotPv8wjKA",
+        "t6HIqrRAclMCA60NsSmeqe9RmNV", "8cdWjvZQUExUUTzyp4t6EDMubfO", "vpnVM9B6NMmQpWeZvzLvDESb2QY", "2cxhvwyEwRlysAmRH4iodkvo0z5",
+        "vZloFAK7NmvMGKE7VkF5UHaz0I", "fiVW06jE7z9YnO4trhaMEdclSiC", "k7eYdWvhYQyRQoU2TB2A2Xu2TfD", "aLVkiINlIeCkcZIzb7XHzPYgO6L",
+        "sKCr78MXSLixwmZ8DyJLrpMsd15", "gZnsMbhCvhzAQlKaVpeFRHYjGyb",
+    ).map { "$TMDB$it.jpg" }
     private const val ESC = "https://a.espncdn.com/i/teamlogos/soccer/500/"
+    /** Clássicos: Fla × Palmeiras, Majestoso, Gre-Nal, Clássico dos Milhões, Mineiro, El Clásico, Liverpool × City… */
+    val CLASSICOS = listOf(819 to 2029, 874 to 2026, 6273 to 1936, 819 to 3454, 7632 to 2022, 86 to 83, 364 to 382, 2674 to 874, 3445 to 6086, 9967 to 3457, 360 to 359, 111 to 110)
+        .map { (a, b) -> "$ESC$a.png" to "$ESC$b.png" }
     val ESCUDOS = listOf(
         // Brasileirão
         819, 2029, 874, 2026, 2674, 3454, 3445, 6086, 6273, 1936, 2022, 7632, 9967, 3458,
