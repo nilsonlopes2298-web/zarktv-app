@@ -1,7 +1,6 @@
 package io.github.axon07.channelbox.data
 
 import android.content.Context
-import android.os.Environment
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -43,9 +42,11 @@ object Baixados {
 
     /** Começa a baixar [url] (já conferida). */
     fun baixar(ctx: Context, http: okhttp3.OkHttpClient, item: VodEntity, titulo: String, capa: String?, url: String): Boolean = runCatching {
-        val ext = Regex("""\.(\w{2,4})(\?|$)""").find(url)?.groupValues?.get(1)?.lowercase()?.takeIf { it in setOf("mp4", "mkv", "avi", "ts", "mov") } ?: "mp4"
-        val pasta = ctx.getExternalFilesDir(Environment.DIRECTORY_MOVIES) ?: ctx.filesDir
-        val arquivo = File(pasta, "zarktv-" + item.id.replace(Regex("[^A-Za-z0-9_-]"), "_") + "." + ext)
+        // Fica na área privada do app: não aparece na galeria, no gerenciador de arquivos nem no
+        // computador, e some se desinstalar. Nome sem extensão de vídeo (o player descobre o formato sozinho).
+        val pasta = File(ctx.noBackupFilesDir, "baixados").apply { mkdirs() } // também fora do backup do Google
+        val nome = java.security.MessageDigest.getInstance("SHA-1").digest(item.id.toByteArray()).joinToString("") { "%02x".format(it) }.take(20)
+        val arquivo = File(pasta, "$nome.zkv")
         salvar(ctx, listOf(Item(item.id, titulo, capa, item.kind, 0L, arquivo.absolutePath)) + lista(ctx).filter { it.id != item.id })
         andamento[item.id] = 0
         escopo.launch {
