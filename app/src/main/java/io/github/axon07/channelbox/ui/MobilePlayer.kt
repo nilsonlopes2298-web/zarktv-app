@@ -68,6 +68,7 @@ fun BoxScope.PlaybackCel(
     captionsOn: Boolean,
 ) {
     val ctx = LocalContext.current
+    TelaCelular.ler(ctx)
     var visivel by remember { mutableStateOf(true) }
     var toque by remember { mutableIntStateOf(0) }
     var bloqueado by remember { mutableStateOf(false) }
@@ -146,6 +147,8 @@ fun BoxScope.PlaybackCel(
         }
         if (item != null && item.url?.startsWith("file:") != true) BotaoCel(AppIcons.Download) { vm.zarkBaixar(item, ui.title, ui.poster) }
         BotaoCel(AppIcons.Transmitir) { transmitir = true }
+        // Encher a tela toda (corta um pouquinho das bordas) ou mostrar o vídeo inteiro.
+        BotaoCel(if (TelaCelular.encher.value) AppIcons.Resolucao else AppIcons.TelaCheia) { TelaCelular.alternar(ctx); toque++ }
         Box(Modifier.size(44.dp).clip(CircleShape).clickable { onCaptions(); toque++ }, contentAlignment = Alignment.Center) {
             Text("CC", color = if (captionsOn) Color(0xFFE50914) else Color.White, fontSize = 14.sp)
         }
@@ -234,4 +237,16 @@ private fun hora(ms: Long): String {
     val s = (ms / 1000).coerceAtLeast(0)
     val h = s / 3600; val m = (s % 3600) / 60; val ss = s % 60
     return if (h > 0) "%d:%02d:%02d".format(h, m, ss) else "%02d:%02d".format(m, ss)
+}
+
+
+/** Tela cheia do celular: encher a tela toda (padrão) ou caber o vídeo inteiro. Fica guardado. */
+object TelaCelular {
+    val encher = mutableStateOf(true)
+    private var lido = false
+    fun ler(ctx: Context) { if (!lido) { lido = true; encher.value = ctx.getSharedPreferences("zarktv", Context.MODE_PRIVATE).getBoolean("encher_tela", true) } }
+    fun alternar(ctx: Context) {
+        encher.value = !encher.value
+        ctx.getSharedPreferences("zarktv", Context.MODE_PRIVATE).edit().putBoolean("encher_tela", encher.value).apply()
+    }
 }

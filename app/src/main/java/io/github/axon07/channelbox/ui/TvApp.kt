@@ -1546,7 +1546,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     )
                 }
                 view.setKeepContentOnPlayerReset(false) // ZarkTV: ao trocar de canal não fica a imagem congelada do canal anterior
-                view.resizeMode = when (settings.videoScale) {
+                val cheiaCel = io.github.axon07.channelbox.system.Aparelho.soCelular && (mode == Mode.PLAYER || mode == Mode.PLAYBACK) && TelaCelular.encher.value
+                view.resizeMode = if (cheiaCel) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else when (settings.videoScale) {
                     1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
                     else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
@@ -2402,6 +2403,14 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
                 Text("Quando terminar, confirme a instalação.", color = Color(0xAAFFFFFF), fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
             }
+        }
+        // ZarkTV Mobile: na tela cheia do canal, botão para encher a tela toda ou mostrar o vídeo inteiro.
+        if (io.github.axon07.channelbox.system.Aparelho.soCelular && mode == Mode.PLAYER && !inPip) Box(Modifier.fillMaxSize()) {
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(12.dp).size(40.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(Color(0x66000000)).clickable { TelaCelular.alternar(zarkCtx) },
+                contentAlignment = Alignment.Center,
+            ) { AppIcon(if (TelaCelular.encher.value) AppIcons.Resolucao else AppIcons.TelaCheia, tint = Color.White, size = 18.dp) }
         }
         // ZarkTV Mobile: 10 min antes do jogo marcado aparece um aviso pequeno em cima ("começa em 8 min · Assistir").
         var lembreteAntes by remember { mutableStateOf<io.github.axon07.channelbox.data.ZarkLembretes.Lembrete?>(null) }

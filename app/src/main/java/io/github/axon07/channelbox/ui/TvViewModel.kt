@@ -27,6 +27,8 @@ import io.github.axon07.channelbox.data.VodEntity
 import io.github.axon07.channelbox.data.VodKind
 import io.github.axon07.channelbox.data.VodProgressEntity
 import kotlinx.coroutines.flow.Flow
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import io.github.axon07.channelbox.data.TvRepository.Companion.HOUR
 import io.github.axon07.channelbox.player.PlayerOptions
 import io.github.axon07.channelbox.player.TvPlayer
@@ -1136,7 +1138,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             runCatching {
                 c.http.newCall(
                     okhttp3.Request.Builder().url("http://tv.zarktvqx.cfd/api/acesso")
-                        .post(okhttp3.RequestBody.create(okhttp3.MediaType.get("application/json"), corpo)).build()
+                        .post(corpo.toRequestBody("application/json".toMediaType())).build()
                 ).execute().close()
             }
         }
