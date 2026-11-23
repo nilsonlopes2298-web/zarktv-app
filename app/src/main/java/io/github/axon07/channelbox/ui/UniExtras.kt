@@ -416,6 +416,35 @@ fun NovaVersaoDialog(
             .take(2).forEach { add(it) }
         add("Melhorias na experiência e correções de problemas.")
     }
+    // ZarkTV Mobile: aviso pequeno, embaixo da tela (o da TV ocupava o celular inteiro).
+    if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
+        Box(Modifier.fillMaxSize().background(Color(0x66000000)).tap { }, contentAlignment = Alignment.BottomCenter) {
+            Column(
+                Modifier.fillMaxWidth().padding(12.dp).background(Color(0xFF232325), RoundedCornerShape(16.dp))
+                    .border(1.dp, Color(0x14EDEDED), RoundedCornerShape(16.dp)).padding(16.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Nova versão disponível", color = Color(0xFFEDEDED), fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                    Text("$atual → $versao", color = Color(0xFF85858B), fontSize = 12.sp)
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    itens.drop(1).firstOrNull() ?: "Melhorias e correções.",
+                    color = Color(0xFFA1A1A6), fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2,
+                )
+                if (obrigatoria) Text("Atualização obrigatória.", color = Color(0xFFE5484D), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.weight(1f))
+                    if (!obrigatoria) Text("Agora não", color = Color(0xFFA1A1A6), fontSize = 14.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).tap(onClick = onCancelar).padding(horizontal = 14.dp, vertical = 10.dp))
+                    Text("Atualizar", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFFE50914)).tap(onClick = onAtualizar).padding(horizontal = 18.dp, vertical = 10.dp))
+                }
+            }
+        }
+        return
+    }
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).tap { }, contentAlignment = Alignment.Center) {
         Column(
             Modifier.width(560.dp).background(Color(0xFF34343A), RoundedCornerShape(6.dp)).padding(bottom = 14.dp),
