@@ -755,8 +755,9 @@ fun ParedeCapas() {
         val tile = 96.dp
         val passo = tile + 8.dp
         val porLinha = (maxWidth / passo).toInt() + 3
+        val linhas = (maxHeight / (tile * 1.5f + 8.dp)).toInt() + 1
         Column(Modifier.fillMaxSize().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            repeat(((maxHeight / (tile * 1.5f + 8.dp)).toInt() + 1)) { linha ->
+            repeat(linhas) { linha ->
                 val dir = if (linha % 2 == 0) -1f else 1f
                 Row(
                     Modifier.offset(x = passo * ((desloca * 3f * dir) % 1f) - passo).wrapContentWidth(Alignment.Start, unbounded = true),
