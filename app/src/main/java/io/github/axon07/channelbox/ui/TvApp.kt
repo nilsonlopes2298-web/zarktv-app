@@ -1,6 +1,7 @@
 package io.github.axon07.channelbox.ui
 
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.unit.sp
 import android.view.KeyEvent as AndroidKeyEvent
 import android.view.ViewGroup
@@ -2489,6 +2490,21 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 )
             }
             if (sairAberto) DialogoSair(onSair = { sairAberto = false; exitApp() }, onCancelar = { sairAberto = false })
+            // Baixar pelos dados móveis: avisa que vai gastar o pacote de dados.
+            vm.zarkConfirmarDados.collectAsStateWithLifecycle().value?.let { baixar ->
+                androidx.compose.ui.window.Dialog(onDismissRequest = { vm.zarkConfirmarDados.value = null }) {
+                    Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xFF232325)).padding(20.dp)) {
+                        Text("Você está nos dados móveis", color = Color(0xFFEDEDED), fontSize = 17.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Baixar um filme pode gastar bastante do seu pacote de dados. Quer baixar mesmo assim ou esperar o Wi-Fi?", color = Color(0xFFA1A1A6), fontSize = 14.sp)
+                        Spacer(Modifier.height(16.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            Text("Esperar o Wi-Fi", color = Color(0xFFA1A1A6), fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { vm.zarkConfirmarDados.value = null }.padding(12.dp))
+                            Text("Baixar", color = Color.White, fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFFE50914)).clickable { vm.zarkConfirmarDados.value = null; baixar() }.padding(horizontal = 16.dp, vertical = 12.dp))
+                        }
+                    }
+                }
+            }
             toast?.let { ToastMessage(it.text) }
         }
     }

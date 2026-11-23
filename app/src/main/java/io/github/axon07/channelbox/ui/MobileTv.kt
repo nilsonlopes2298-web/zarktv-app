@@ -81,7 +81,7 @@ fun AbaTvCelular(
                 Modifier.align(Alignment.TopEnd).padding(6.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                IconeVideo("Compartilhar") {
+                IconeVideo(AppIcons.Partilhar) {
                     runCatching {
                         ctx.startActivity(
                             Intent.createChooser(
@@ -92,13 +92,14 @@ fun AbaTvCelular(
                         )
                     }
                 }
-                if (current != null) IconeVideo(if (current.id in favorites) "★" else "☆") { onFavorite(current) }
-                IconeVideo("Transmitir") { onTransmitir() }
+                if (current != null) IconeVideo(if (current.id in favorites) AppIcons.EstrelaCheia else AppIcons.Estrela, if (current.id in favorites) Color(0xFFFFC107) else Color.White) { onFavorite(current) }
+                IconeVideo(AppIcons.Transmitir) { onTransmitir() }
             }
             if (current != null) Box(
-                Modifier.align(Alignment.BottomEnd).padding(8.dp).clip(RoundedCornerShape(6.dp))
-                    .background(Color(0x99000000)).clickable { onFull() }.padding(horizontal = 10.dp, vertical = 6.dp)
-            ) { Text("⛶ Tela cheia", color = Color.White, fontSize = 13.sp) }
+                Modifier.align(Alignment.BottomEnd).padding(8.dp).size(36.dp).clip(RoundedCornerShape(8.dp))
+                    .background(Color(0x66000000)).clickable { onFull() },
+                contentAlignment = Alignment.Center,
+            ) { AppIcon(AppIcons.TelaCheia, tint = Color.White, size = 18.dp) }
         }
 
         // ---- Canais | Favoritos ----
@@ -190,11 +191,11 @@ fun AbaTvCelular(
 }
 
 @Composable
-private fun IconeVideo(texto: String, onClick: () -> Unit) {
+private fun IconeVideo(icone: androidx.compose.ui.graphics.vector.ImageVector, cor: Color = Color.White, onClick: () -> Unit) {
     Box(
-        Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0x88000000)).clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    ) { Text(texto, color = Color.White, fontSize = 13.sp) }
+        Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0x66000000)).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { AppIcon(icone, tint = cor, size = 18.dp) }
 }
 
 

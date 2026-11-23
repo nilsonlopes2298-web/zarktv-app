@@ -38,6 +38,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -68,7 +71,7 @@ private val Laranja = Color(0xFFFF9800)
 
 /** Vídeo do topo. Parado: imagem + play. Tocando: janela transparente (o TvApp desenha o vídeo atrás). */
 @Composable
-private fun VideoTopo(b: VodBrowser, imagem: String?, titulo: String, onVoltar: () -> Unit, onTransmitir: () -> Unit, onTocar: () -> Unit) {
+private fun VideoTopo(b: VodBrowser, exo: androidx.media3.exoplayer.ExoPlayer, imagem: String?, titulo: String, onVoltar: () -> Unit, onTransmitir: () -> Unit, onTocar: () -> Unit) {
     val tocando = b.previewId != null
     DisposableEffect(Unit) { onDispose { b.previewRect = null } }
     Box(
@@ -94,11 +97,57 @@ private fun VideoTopo(b: VodBrowser, imagem: String?, titulo: String, onVoltar: 
             Modifier.align(Alignment.TopEnd).padding(8.dp).size(40.dp).clip(CircleShape).clickable(onClick = onTransmitir),
             contentAlignment = Alignment.Center,
         ) { AppIcon(AppIcons.Transmitir, tint = Color.White, size = 20.dp) }
-        if (tocando) Box(
-            Modifier.align(Alignment.BottomEnd).padding(8.dp).size(40.dp).clip(CircleShape).background(Color(0x66000000))
-                .clickable { b.acaoTelaCheia?.invoke() },
-            contentAlignment = Alignment.Center,
-        ) { AppIcon(AppIcons.TelaCheia, tint = Color.White, size = 20.dp) }
+        if (tocando) MiniControles(exo) { b.acaoTelaCheia?.invoke() }
+    }
+}
+
+/** Controles da janelinha (como o YouTube): toque mostra; play/pausa, barra de tempo, mudo e tela cheia. */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.MiniControles(exo: androidx.media3.exoplayer.ExoPlayer, onTelaCheia: () -> Unit) {
+    var mostrar by remember { mutableStateOf(true) }
+    var toque by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var pos by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
+    var dur by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
+    var tocando by remember { mutableStateOf(exo.playWhenReady) }
+    var mudo by remember { mutableStateOf(exo.volume == 0f) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            pos = exo.currentPosition; dur = exo.duration.takeIf { it > 0 } ?: 0L; tocando = exo.playWhenReady
+            kotlinx.coroutines.delay(500)
+        }
+    }
+    LaunchedEffect(mostrar, toque) { if (mostrar) { kotlinx.coroutines.delay(3500); mostrar = false } }
+    Box(Modifier.matchParentSize().clickable { mostrar = !mostrar; toque++ })
+    if (!mostrar) return
+    Box(Modifier.matchParentSize().background(Color(0x55000000)))
+    Box(
+        Modifier.align(Alignment.Center).size(52.dp).clip(CircleShape).background(Color(0x66000000))
+            .clickable { exo.playWhenReady = !exo.playWhenReady; tocando = exo.playWhenReady; toque++ },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (tocando) Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Box(Modifier.size(width = 5.dp, height = 20.dp).background(Color.White)); Box(Modifier.size(width = 5.dp, height = 20.dp).background(Color.White))
+        } else AppIcon(AppIcons.Play, tint = Color.White, size = 26.dp)
+    }
+    Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        fun h(ms: Long): String { val t = ms / 1000; return if (t >= 3600) "%d:%02d:%02d".format(t / 3600, t % 3600 / 60, t % 60) else "%02d:%02d".format(t / 60, t % 60) }
+        Text(h(pos), color = Color.White, fontSize = 11.sp)
+        var w by remember { androidx.compose.runtime.mutableIntStateOf(1) }
+        Box(
+            Modifier.weight(1f).height(24.dp).padding(horizontal = 8.dp).onSizeChanged { w = it.width.coerceAtLeast(1) }
+                .pointerInput(dur) { detectTapGestures { o -> if (dur > 0) { exo.seekTo((o.x / w * dur).toLong()); toque++ } } },
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Box(Modifier.fillMaxWidth().height(3.dp).background(Color(0x44FFFFFF)))
+            Box(Modifier.fillMaxWidth(if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f).height(3.dp).background(Vermelho))
+        }
+        Text(h(dur), color = Color.White, fontSize = 11.sp)
+        Box(Modifier.size(36.dp).clip(CircleShape).clickable { exo.volume = if (mudo) 1f else 0f; mudo = !mudo; toque++ }, contentAlignment = Alignment.Center) {
+            AppIcon(if (mudo) AppIcons.Mudo else AppIcons.Som, tint = Color.White, size = 18.dp)
+        }
+        Box(Modifier.size(36.dp).clip(CircleShape).clickable(onClick = onTelaCheia), contentAlignment = Alignment.Center) {
+            AppIcon(AppIcons.TelaCheia, tint = Color.White, size = 18.dp)
+        }
     }
 }
 
@@ -203,7 +252,7 @@ fun FichaFilmeCel(b: VodBrowser, movie: VodEntity, progress: VodProgressEntity?,
     var transmitir by remember { mutableStateOf(false) }
     if (transmitir) TransmitirDialog(vm, movie.url, movie.title) { transmitir = false }
     Column(Modifier.fillMaxSize()) {
-        VideoTopo(b, ficha?.fundo ?: movie.poster, movie.title, voltar, { transmitir = true }) { b.acaoPreview?.invoke(movie, null) ?: onPlay(movie, null) }
+        VideoTopo(b, vm.player.exo, ficha?.fundo ?: movie.poster, movie.title, voltar, { transmitir = true }) { b.acaoPreview?.invoke(movie, null) ?: onPlay(movie, null) }
         Column(Modifier.fillMaxWidth().weight(1f).background(Fundo).verticalScroll(rol).padding(horizontal = 16.dp, vertical = 16.dp)) {
             CabecalhoCel(movie.title, ficha, movie.plot, movie.rating, movie.year)
             AcoesCel(vm, movie, movie)
@@ -240,7 +289,7 @@ fun FichaSerieCel(b: VodBrowser, show: VodEntity, progress: Map<String, VodProgr
     val epAtual = episodes?.firstOrNull { it.id == b.previewId } ?: ultimo ?: inSeason.firstOrNull()
     if (transmitir) TransmitirDialog(vm, epAtual?.url, show.title + (epAtual?.let { " T${it.season}E${it.episode}" } ?: "")) { transmitir = false }
     Column(Modifier.fillMaxSize()) {
-        VideoTopo(b, ficha?.fundo ?: show.poster, show.title, voltar, { transmitir = true }) {
+        VideoTopo(b, vm.player.exo, ficha?.fundo ?: show.poster, show.title, voltar, { transmitir = true }) {
             (ultimo ?: inSeason.firstOrNull() ?: episodes?.firstOrNull())?.let(tocar)
         }
         Column(Modifier.fillMaxWidth().weight(1f).background(Fundo).verticalScroll(rol).padding(horizontal = 16.dp, vertical = 16.dp)) {

@@ -1097,7 +1097,20 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Baixa filme/episódio para ver sem internet. Se o endereço direto recusar (404), usa o caminho do Web Play. */
-    fun zarkBaixar(item: VodEntity, titulo: String, capa: String?) {
+    /** Pergunta antes de baixar pelos dados móveis (no Wi-Fi não pergunta nada). */
+    val zarkConfirmarDados = MutableStateFlow<(() -> Unit)?>(null)
+
+    private fun usandoDadosMoveis(): Boolean = runCatching {
+        val cm = getApplication<Application>().getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return@runCatching false
+        caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) && !caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+    }.getOrDefault(false)
+
+    fun zarkBaixar(item: VodEntity, titulo: String, capa: String?, confirmado: Boolean = false) {
+        if (!confirmado && usandoDadosMoveis()) {
+            zarkConfirmarDados.value = { zarkBaixar(item, titulo, capa, true) }
+            return
+        }
         val url = item.url ?: return showToast("Este título não pode ser baixado")
         val ctx = getApplication<Application>()
         if (io.github.axon07.channelbox.data.Baixados.baixado(ctx, item.id) != null) return showToast("Já está nos seus downloads (Perfil → Baixados)")
