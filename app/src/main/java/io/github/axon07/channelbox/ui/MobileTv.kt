@@ -62,6 +62,11 @@ fun AbaTvCelular(
     onGroup: (ChannelFilter) -> Unit,
 ) {
     val ctx = LocalContext.current
+    val porNome = androidx.compose.runtime.remember(upcoming) {
+        val m = HashMap<String, List<ProgramEntity>>()
+        upcoming.forEach { (id, l) -> m.putIfAbsent(chaveEpg(id.substringBeforeLast('.')), l) }
+        m
+    }
     val vermelho = Color(0xFFE50914)
     Column(Modifier.fillMaxSize()) {
         // ---- Vídeo ----
@@ -143,9 +148,14 @@ fun AbaTvCelular(
                 }
                 items(channels, key = { it.id }) { ch ->
                     val tocando = ch.id == current?.id
-                    val agora = ch.epgId?.let { upcoming[it] }?.firstOrNull { it.start <= now && it.stop > now }?.title
+                    // Programação: pelo id do guia e, se o canal não tiver id, pelo nome (Globo → globo.br…).
+                    val prog = (ch.epgId?.let { upcoming[it] } ?: porNome[chaveEpg(ch.name)])?.firstOrNull { it.start <= now && it.stop > now }
+                    val agora = prog?.let {
+                        val f = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR"))
+                        f.format(java.util.Date(it.start)) + " – " + f.format(java.util.Date(it.stop)) + "  " + it.title
+                    }
                     Row(
-                        Modifier.fillMaxWidth().height(60.dp)
+                        Modifier.fillMaxWidth().height(72.dp)
                             .background(if (tocando) vermelho else Color.Transparent)
                             .clickable { if (tocando) onFull() else onPick(ch) }
                             .padding(horizontal = 10.dp),
@@ -160,10 +170,18 @@ fun AbaTvCelular(
                                 "%03d  %s".format(ch.number, ch.name), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
+                            Spacer(Modifier.height(4.dp))
                             Text(
-                                agora ?: "Sem programação", color = if (tocando) Color(0xEEFFFFFF) else Color(0xFF85858B), fontSize = 12.sp,
+                                agora ?: "Sem programação", color = if (tocando) Color(0xEEFFFFFF) else Color(0xFFA1A1A6), fontSize = 12.sp,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
+                            if (prog != null) {
+                                Spacer(Modifier.height(6.dp))
+                                val frac = ((now - prog.start).toFloat() / (prog.stop - prog.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                                Box(Modifier.fillMaxWidth(0.9f).height(2.dp).clip(RoundedCornerShape(1.dp)).background(Color(0x33FFFFFF))) {
+                                    Box(Modifier.fillMaxWidth(frac).height(2.dp).background(if (tocando) Color.White else vermelho))
+                                }
+                            }
                         }
                     }
                 }
@@ -179,3 +197,10 @@ private fun IconeVideo(texto: String, onClick: () -> Unit) {
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) { Text(texto, color = Color.White, fontSize = 13.sp) }
 }
+
+
+/** Nome do canal ou id do guia → chave simples ("Globo SP HD" e "GloboSP.br" → "globosp"). */
+internal fun chaveEpg(n: String): String = java.text.Normalizer.normalize(n, java.text.Normalizer.Form.NFD)
+    .replace(Regex("\\p{M}"), "").lowercase()
+    .replace(Regex("""[²³¹]|\b(fhd|uhd|4k|hd|sd|h265|hevc|alt|24h)\b|\(.*?\)|\[.*?\]"""), " ")
+    .replace(Regex("[^a-z0-9]"), "")

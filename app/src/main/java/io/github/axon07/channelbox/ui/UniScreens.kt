@@ -100,6 +100,7 @@ object Aba {
 
 private val REGEX_KIDS = Regex("infantil|kids|desenho|crian|anima[cç][aã]o|disney|cartoon|pixar", RegexOption.IGNORE_CASE)
 private val REGEX_ANIME = Regex("anime", RegexOption.IGNORE_CASE)
+private val REGEX_ADULTO = Regex("adult|xxx|\\+18|18\\+|hot|er[oó]tic", RegexOption.IGNORE_CASE)
 
 /**
  * Tela principal no fluxo da UniTV: logo, ícones (buscar, histórico, perfil), abas e o conteúdo da aba.
@@ -1352,7 +1353,17 @@ private fun ShellCelular(
     onSearch: () -> Unit,
     onProfile: () -> Unit,
 ) {
-    val subAbas = listOf("Recomendações" to Aba.DESTAQUES, "Jogos" to Aba.JOGOS, "Filmes" to Aba.FILMES, "Séries" to Aba.SERIES)
+    val subAbas = buildList {
+        add("Recomendações" to Aba.DESTAQUES); add("Jogos" to Aba.JOGOS); add("Filmes" to Aba.FILMES); add("Séries" to Aba.SERIES)
+        add("Animes" to Aba.ANIME); add("Desenhos" to Aba.KIDS)
+        if (adultoLiberado) add("Adulto" to Aba.EXPLORAR) // só aparece com o conteúdo adulto liberado
+    }
+    // Pesquisa própria do celular (por cima de tudo, com o mais buscado).
+    var buscando by remember { mutableStateOf(false) }
+    if (buscando) {
+        BuscaCel(vm, onOpen = { buscando = false; onOpenItem(it) }, onCanal = { buscando = false; onTab(Aba.TV); onPickChannel(it) }) { buscando = false }
+        return
+    }
     val naTv = tab == Aba.TV
     if (!naTv && !(tab == Aba.JOGOS && jogoAberto != null)) LaunchedEffect(tab) { onPreviewRect(null) }
     // O vídeo é desenhado pelo TvApp ATRÁS desta tela: na TV e no jogo aberto o fundo fica transparente,
@@ -1368,7 +1379,7 @@ private fun ShellCelular(
             Spacer(Modifier.width(12.dp))
             Row(
                 Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(10.dp)).background(ElevadoCel)
-                    .border(1.dp, LinhaCel, RoundedCornerShape(10.dp)).clickable { onSearch() }.padding(horizontal = 12.dp),
+                    .border(1.dp, LinhaCel, RoundedCornerShape(10.dp)).clickable { buscando = true }.padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 AppIcon(AppIcons.Search, tint = Texto3, size = 16.dp)
@@ -1398,6 +1409,9 @@ private fun ShellCelular(
                 Aba.TV -> TvCelular(channels, current, favorites, upcoming, now, onPickChannel, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup)
                 Aba.JOGOS -> if (jogoAberto != null) SemPivo { JogoAberto(vm, jogoAberto, canalJogo, canalJogoInfo, true, onPreviewRect, onFull, onMudarCanalJogo, onFecharJogo) }
                     else JogosCel(vm, onAbrirJogo)
+                Aba.ANIME -> FiltradoCel(vm, REGEX_ANIME, onOpenItem, onOpenFiltrado)
+                Aba.KIDS -> FiltradoCel(vm, REGEX_KIDS, onOpenItem, onOpenFiltrado)
+                Aba.EXPLORAR -> FiltradoCel(vm, REGEX_ADULTO, onOpenItem, onOpenFiltrado)
                 Aba.FILMES -> CatalogoCel(vm, VodKind.MOVIE, onOpenItem, onOpenLibrary)
                 Aba.SERIES -> CatalogoCel(vm, VodKind.SERIES, onOpenItem, onOpenLibrary)
                 else -> RecomendacoesCel(
@@ -1758,4 +1772,147 @@ private fun CatalogoCel(vm: TvViewModel, kind: String, onOpen: (VodEntity) -> Un
 private fun FileiraCatCel(vm: TvViewModel, kind: String, cat: String, onOpen: (VodEntity) -> Unit, onTodos: () -> Unit) {
     val itens by remember(kind, cat) { vm.vodTop(kind, cat, 15) }.collectAsState(initial = null)
     FileiraVodCel(vm, nomeCategoria(cat), itens, onOpen, onTodos)
+}
+
+
+/** Animes / Desenhos / Adulto: fileiras das categorias que batem (filmes e séries juntos). */
+@Composable
+private fun FiltradoCel(vm: TvViewModel, filtro: Regex, onOpen: (VodEntity) -> Unit, onFiltrado: (String, Regex) -> Unit) {
+    val catsF by remember { vm.vodCategories(VodKind.MOVIE) }.collectAsState(initial = emptyList())
+    val catsS by remember { vm.vodCategories(VodKind.SERIES) }.collectAsState(initial = emptyList())
+    val fileiras = remember(catsF, catsS, filtro) {
+        catsS.filter { filtro.containsMatchIn(it.name) }.map { VodKind.SERIES to it.name } + catsF.filter { filtro.containsMatchIn(it.name) }.map { VodKind.MOVIE to it.name }
+    }
+    if (fileiras.isEmpty()) {
+        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) { Text("Nenhuma categoria encontrada no seu servidor.", color = Texto3, fontSize = 14.sp) }
+        return
+    }
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)) {
+        items(fileiras, key = { it.first + "|" + it.second }) { (k, c) -> FileiraCatCel(vm, k, c, onOpen) { onFiltrado(k, filtro) } }
+    }
+}
+
+/**
+ * Pesquisa do celular: campo em cima; sem nada digitado mostra "Mais buscados" (ranking 1, 2, 3…
+ * do que os clientes do ZarkTV mais assistem na semana) e as buscas recentes; digitando, mostra
+ * filmes, séries e canais em abas.
+ */
+@Composable
+private fun BuscaCel(vm: TvViewModel, onOpen: (VodEntity) -> Unit, onCanal: (ChannelEntity) -> Unit, onFechar: () -> Unit) {
+    androidx.activity.compose.BackHandler { onFechar() }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val prefs = remember { ctx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE) }
+    var texto by remember { mutableStateOf("") }
+    var tipo by remember { mutableStateOf(0) } // 0 todos, 1 filmes, 2 séries, 3 canais
+    var recentes by remember { mutableStateOf(prefs.getString("buscas", "").orEmpty().split('\n').filter { it.isNotBlank() }) }
+    fun guardar(q: String) {
+        val l = (listOf(q.trim()) + recentes.filter { !it.equals(q.trim(), true) }).take(8)
+        recentes = l; prefs.edit().putString("buscas", l.joinToString("\n")).apply()
+    }
+    val foco = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { delay(200); runCatching { foco.requestFocus() } }
+    val q = texto.trim()
+    val filmes by remember(q) { if (q.length < 2) kotlinx.coroutines.flow.flowOf(emptyList()) else vm.vodItems(VodKind.MOVIE, null, q) }.collectAsState(initial = emptyList())
+    val series by remember(q) { if (q.length < 2) kotlinx.coroutines.flow.flowOf(emptyList()) else vm.vodItems(VodKind.SERIES, null, q) }.collectAsState(initial = emptyList())
+    val todosCanais by vm.allChannels.collectAsState()
+    val canais = remember(q, todosCanais) { if (q.length < 2) emptyList() else todosCanais.filter { it.name.contains(q, ignoreCase = true) }.take(60) }
+    // Mais buscados: os mais vistos da semana no ZarkTV (o mesmo "em alta" do Web Play).
+    val maisBuscados by remember { vm.vodDestaquesWeb() }.collectAsState(initial = emptyList())
+    val rank = remember(maisBuscados) { maisBuscados.map { it.first }.take(10) }
+
+    Column(Modifier.fillMaxSize().background(FundoCel)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clip(androidx.compose.foundation.shape.CircleShape).clickable(onClick = onFechar), contentAlignment = Alignment.Center) {
+                AppIcon(AppIcons.Voltar, tint = Texto1, size = 22.dp)
+            }
+            Row(
+                Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(10.dp)).background(ElevadoCel).padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppIcon(AppIcons.Search, tint = Texto3, size = 16.dp)
+                Spacer(Modifier.width(8.dp))
+                Box(Modifier.weight(1f)) {
+                    if (texto.isEmpty()) Text("Filme, série ou canal", color = Texto3, fontSize = 15.sp)
+                    androidx.compose.foundation.text.BasicTextField(
+                        texto, { texto = it }, singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Texto1, fontSize = 15.sp),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(VermelhoCel),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { if (q.length >= 2) guardar(q) }),
+                        modifier = Modifier.fillMaxWidth().focusRequester(foco),
+                    )
+                }
+                if (texto.isNotEmpty()) Text("✕", color = Texto3, fontSize = 15.sp, modifier = Modifier.clickable { texto = "" }.padding(4.dp))
+            }
+        }
+        if (q.length < 2) {
+            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (recentes.isNotEmpty()) {
+                    item {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Buscas recentes", color = Texto1, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                            Text("Limpar", color = Texto3, fontSize = 13.sp, modifier = Modifier.clickable { recentes = emptyList(); prefs.edit().remove("buscas").apply() }.padding(4.dp))
+                        }
+                    }
+                    item {
+                        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            recentes.forEach { r ->
+                                Text(r, color = Texto1, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(ElevadoCel).clickable { texto = r }.padding(horizontal = 12.dp, vertical = 8.dp))
+                            }
+                        }
+                    }
+                    item { Spacer(Modifier.height(8.dp)) }
+                }
+                if (rank.isNotEmpty()) {
+                    item { Text("Mais buscados", color = Texto1, fontSize = 16.sp, fontWeight = FontWeight.Medium) }
+                    items(rank.size, key = { "r" + rank[it].id }) { i ->
+                        val item = rank[i]
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { guardar(item.title); onOpen(item) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${i + 1}", color = if (i < 3) VermelhoCel else Texto3, fontSize = 20.sp, fontWeight = FontWeight.Medium, modifier = Modifier.width(32.dp))
+                            Box(Modifier.width(44.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(6.dp)).background(ElevadoCel)) {
+                                if (!item.poster.isNullOrBlank()) AsyncImage(item.poster, item.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(item.title, color = Texto1, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(if (item.kind == VodKind.SERIES) "Série" else "Filme", color = Texto3, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            val abas = listOf("Todos", "Filmes (${filmes.size})", "Séries (${series.size})", "Canais (${canais.size})")
+            LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(abas.size) { i ->
+                    val sel = i == tipo
+                    Text(abas[i], color = if (sel) Color.White else Texto1, fontSize = 13.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (sel) VermelhoCel else ElevadoCel).clickable { tipo = i }.padding(horizontal = 12.dp, vertical = 8.dp))
+                }
+            }
+            val vod = when (tipo) { 1 -> filmes; 2 -> series; 3 -> emptyList(); else -> (series + filmes) }
+            val mostrarCanais = tipo == 3 || tipo == 0
+            if (vod.isEmpty() && (!mostrarCanais || canais.isEmpty())) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nada encontrado para \"$q\".", color = Texto3, fontSize = 14.sp) }
+            } else androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(3),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                if (mostrarCanais && canais.isNotEmpty()) {
+                    item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) { Text("Canais", color = Texto1, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
+                    items(if (tipo == 0) canais.take(6).size else canais.size, span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) { i ->
+                        val ch = canais[i]
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { guardar(q); onCanal(ch) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(width = 48.dp, height = 32.dp)) { ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize()) }
+                            Spacer(Modifier.width(12.dp))
+                            Text(ch.name, color = Texto1, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    if (vod.isNotEmpty()) item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) { Text("Filmes e séries", color = Texto1, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
+                }
+                items(vod.size, key = { "v" + vod[it].id }) { i -> CapaCel(vm, vod[i], Modifier.fillMaxWidth()) { guardar(q); onOpen(vod[i]) } }
+            }
+        }
+    }
 }
