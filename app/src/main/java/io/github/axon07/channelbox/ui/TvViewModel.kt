@@ -1301,6 +1301,19 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
                 if (playingVod != null && player.exo.isPlaying) saveVodProgress()
             }
         }
+        // ZarkTV: monitor do painel — se o servidor do cliente estiver fora do ar, avisa no meio da tela
+        // ("em manutenção") em vez de deixar o vídeo só carregando. Confere a cada 5 min.
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(5_000)
+            var avisado = false
+            while (true) {
+                val fora = runCatching { servidorForaDoAr() }.getOrDefault(false)
+                if (fora && !avisado) zarkManutencao.value = true
+                if (!fora) zarkManutencao.value = false
+                avisado = fora
+                kotlinx.coroutines.delay(5 * 60_000L)
+            }
+        }
         // ZarkTV: avisa o painel (o mesmo do Web Play) que este aparelho está usando o app e o que
         // está assistindo — é daí que saem o "Em alta" e a lista de onde cada cliente assiste.
         viewModelScope.launch {
@@ -1786,6 +1799,22 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     // ---- ZarkTV: servidores do painel, troca automática de DNS e vencimento ----------------
 
     val zarkHttp get() = c.http
+
+    /** true = o painel diz que o servidor deste cliente está fora do ar (mostra o aviso de manutenção). */
+    val zarkManutencao = MutableStateFlow(false)
+
+    private suspend fun servidorForaDoAr(): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val base = io.github.axon07.channelbox.data.ZarkConfig.checkoutBase(getApplication()) ?: return@withContext false
+        val txt = c.http.newCall(okhttp3.Request.Builder().url("$base/api/status").build()).execute().use { it.body?.string() } ?: return@withContext false
+        val o = kotlinx.serialization.json.Json.parseToJsonElement(txt) as? kotlinx.serialization.json.JsonObject ?: return@withContext false
+        val servidores = o["servidores"] as? kotlinx.serialization.json.JsonObject ?: return@withContext false
+        fun sid(n: String) = java.text.Normalizer.normalize(n, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "").lowercase().replace(Regex("[^a-z0-9]+"), "")
+        val meu = sid(settings.value?.playlists?.firstOrNull { it.enabled }?.name.orEmpty())
+        if (meu.isEmpty()) return@withContext false
+        val st = servidores.entries.firstOrNull { sid(it.key) == meu || meu.contains(sid(it.key)) }?.value as? kotlinx.serialization.json.JsonObject
+            ?: return@withContext false
+        (st["ok"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "false"
+    }
 
     /** Conta conferida no player_api (vencimento e status), ou null enquanto não conferiu. */
     val zarkConta = MutableStateFlow<ZarkConfig.Login.Ok?>(null)

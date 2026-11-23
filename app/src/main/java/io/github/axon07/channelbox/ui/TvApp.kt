@@ -2528,6 +2528,9 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     }, onEsqueci = if (r.setup) null else ({ vm.esqueciPin.value = true }))
                 }
             }
+            if (vm.zarkManutencao.collectAsStateWithLifecycle().value && mode != Mode.SETUP) {
+                AvisoManutencao { vm.zarkManutencao.value = false }
+            }
             if (vm.esqueciPin.collectAsStateWithLifecycle().value) {
                 EsqueciSenhaDialog(
                     onConfirmar = { u, p -> vm.esqueciPinConfirmar(u, p) },

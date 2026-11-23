@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -220,6 +221,32 @@ fun TelaVencida(
                 BotaoDialogo("Suporte", false, Modifier.weight(1f), onSuporte)
                 BotaoDialogo("Trocar conta", false, Modifier.weight(1f), onTrocarConta)
             }
+        }
+    }
+}
+
+/** Servidor do cliente fora do ar (pelo monitor do painel): aviso claro no meio da tela. */
+@Composable
+fun AvisoManutencao(onOk: () -> Unit) {
+    androidx.activity.compose.BackHandler { onOk() }
+    val foco = remember { FocusRequester() }
+    LaunchedEffect(Unit) { delay(80); runCatching { foco.requestFocus() } }
+    Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.padding(horizontal = 28.dp).widthIn(max = 380.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF1C1C1F))
+                .padding(horizontal = 22.dp, vertical = 22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("Servidor em manutenção", color = Color(0xFFEDEDED), fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Text(
+                "Alguns canais e filmes podem não abrir agora. Já estamos resolvendo — volte a tentar em alguns minutos.",
+                color = Color(0xFFA1A1A6), fontSize = 14.sp, lineHeight = 20.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp, bottom = 18.dp),
+            )
+            Box(
+                Modifier.fillMaxWidth().height(46.dp).focusRequester(foco).clip(RoundedCornerShape(10.dp)).background(Color(0xFFE50914)).clickable(onClick = onOk),
+                contentAlignment = Alignment.Center,
+            ) { Text("Entendi", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
         }
     }
 }
