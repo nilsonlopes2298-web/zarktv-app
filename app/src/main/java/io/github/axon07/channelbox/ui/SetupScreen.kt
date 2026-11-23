@@ -543,6 +543,14 @@ fun TvTextField(
                 }
                 .padding(horizontal = 14.dp, vertical = 11.dp),
         )
+        // Tela de toque com o app no modo TV (ex.: ZarkTV TV num tablet ou TV Box com mouse):
+        // o toque no campo também começa a digitar.
+        if (tv && !editing) Box(
+            Modifier.matchParentSize().clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+            ) { editing = true }
+        )
         }
         }
         }
