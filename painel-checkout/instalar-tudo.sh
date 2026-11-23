@@ -18,20 +18,32 @@ if ! command -v node >/dev/null; then
 fi
 echo "    Node $(node -v)"
 
-echo "==> 3/4 Serviço do checkout (porta 3090)"
-if [ ! -f "$PASTA/.env" ]; then
+echo "==> 3/4 Serviço do checkout"
+systemctl stop zarktv-checkout 2>/dev/null || true
+sleep 1
+# Procura uma porta livre (a 3090 pode já estar sendo usada por outro sistema da VPS).
+PORTA=""
+for p in 3090 3091 3092 3093 3094 3095 3096 3097 3098 3099; do
+  if ! ss -ltn "( sport = :$p )" | grep -q ":$p"; then PORTA=$p; break; fi
+  echo "    Porta $p ocupada por: $(ss -ltnp "( sport = :$p )" | grep -o 'users:(("[^"]*' | head -1 | cut -d'"' -f2)"
+done
+[ -z "$PORTA" ] && { echo "    ERRO: nenhuma porta livre entre 3090 e 3099."; exit 1; }
+echo "    Usando a porta $PORTA"
+if [ ! -f "$PASTA/.env" ] || ! grep -q '^ADMIN_SENHA=.' "$PASTA/.env"; then
   read -rsp "    Crie uma senha para o admin do checkout: " SENHA; echo
-  printf 'ADMIN_SENHA=%s\nPORTA=3090\nURL_PUBLICA=https://%s\n' "$SENHA" "$DOMINIO" > "$PASTA/.env"
+  printf 'ADMIN_SENHA=%s\nPORTA=%s\nURL_PUBLICA=https://%s\n' "$SENHA" "$PORTA" "$DOMINIO" > "$PASTA/.env"
   chmod 600 "$PASTA/.env"
 else
   echo "    Senha do admin já criada antes (mantida)."
+  sed -i "s/^PORTA=.*/PORTA=$PORTA/" "$PASTA/.env"
 fi
 cp "$PASTA/zarktv-checkout.service" /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now zarktv-checkout >/dev/null 2>&1
+systemctl reset-failed zarktv-checkout 2>/dev/null || true
+systemctl enable zarktv-checkout >/dev/null 2>&1
 systemctl restart zarktv-checkout
 sleep 2
-if curl -fs -o /dev/null http://127.0.0.1:3090/checkout/api/planos; then
+if curl -fs -o /dev/null http://127.0.0.1:$PORTA/checkout/api/planos; then
   echo "    Checkout rodando."
 else
   echo "    ERRO: o checkout não respondeu. Últimas linhas do registro:"
@@ -49,11 +61,14 @@ if ! systemctl is-active --quiet caddy || [ ! -f "$CADDYFILE" ]; then
   exit 1
 fi
 if grep -q "$DOMINIO/checkout" "$CADDYFILE"; then
-  echo "    Já estava ligado no Caddy."
+  cp "$CADDYFILE" "$CADDYFILE.antes-checkout"
+  # Já ligado: só acerta a porta.
+  sed -i "/$DOMINIO\/checkout/,/}/ s#reverse_proxy 127.0.0.1:[0-9]*#reverse_proxy 127.0.0.1:$PORTA#" "$CADDYFILE"
+  caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1 && systemctl reload caddy && echo "    Já estava no Caddy (porta conferida)." || { cp "$CADDYFILE.antes-checkout" "$CADDYFILE"; echo "    ERRO ao ajustar o Caddy; voltei como estava."; exit 1; }
 else
   cp "$CADDYFILE" "$CADDYFILE.antes-checkout"
   # Bloco próprio só para /checkout: não mexe no bloco do painel que já existe.
-  printf '\n# Checkout Pix do ZarkTV\n%s/checkout* {\n\treverse_proxy 127.0.0.1:3090\n}\n' "$DOMINIO" >> "$CADDYFILE"
+  printf '\n# Checkout Pix do ZarkTV\n%s/checkout* {\n\treverse_proxy 127.0.0.1:%s\n}\n' "$DOMINIO" "$PORTA" >> "$CADDYFILE"
   if caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1; then
     systemctl reload caddy
     echo "    Caddy recarregado (cópia do arquivo antigo em $CADDYFILE.antes-checkout)."
