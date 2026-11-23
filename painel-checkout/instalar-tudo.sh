@@ -2,7 +2,7 @@
 # Checkout Pix do ZarkTV — instala tudo de uma vez na VPS (Roxinha). Rode como root:
 #   curl -fsSL https://raw.githubusercontent.com/nilsonlopes2298-web/zarktv-app/mobile-ui/painel-checkout/instalar-tudo.sh -o /root/checkout.sh && bash /root/checkout.sh
 set -e
-BASE="https://raw.githubusercontent.com/nilsonlopes2298-web/zarktv-app/mobile-ui/painel-checkout"
+BASE="https://raw.githubusercontent.com/nilsonlopes2298-web/zarktv-app/0474b9780c/painel-checkout"
 DOMINIO="painel.zarktvqx.cfd"
 PASTA=/opt/zarktv-checkout
 
@@ -43,7 +43,8 @@ systemctl reset-failed zarktv-checkout 2>/dev/null || true
 systemctl enable zarktv-checkout >/dev/null 2>&1
 systemctl restart zarktv-checkout
 sleep 2
-if curl -fs -o /dev/null http://127.0.0.1:$PORTA/checkout/api/planos; then
+TESTE_IP=$(grep -s "^ENDERECO=" "$PASTA/.env" | cut -d= -f2); TESTE_IP=${TESTE_IP:-127.0.0.1}
+if curl -fs -o /dev/null http://$TESTE_IP:$PORTA/checkout/api/planos; then
   echo "    Checkout rodando."
 else
   echo "    ERRO: o checkout não respondeu. Últimas linhas do registro:"
@@ -52,30 +53,57 @@ else
 fi
 
 echo "==> 4/4 Ligando $DOMINIO/checkout no Caddy"
-CADDYFILE=/etc/caddy/Caddyfile
-if ! systemctl is-active --quiet caddy || [ ! -f "$CADDYFILE" ]; then
-  echo "    Não achei o Caddy instalado direto no sistema (pode estar em Docker)."
-  echo "    Arquivos Caddyfile que citam $DOMINIO:"
-  grep -rl "$DOMINIO" /etc /opt /root --include=Caddyfile* 2>/dev/null || echo "    (nenhum)"
-  echo "    Mande este resultado para o Claude que ele ajusta."
-  exit 1
-fi
-if grep -q "$DOMINIO/checkout" "$CADDYFILE"; then
-  cp "$CADDYFILE" "$CADDYFILE.antes-checkout"
-  # Já ligado: só acerta a porta.
-  sed -i "/$DOMINIO\/checkout/,/}/ s#reverse_proxy 127.0.0.1:[0-9]*#reverse_proxy 127.0.0.1:$PORTA#" "$CADDYFILE"
-  caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1 && systemctl reload caddy && echo "    Já estava no Caddy (porta conferida)." || { cp "$CADDYFILE.antes-checkout" "$CADDYFILE"; echo "    ERRO ao ajustar o Caddy; voltei como estava."; exit 1; }
+BLOCO_JA=0
+if systemctl is-active --quiet caddy && [ -f /etc/caddy/Caddyfile ]; then
+  # Caddy instalado direto no sistema
+  CADDYFILE=/etc/caddy/Caddyfile
+  ALVO="127.0.0.1:$PORTA"
+  validar() { caddy validate --config "$CADDYFILE" --adapter caddyfile; }
+  recarregar() { systemctl reload caddy; }
 else
-  cp "$CADDYFILE" "$CADDYFILE.antes-checkout"
-  # Bloco próprio só para /checkout: não mexe no bloco do painel que já existe.
-  printf '\n# Checkout Pix do ZarkTV\n%s/checkout* {\n\treverse_proxy 127.0.0.1:%s\n}\n' "$DOMINIO" "$PORTA" >> "$CADDYFILE"
-  if caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1; then
-    systemctl reload caddy
-    echo "    Caddy recarregado (cópia do arquivo antigo em $CADDYFILE.antes-checkout)."
+  # Caddy em Docker (o da Evolution em /opt/evolution-api)
+  C=$(docker ps --format '{{.Names}} {{.Image}}' | awk 'tolower($0) ~ /caddy/ {print $1; exit}')
+  [ -z "$C" ] && { echo "    ERRO: não achei o Caddy rodando (nem no sistema nem em Docker). Mande isto para o Claude."; exit 1; }
+  CADDYFILE=""; DEST=""
+  for linha in $(docker inspect -f '{{range .Mounts}}{{.Source}}|{{.Destination}} {{end}}' "$C"); do
+    src=${linha%%|*}; dst=${linha##*|}
+    if [ -f "$src" ] && [[ "$src" == *Caddyfile ]]; then CADDYFILE=$src; DEST=$dst; break; fi
+    if [ -d "$src" ] && [ -f "$src/Caddyfile" ]; then CADDYFILE=$src/Caddyfile; DEST=$dst/Caddyfile; break; fi
+  done
+  [ -z "$CADDYFILE" ] && { echo "    ERRO: não achei o Caddyfile do contêiner $C. Mande isto para o Claude."; exit 1; }
+  echo "    Caddy em Docker: contêiner $C, arquivo $CADDYFILE"
+  REDE=$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$C")
+  if [ "$REDE" = "host" ]; then
+    ALVO="127.0.0.1:$PORTA"
   else
-    cp "$CADDYFILE.antes-checkout" "$CADDYFILE"
+    # O contêiner chega na VPS pelo "portão" da rede do Docker; o checkout escuta só nesse endereço (não fica aberto na internet).
+    GW=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.Gateway}} {{end}}' "$C" | awk '{print $1}')
+    [ -z "$GW" ] && { echo "    ERRO: não achei a rede do contêiner. Mande isto para o Claude."; exit 1; }
+    if grep -q '^ENDERECO=' "$PASTA/.env"; then sed -i "s/^ENDERECO=.*/ENDERECO=$GW/" "$PASTA/.env"; else echo "ENDERECO=$GW" >> "$PASTA/.env"; fi
+    systemctl restart zarktv-checkout; sleep 2
+    curl -fs -o /dev/null "http://$GW:$PORTA/checkout/api/planos" || { echo "    ERRO: o checkout não respondeu em $GW:$PORTA."; journalctl -u zarktv-checkout -n 10 --no-pager; exit 1; }
+    if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
+      ufw allow from 172.16.0.0/12 to "$GW" port "$PORTA" proto tcp >/dev/null && echo "    Firewall liberado só para o Docker."
+    fi
+    ALVO="$GW:$PORTA"
+  fi
+  validar() { docker exec "$C" caddy validate --config "$DEST" --adapter caddyfile; }
+  recarregar() { docker exec "$C" caddy reload --config "$DEST" --adapter caddyfile; }
+fi
+echo "    O Caddy vai mandar /checkout para $ALVO"
+if grep -q "$DOMINIO/checkout" "$CADDYFILE"; then
+  echo "    O endereço já estava no Caddy; não mexi."
+else
+  cp "$CADDYFILE" "$CADDYFILE.antes-checkout-$(date +%Y%m%d%H%M)"
+  ANTES=$(cat "$CADDYFILE")
+  # Bloco próprio só para /checkout: não mexe no bloco do painel que já existe.
+  printf '\n# Checkout Pix do ZarkTV\n%s/checkout* {\n\treverse_proxy %s\n}\n' "$DOMINIO" "$ALVO" >> "$CADDYFILE"
+  if validar >/dev/null 2>&1 && recarregar >/dev/null 2>&1; then
+    echo "    Caddy recarregado."
+  else
+    printf '%s\n' "$ANTES" > "$CADDYFILE"   # volta como estava (sem trocar o arquivo, para o Docker continuar vendo)
     echo "    ERRO: o Caddy não aceitou a mudança; voltei o arquivo como estava. Nada foi alterado."
-    caddy validate --config "$CADDYFILE" --adapter caddyfile 2>&1 | tail -5
+    validar 2>&1 | tail -5
     exit 1
   fi
 fi
