@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -175,6 +176,92 @@ fun SettingsScreen(
     fun closePage() { page = null }
     // Back on a sub-page returns to the category instead of leaving Settings.
     BackHandler(enabled = page != null) { closePage() }
+
+    // ZarkTV Mobile: no dedo, lista de seções; tocando abre a seção inteira com seta para voltar.
+    // Itens que só fazem sentido na TV (lista, gravação, arranque, idioma) ficam escondidos.
+    if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
+        val direto = openNetwork || openSection != null
+        var aberta by rememberSaveable { mutableStateOf<SettingsCategory?>(if (direto) category else null) }
+        BackHandler(enabled = page == null && aberta != null && !direto) { aberta = null }
+        val sistemaVoltar = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+        val cel = listOf(SettingsCategory.PLAYBACK, SettingsCategory.NETWORK, SettingsCategory.PARENTAL, SettingsCategory.UPDATES, SettingsCategory.ABOUT)
+        val conteudo: @Composable (SettingsCategory) -> Unit = { cat ->
+        when (cat) {
+            SettingsCategory.SOURCE -> SourceSettings(
+                settings, refreshState, channelCount, vm, onEditSource,
+                onPlaylist = { id ->
+                    playlistId = id
+                    openPage(Page.PLAYLIST)
+                },
+                onOrganise = onOrganise,
+            ) { openPage(it) }
+            SettingsCategory.PLAYBACK -> PlaybackSettings(settings, vm) { openPage(it) }
+            SettingsCategory.NETWORK -> NetworkSettingsList(settings, vm) { openPage(it) }
+            SettingsCategory.RECORDINGS -> RecordingSettings(settings, vm, onOpenRecordings) { openPage(it) }
+            SettingsCategory.STARTUP -> StartupSettings(settings, vm, onExit) { openPage(it) }
+            SettingsCategory.LANGUAGE -> {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val languages = remember { I18n.available(ctx) }
+                ChoiceList(
+                    options = languages,
+                    selected = I18n.language,
+                    onSelect = { vm.setLanguage(it) },
+                    autoFocus = false,
+                )
+                if (languages.size == 1) {
+                    Text("More languages are on the way.", fontSize = 13.sp, color = Palette.TextDim, modifier = Modifier.padding(top = 10.dp))
+                }
+            }
+            SettingsCategory.PARENTAL -> ParentalSettings(settings, vm)
+            SettingsCategory.UPDATES -> UpdateSettings(settings, vm)
+            SettingsCategory.ABOUT -> AboutSettings(vm)
+        }
+        }
+        Column(Modifier.fillMaxSize().background(Color(0xFF141416)).statusBarsPadding()) {
+            Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(48.dp).clip(RoundedCornerShape(24.dp)).tap {
+                        when {
+                            page != null -> closePage()
+                            aberta != null && !direto -> aberta = null
+                            else -> sistemaVoltar?.onBackPressed()
+                        }
+                    },
+                    contentAlignment = Alignment.Center,
+                ) { AppIcon(AppIcons.Voltar, tint = Color(0xFFEDEDED), size = 22.dp) }
+                Text(aberta?.title ?: "Settings", fontSize = 18.sp, fontWeight = FontWeight.Medium, color = Color(0xFFEDEDED))
+            }
+            val cat = aberta
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                    .padding(start = 16.dp, end = 16.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (cat == null) {
+                    cel.forEach { c ->
+                        Row(
+                            Modifier.fillMaxWidth().heightIn(min = 64.dp).clip(RoundedCornerShape(12.dp))
+                                .tap { category = c; aberta = c }.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AppIcon(c.icon(), tint = Color(0xFFA1A1A6), size = 20.dp)
+                            Spacer(Modifier.width(14.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(c.title, fontSize = 16.sp, color = Color(0xFFEDEDED))
+                                Text(c.blurb, fontSize = 13.sp, color = Color(0xFF85858B), modifier = Modifier.padding(top = 2.dp))
+                            }
+                            Text("›", fontSize = 22.sp, color = Color(0xFF85858B))
+                        }
+                    }
+                } else {
+                    val current = page
+                    if (current != null) SubPage(current, settings, vm, onClose = { closePage() }, onOpen = { openPage(it) }, playlistId = playlistId, onEditSource = onEditSource)
+                    else conteudo(cat)
+                }
+            }
+        }
+        return
+    }
 
     Row(Modifier.fillMaxSize().background(Palette.Background)) {
         // ---- Categories ----
@@ -1432,7 +1519,7 @@ private fun SettingCard(
                 value != null -> Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         value, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 220.dp),
+                        modifier = Modifier.widthIn(max = if (io.github.axon07.channelbox.system.Aparelho.soCelular) 110.dp else 220.dp),
                         color = if (focused) Rows.OnFocusDim else Palette.TextDim,
                     )
                     Text(

@@ -321,6 +321,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     /** Movie/episode waiting for "Resume or start over?", with where you stopped. */
     var vodResume by remember { mutableStateOf<Triple<VodEntity, VodEntity?, Long>?>(null) }
     var pixAberto by remember { mutableStateOf(false) }
+    // Celular: Configurações avançadas/parental abertas a partir de Configurações voltam para lá.
+    var settingsDeAjustes by remember { mutableStateOf(false) }
     var previewPergunta by remember { mutableStateOf<Triple<VodEntity, VodEntity?, Long>?>(null) }
     val scope = rememberCoroutineScope()
     /** Last key press or touch, for closing the guide/menus when idle. */
@@ -1383,7 +1385,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 else -> leavePlayback()
             }
             Mode.MULTIVIEW -> if (multiPicking && multi.count > 0) multiPicking = false else closeMultiView()
-            Mode.SETTINGS -> if (!settings.hasSource) mode = Mode.SETUP else mode = if (settingsSection != null) Mode.PROFILE else Mode.HOME
+            Mode.SETTINGS -> if (!settings.hasSource) mode = Mode.SETUP else mode = when {
+                io.github.axon07.channelbox.system.Aparelho.soCelular && settingsDeAjustes -> { settingsDeAjustes = false; Mode.AJUSTES }
+                settingsSection != null -> Mode.PROFILE
+                else -> Mode.HOME
+            }
             Mode.HOME -> if (uniSinoAberto.value) uniSinoAberto.value = false else if (jogoAberto != null) jogoAberto = null else askExit(Mode.HOME)
             Mode.PROFILE -> mode = Mode.HOME
             Mode.AJUSTES -> mode = ajustesVolta
@@ -2047,7 +2053,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onSair = sairDaConta,
                     onOutraConta = sairDaConta,
                     onAdulto = { vm.zarkAlternarAdulto() },
-                    onControleParental = { settingsSection = "parental"; openSettings() },
+                    onControleParental = { settingsDeAjustes = false; settingsSection = "parental"; openSettings() },
                     onConfiguracoes = { ajustesVolta = Mode.PROFILE; mode = Mode.AJUSTES },
                     onPlayer = { ajustesVolta = Mode.PROFILE; mode = Mode.AJUSTES },
                     onAtualizar = { vm.checkForUpdates(manual = true) },
@@ -2138,8 +2144,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 vm = vm,
                 escala = settings.videoScale,
                 versao = vm.appVersion,
-                onParental = { settingsSection = "parental"; openSettings() },
-                onAvancado = { settingsSection = null; openSettings() },
+                onParental = { settingsDeAjustes = true; settingsSection = "parental"; openSettings() },
+                onAvancado = { settingsDeAjustes = true; settingsSection = null; openSettings() },
                 onAtualizar = { vm.checkForUpdates(manual = true) },
                 onSuporte = { runCatching { zarkCtx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(io.github.axon07.channelbox.data.ZarkConfig.WHATSAPP)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } },
             )
