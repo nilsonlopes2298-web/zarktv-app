@@ -48,6 +48,7 @@ class WebCelularActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
+        WebView.setWebContentsDebuggingEnabled(true)
         raiz = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
 
         web = WebView(this).apply {
@@ -117,11 +118,27 @@ class WebCelularActivity : Activity() {
         }
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+            android.util.Log.w("ZarkWeb", "erro ${error.errorCode} ${error.description} ${request.url}")
             if (request.isForMainFrame) telaErro.visibility = View.VISIBLE
         }
 
         override fun onPageFinished(view: WebView, url: String?) {
             CookieManager.getInstance().flush()
+            android.util.Log.i("ZarkWeb", "carregou $url")
+            view.postDelayed({
+                view.evaluateJavascript("(function(){return location.href+' | '+document.title+' | texto='+(document.body?document.body.innerText.length:-1)+' | '+(document.body?document.body.innerText.slice(0,200):'')})()") {
+                    android.util.Log.i("ZarkWeb", "pagina: $it")
+                }
+            }, 4000)
+        }
+
+        override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: android.webkit.WebResourceResponse) {
+            android.util.Log.w("ZarkWeb", "HTTP ${errorResponse.statusCode} ${request.url}")
+        }
+
+        override fun onReceivedSslError(view: WebView, handler: android.webkit.SslErrorHandler, error: android.net.http.SslError) {
+            android.util.Log.w("ZarkWeb", "SSL ${error.primaryError} ${error.url}")
+            handler.cancel()
         }
     }
 
@@ -149,6 +166,11 @@ class WebCelularActivity : Activity() {
             telaCheia = null
             telaCheiaCallback = null
             sairTelaCheia()
+        }
+
+        override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
+            android.util.Log.i("ZarkWeb", "console ${m.messageLevel()}: ${m.message()} (${m.sourceId()}:${m.lineNumber()})")
+            return true
         }
 
         override fun getDefaultVideoPoster() = android.graphics.Bitmap.createBitmap(1, 1, android.graphics.Bitmap.Config.ARGB_8888)
