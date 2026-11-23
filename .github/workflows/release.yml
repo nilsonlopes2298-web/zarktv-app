@@ -43,11 +43,11 @@ jobs:
           echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
 
       - name: Build release APK
-        run: ./gradlew --no-daemon assembleRelease -PappVersionName="${GITHUB_REF_NAME#v}"
+        run: ./gradlew --no-daemon assembleUnicoRelease -PappVersionName="${GITHUB_REF_NAME#v}"
 
       - name: Rename APK
         # A fixed name keeps .../releases/latest/download/channelbox.apk (and Downloader codes) always current.
-        run: cp app/build/outputs/apk/release/app-release.apk channelbox.apk
+        run: cp "$(find app/build/outputs/apk/unico/release -name '*.apk' | head -1)" channelbox.apk
 
       - name: List of changes
         # Every change since the previous release, one line each, from the commit titles only

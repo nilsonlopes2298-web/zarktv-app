@@ -33,6 +33,36 @@ android {
         buildConfigField("String", "UPDATE_REPO", "\"nilsonlopes2298-web/zarktv-app\"")
     }
 
+    // ZarkTV: três versões do mesmo código.
+    //  - unico  = o app que os clientes já usam (mesmo pacote, celular + TV num APK só). NÃO MUDA.
+    //  - tv     = ZarkTV TV (TV Box, Android TV, Fire Stick): sempre no modo controle remoto.
+    //  - mobile = ZarkTV Mobile (celular e tablet): toque, gira a tela, janelinha (PiP).
+    // TV e Mobile têm pacote próprio, então instalam ao lado do app atual sem substituir nada.
+    flavorDimensions += "aparelho"
+    productFlavors {
+        create("unico") {
+            dimension = "aparelho"
+            // applicationId continua io.github.axon07.channelbox (atualiza por cima do app dos clientes)
+            buildConfigField("String", "APARELHO", "\"auto\"")
+            buildConfigField("String", "APK_NOME", "\"zarktv.apk\"")
+            buildConfigField("String", "VERSAO_JSON", "\"version.json\"")
+        }
+        create("tv") {
+            dimension = "aparelho"
+            applicationId = "cfd.zarktvqx.tv"
+            buildConfigField("String", "APARELHO", "\"tv\"")
+            buildConfigField("String", "APK_NOME", "\"zarktv-tv.apk\"")
+            buildConfigField("String", "VERSAO_JSON", "\"version-tv.json\"")
+        }
+        create("mobile") {
+            dimension = "aparelho"
+            applicationId = "cfd.zarktvqx.mobile"
+            buildConfigField("String", "APARELHO", "\"mobile\"")
+            buildConfigField("String", "APK_NOME", "\"zarktv-mobile.apk\"")
+            buildConfigField("String", "VERSAO_JSON", "\"version-mobile.json\"")
+        }
+    }
+
     signingConfigs {
         if (releaseKeystore != null) {
             create("release") {

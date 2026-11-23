@@ -136,8 +136,7 @@ fun SetupScreen(
 
     // The QR code panel is for TV boxes: on a phone or tablet you can type right here.
     val config = androidx.compose.ui.platform.LocalConfiguration.current
-    val isTv = (config.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK) ==
-        android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+    val isTv = io.github.axon07.channelbox.system.Aparelho.ehTv(config)
     val showPhone = isTv || config.screenWidthDp >= 960
 
     Row(Modifier.fillMaxSize().background(Palette.Background)) {
@@ -462,8 +461,7 @@ fun TvTextField(
     // On a TV the remote first lands on the field (no keyboard); OK starts typing. Phones and
     // tablets type straight away when the field is tapped.
     val config = androidx.compose.ui.platform.LocalConfiguration.current
-    val tv = (config.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK) ==
-        android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+    val tv = io.github.axon07.channelbox.system.Aparelho.ehTv(config)
     var editing by remember { mutableStateOf(!tv) }
     var focused by remember { mutableStateOf(false) }
     var hovered by remember { mutableStateOf(false) }

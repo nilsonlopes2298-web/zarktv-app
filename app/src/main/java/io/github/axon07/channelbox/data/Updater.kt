@@ -52,7 +52,7 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
 
     private fun baixarInfo(tag: String): ReleaseInfo? {
         val request = Request.Builder()
-            .url("https://github.com/${BuildConfig.UPDATE_REPO}/releases/download/$tag/version.json")
+            .url("https://github.com/${BuildConfig.UPDATE_REPO}/releases/download/$tag/${BuildConfig.VERSAO_JSON}")
             .header("User-Agent", "ZarkTV/${BuildConfig.VERSION_NAME}")
             .header("Cache-Control", "no-cache")
             .build()
@@ -66,7 +66,7 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
                 version = version,
                 title = "ZarkTV $version",
                 notes = json.str("notas").orEmpty().trim(),
-                apkUrl = json.str("url") ?: "https://github.com/${BuildConfig.UPDATE_REPO}/releases/download/$tag/zarktv.apk",
+                apkUrl = json.str("url") ?: "https://github.com/${BuildConfig.UPDATE_REPO}/releases/download/$tag/${BuildConfig.APK_NOME}",
                 apkSize = json.str("tamanho")?.toLongOrNull() ?: 0L,
                 forced = json.str("obrigatoria")?.lowercase() == "true", // só obriga se o painel mandar "true"
             )
@@ -157,7 +157,7 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
 
     companion object {
         /** Só para o dono testar antes de liberar aos clientes (ligado escondido em Configurações → Atualizar versão). */
-        fun canalBeta(c: Context) = c.getSharedPreferences("zarktv", Context.MODE_PRIVATE).getBoolean("canal_beta", false)
+        fun canalBeta(c: Context) = c.getSharedPreferences("zarktv", Context.MODE_PRIVATE).getBoolean("canal_beta", BuildConfig.APARELHO != "auto") // ZarkTV TV/Mobile: só existem em teste por enquanto
         fun setCanalBeta(c: Context, v: Boolean) = c.getSharedPreferences("zarktv", Context.MODE_PRIVATE).edit().putBoolean("canal_beta", v).apply()
 
         /** Compares "1.2.10" style versions numerically; >0 if [a] is newer. */
