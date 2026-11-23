@@ -636,6 +636,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         if (_update.value is UpdateState.Checking || _update.value is UpdateState.Downloading) return
         viewModelScope.launch {
             _update.value = UpdateState.Checking
+            runCatching { updater.limparBaixados() }
             val result = runCatching { updater.latest() }
             val release = result.getOrNull()
             _update.value = when {

@@ -84,8 +84,16 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
     /** Downloads the APK, reporting progress 0–100. */
     suspend fun download(release: ReleaseInfo, onProgress: (Int) -> Unit): File = withContext(Dispatchers.IO) {
         val dir = updatesDir()
-        dir.listFiles()?.forEach { it.delete() }
         val target = File(dir, "zarktv-${release.version}.apk")
+        val parcial = File(dir, "zarktv-${release.version}.apk.part")
+        // ZarkTV: baixa uma vez só. Se o APK desta versão já está completo aqui (ex.: a instalação
+        // deu erro, foi cancelada ou o cliente teve que liberar a permissão), vai direto para instalar.
+        dir.listFiles()?.forEach { if (it != target && it != parcial) it.delete() }
+        if (apkPronto(target, release)) {
+            onProgress(100)
+            return@withContext target
+        }
+        target.delete()
         val request = Request.Builder().url(release.apkUrl)
             .header("User-Agent", "ZarkTV/${BuildConfig.VERSION_NAME}")
             .build()
@@ -94,7 +102,7 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
             val body = response.body ?: throw IOException("Empty download")
             val total = body.contentLength().takeIf { it > 0 } ?: release.apkSize
             body.byteStream().use { input ->
-                target.outputStream().use { out ->
+                parcial.outputStream().use { out ->
                     val buffer = ByteArray(64 * 1024)
                     var done = 0L
                     var lastPercent = -1
@@ -115,8 +123,29 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
                 }
             }
         }
+        // Só vira o APK de verdade quando terminou inteiro (queda de internet não deixa arquivo quebrado).
+        if (!parcial.renameTo(target)) { parcial.copyTo(target, overwrite = true); parcial.delete() }
+        if (!apkPronto(target, release)) { target.delete(); throw IOException("O arquivo baixado veio incompleto. Tente de novo.") }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) target.setReadable(true, false)
         target
+    }
+
+    /** O APK salvo está inteiro e é mesmo da versão nova? */
+    private fun apkPronto(apk: File, release: ReleaseInfo): Boolean {
+        if (!apk.isFile || apk.length() < 100_000) return false
+        if (release.apkSize > 0 && apk.length() != release.apkSize) return false
+        val info = runCatching { context.packageManager.getPackageArchiveInfo(apk.path, 0) }.getOrNull() ?: return false
+        return info.packageName == context.packageName && info.versionName?.removePrefix("v") == release.version
+    }
+
+    /** Depois que a versão nova foi instalada, apaga o APK guardado. */
+    fun limparBaixados() {
+        runCatching {
+            updatesDir().listFiles()?.forEach { f ->
+                val v = f.name.removePrefix("zarktv-").removeSuffix(".part").removeSuffix(".apk")
+                if (compareVersions(v, currentVersion) <= 0) f.delete()
+            }
+        }
     }
 
     /** Android 8+ asks once per app whether it may install other apps. */
