@@ -1024,7 +1024,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             val pool = filmes + series
             val achados = alta.mapNotNull { t -> pool.firstOrNull { chave(it.title) == chave(t) } }.filter { !it.poster.isNullOrBlank() }.distinctBy { it.id }.take(4)
             val ids = achados.map { it.id }.toSet()
-            achados.map { it to "🔥 EM ALTA" } +
+            achados.map { it to "EM ALTA" } +
                 filmes.filter { !it.poster.isNullOrBlank() && it.id !in ids }.take(8 - achados.size).map { it to "NOVO NO CATÁLOGO" }
         }
 

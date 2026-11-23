@@ -1302,17 +1302,19 @@ private val CartaoCel = Color(0xFF1A1A20)
 @Composable
 fun BarraCelular(ativo: Int, onInicio: () -> Unit, onTv: () -> Unit, onPerfil: () -> Unit) {
     Row(Modifier.fillMaxWidth().background(Color(0xFF111116)).padding(top = 6.dp, bottom = 8.dp)) {
-        ItemBarraCel("Início", "🏠", ativo == 0, Modifier.weight(1f), onInicio)
-        ItemBarraCel("TV", "📺", ativo == 1, Modifier.weight(1f), onTv)
-        ItemBarraCel("Perfil", "👤", ativo == 2, Modifier.weight(1f), onPerfil)
+        ItemBarraCel("Início", AppIcons.Home, ativo == 0, Modifier.weight(1f), onInicio)
+        ItemBarraCel("TV", AppIcons.Tv, ativo == 1, Modifier.weight(1f), onTv)
+        ItemBarraCel("Perfil", AppIcons.User, ativo == 2, Modifier.weight(1f), onPerfil)
     }
 }
 
 @Composable
-private fun ItemBarraCel(nome: String, icone: String, ativo: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun ItemBarraCel(nome: String, icone: ImageVector, ativo: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val cor = if (ativo) VermelhoCel else Color(0x88FFFFFF)
     Column(modifier.clickable(onClick = onClick).padding(vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(icone, fontSize = 20.sp)
-        Text(nome, color = if (ativo) Color.White else Color(0x88FFFFFF), fontSize = 12.sp, fontWeight = if (ativo) FontWeight.Bold else FontWeight.Normal)
+        AppIcon(icone, tint = cor, size = 22.dp)
+        Spacer(Modifier.height(3.dp))
+        Text(nome, color = if (ativo) Color.White else Color(0x88FFFFFF), fontSize = 11.sp, fontWeight = if (ativo) FontWeight.SemiBold else FontWeight.Normal)
     }
 }
 
@@ -1355,7 +1357,8 @@ private fun ShellCelular(
     Column(Modifier.fillMaxSize().background(if (comVideo) Color.Transparent else FundoCel)) {
         // ---- Topo: ZarkTV e pesquisa ----
         Row(Modifier.fillMaxWidth().background(FundoCel).padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("▷", color = VermelhoCel, fontSize = 22.sp, fontWeight = FontWeight.Black)
+            AppIcon(AppIcons.Play, tint = VermelhoCel, size = 22.dp)
+            Spacer(Modifier.width(2.dp))
             Text("Zark", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Black, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
             Text("TV", color = VermelhoCel, fontSize = 21.sp, fontWeight = FontWeight.Black, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
             Spacer(Modifier.width(12.dp))
@@ -1364,7 +1367,7 @@ private fun ShellCelular(
                     .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(10.dp)).clickable { onSearch() }.padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("⌕", color = Color(0x99FFFFFF), fontSize = 16.sp)
+                AppIcon(AppIcons.Search, tint = Color(0x99FFFFFF), size = 16.dp)
                 Spacer(Modifier.width(8.dp))
                 Text("Pesquisar pelo título…", color = Color(0x77FFFFFF), fontSize = 14.sp, maxLines = 1)
             }
@@ -1409,8 +1412,9 @@ private fun ShellCelular(
 
 /** Título de fileira com "Ver todos" em vermelho. */
 @Composable
-private fun TituloCel(titulo: String, extra: String? = null, onTodos: (() -> Unit)?) {
+private fun TituloCel(titulo: String, extra: String? = null, icone: ImageVector? = null, onTodos: (() -> Unit)?) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (icone != null) { AppIcon(icone, tint = VermelhoCel, size = 18.dp); Spacer(Modifier.width(6.dp)) }
         Text(titulo, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (extra != null) { Spacer(Modifier.width(6.dp)); Text(extra, color = Color(0x88FFFFFF), fontSize = 12.sp) }
         Spacer(Modifier.weight(1f))
@@ -1540,7 +1544,7 @@ private fun RecomendacoesCel(
         item { Column { Spacer(Modifier.height(4.dp)); CarrosselCel(vm, destaques, onOpen) } }
         if (jogos.isNotEmpty()) item {
             Column {
-                TituloCel("🏆 Jogos de hoje", onTodos = { onTab(Aba.JOGOS) })
+                TituloCel("Jogos de hoje", icone = AppIcons.Trofeu, onTodos = { onTab(Aba.JOGOS) })
                 Spacer(Modifier.height(8.dp))
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(jogos, key = { it.id.ifBlank { it.casa.nome + it.inicio } }) { j -> CartaoJogoCel(j) { onAbrirJogo(j) } }
@@ -1558,7 +1562,7 @@ private fun RecomendacoesCel(
         }
         if (canais.isNotEmpty()) item {
             Column {
-                TituloCel("Ao vivo agora", extra = "${canais.size} canais", onTodos = { onTab(Aba.TV) })
+                TituloCel("Ao vivo agora", icone = AppIcons.AoVivo, extra = "${canais.size} canais", onTodos = { onTab(Aba.TV) })
                 Spacer(Modifier.height(8.dp))
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(canais.take(20), key = { it.id }) { ch -> CanalCel(ch) { onCanal(ch) } }
