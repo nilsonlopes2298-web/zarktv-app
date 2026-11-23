@@ -110,6 +110,10 @@ class TvPlayer(
     private var hostsVod: List<String>? = null
     private var urlVodOriginal: String? = null
     private var tentativaHost = 0
+    /** Filme/episódio cujo endereço nem respondeu (sem conexão): não insiste nele, vai para outro caminho. */
+    private var erroConexaoVod = false
+    /** Cliente só do player: desiste de conectar em 8 s (o geral espera 15 s). */
+    private val httpPlayer: OkHttpClient by lazy { http.newBuilder().connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS).build() }
     /** Outros endereços (DNS) do painel para o mesmo servidor, dado o endereço atual. */
     var hostsAlternativos: (String) -> List<String> = { emptyList() }
     private var avisouDesistencia = false
@@ -374,6 +378,7 @@ class TvPlayer(
         hostsVod = null
         urlVodOriginal = null
         tentativaHost = 0
+        erroConexaoVod = false
         avisouDesistencia = false
         confirmed = false
         retries = 0
@@ -480,7 +485,7 @@ class TvPlayer(
 
     private fun buildSource(s: StreamSpec, mime: String?): MediaSource {
         val userAgent = s.header("User-Agent") ?: UserAgent.current
-        val httpSource = OkHttpDataSource.Factory(http)
+        val httpSource = OkHttpDataSource.Factory(httpPlayer)
             .setUserAgent(userAgent)
             .setDefaultRequestProperties(s.headers.filterKeys { !it.equals("User-Agent", ignoreCase = true) })
         // DefaultDataSource adds udp://, rtmp://, file:// … and uses OkHttp for http(s).
@@ -495,6 +500,8 @@ class TvPlayer(
             .setTsExtractorTimestampSearchBytes(1500 * androidx.media3.extractor.ts.TsExtractor.TS_PACKET_SIZE)
             .setConstantBitrateSeekingEnabled(true)
         val sources = DefaultMediaSourceFactory(dataSource, extratores)
+        // Filmes/séries: endereço que nem conecta não é tentado de novo pelo player (o app já tem outros caminhos).
+        if (!isLive) sources.setLoadErrorHandlingPolicy(SemInsistirSemConexao)
         if (mime == StreamSpecs.MIME_HLS || s.url.contains(".m3u8", ignoreCase = true)) {
             val hls = androidx.media3.exoplayer.hls.HlsMediaSource.Factory(dataSource)
                 .setExtractorFactory(androidx.media3.exoplayer.hls.DefaultHlsExtractorFactory(tsFlags, true))
@@ -557,11 +564,23 @@ class TvPlayer(
             handler.post { start() }
             return
         }
+        if (!isLive && semConexao(error)) {
+            // Servidor do filme não respondeu: vai logo para o próximo caminho (Web Play / outro DNS).
+            erroConexaoVod = true
+            attempt = candidates.lastIndex // outro formato no mesmo endereço morto não adianta
+            android.util.Log.w("ZarkPlayer", "filme: servidor não respondeu – indo para outro caminho")
+            handler.post { failed("o servidor não respondeu") }
+            return
+        }
         if (!isLive) {
             _status.value = PlayerStatus.Error("Can't play this (${describe(error)})")
             if (!confirmed && attempt < candidates.lastIndex) {
                 attempt++
                 handler.post { start() }
+            } else if (!confirmed) {
+                // Este caminho não deu: segue para o próximo (outra identificação, outro DNS, Web Play)
+                // na hora, em vez de esperar o vigia de 12 s.
+                handler.post { failed(describe(error)) }
             }
             return
         }
@@ -639,7 +658,7 @@ class TvPlayer(
             primeiroErroVod = reason
             urlVodOriginal = atual.url
         }
-        if (atual != null && ehVod && !isLive && tentativaAlternativa < ALT_VOD.size) {
+        if (atual != null && ehVod && !isLive && !erroConexaoVod && tentativaAlternativa < ALT_VOD.size) {
             val (ext, ua) = ALT_VOD[tentativaAlternativa++]
             val url = if (ext == null) atual.url else atual.url.replace(Regex("""\.\w+(\?|$)"""), ".$ext$1")
             val headers = if (ua == null) atual.headers - "User-Agent" else atual.headers + ("User-Agent" to ua)
@@ -655,6 +674,8 @@ class TvPlayer(
             if (hostsVod == null) {
                 val host = Regex("""^(https?://[^/]+)""").find(urlVodOriginal ?: atual.url)?.value
                 hostsVod = if (host == null) emptyList() else hostsAlternativos(host).filter { !it.equals(host, ignoreCase = true) }.distinct()
+                    // Sem conexão com o servidor: o caminho do Web Play (servidor da ZarkTV) primeiro.
+                    .let { l -> if (erroConexaoVod) l.sortedBy { if (it.contains("tv.zarktvqx.cfd")) 0 else 1 } else l }
             }
             val lista = hostsVod.orEmpty()
             if (tentativaHost < lista.size) {
@@ -882,6 +903,24 @@ class TvPlayer(
     }
 
     companion object {
+        /** Erro de "nem conectou" (tempo esgotado, recusado, sem rota, nome não encontrado). */
+        fun semConexao(e: Throwable?): Boolean {
+            var c = e
+            var n = 0
+            while (c != null && n++ < 8) {
+                if (c is java.net.SocketTimeoutException || c is java.net.ConnectException || c is java.net.UnknownHostException ||
+                    c is java.net.NoRouteToHostException) return true
+                c = c.cause
+            }
+            return false
+        }
+
+        /** Não repete a mesma requisição quando nem conectou; outros erros seguem o padrão. */
+        private object SemInsistirSemConexao : androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy() {
+            override fun getRetryDelayMsFor(info: androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy.LoadErrorInfo): Long =
+                if (semConexao(info.exception)) C.TIME_UNSET else super.getRetryDelayMsFor(info)
+        }
+
         /** HTTP codes providers use for "refused" / "too many connections". */
         private val REFUSED = setOf(401, 403, 429, 456, 458, 509)
         const val DEFAULT_USER_AGENT = UserAgent.DEFAULT
@@ -937,6 +976,10 @@ private fun loadControl(size: String): androidx.media3.exoplayer.LoadControl {
  * internet medida no aparelho: rápida = começa logo (troca de canal rápida); lenta = guarda mais
  * para não ficar parando. O resto (quanto baixar, quando parar) fica com o controle padrão.
  */
+/** Fire Stick / Fire TV: aparelho mais fraco — começa o canal com um pouco mais guardado para não dar
+ *  aquela travadinha logo depois de abrir. */
+private val FIRE_TV = android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true)
+
 private class BufferAutomatico(
     private val velocidade: () -> Double,
 ) : androidx.media3.exoplayer.DefaultLoadControl(
@@ -951,7 +994,7 @@ private class BufferAutomatico(
             mbs < 0.7 -> 5_000L  // internet fraca: estável
             mbs < 2.0 -> 2_500L  // equilibrado
             else -> 1_200L       // internet boa: rápido
-        } * (if (parameters.rebuffering) 2 else 1)
+        }.let { if (FIRE_TV) it.coerceAtLeast(2_500L) else it } * (if (parameters.rebuffering) 2 else 1)
         val guardadoMs = parameters.bufferedDurationUs / 1000 / parameters.playbackSpeed.coerceAtLeast(0.1f).toDouble()
         // Buffer cheio (o controle padrão parou de baixar) também libera, para não travar esperando.
         return guardadoMs >= alvoMs || (super.shouldStartPlayback(parameters) && guardadoMs >= alvoMs / 2)
