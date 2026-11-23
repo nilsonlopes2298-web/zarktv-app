@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ZarkTV Mobile: celular e tablet. Só em pé e não aparece na tela da TV. -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<!-- ZarkTV Mobile: celular e tablet. Abre o app web zark.zarktvqx.cfd/celular dentro do APK.
+     Em pé no uso normal; a tela cheia do vídeo vira na horizontal. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
         <activity
-            android:name=".MainActivity"
+            android:name=".WebCelularActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|density"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:hardwareAccelerated="true"
             android:screenOrientation="sensorPortrait"
-            tools:replace="android:screenOrientation">
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
