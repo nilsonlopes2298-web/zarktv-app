@@ -237,7 +237,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         donoCiclo.lifecycle.addObserver(obs)
         onDispose { donoCiclo.lifecycle.removeObserver(obs) }
     }
-    var homeTab by remember { mutableIntStateOf(Aba.TV) }
+    var homeTab by remember { mutableIntStateOf(if (io.github.axon07.channelbox.system.Aparelho.soCelular) Aba.DESTAQUES else Aba.TV) } // celular abre no Início (filmes e séries), como o Web Play
     /** ZarkTV: jogo aberto dentro da aba Jogos, os canais que podem passar ele e qual está tocando. */
     var jogoAberto by remember { mutableStateOf<io.github.axon07.channelbox.data.ZarkJogos.Jogo?>(null) }
     var candidatosJogo by remember { mutableStateOf<List<ChannelEntity>>(emptyList()) }

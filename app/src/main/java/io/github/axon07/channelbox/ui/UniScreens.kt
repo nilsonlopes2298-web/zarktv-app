@@ -1349,9 +1349,12 @@ private fun ShellCelular(
     val subAbas = listOf("Recomendações" to Aba.DESTAQUES, "Jogos" to Aba.JOGOS, "Filmes" to Aba.FILMES, "Séries" to Aba.SERIES)
     val naTv = tab == Aba.TV
     if (!naTv && !(tab == Aba.JOGOS && jogoAberto != null)) LaunchedEffect(tab) { onPreviewRect(null) }
-    Column(Modifier.fillMaxSize().background(FundoCel)) {
+    // O vídeo é desenhado pelo TvApp ATRÁS desta tela: na TV e no jogo aberto o fundo fica transparente,
+    // senão a janelinha fica preta (só tocava na tela cheia).
+    val comVideo = naTv || (tab == Aba.JOGOS && jogoAberto != null)
+    Column(Modifier.fillMaxSize().background(if (comVideo) Color.Transparent else FundoCel)) {
         // ---- Topo: ZarkTV e pesquisa ----
-        Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().background(FundoCel).padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("▷", color = VermelhoCel, fontSize = 22.sp, fontWeight = FontWeight.Black)
             Text("Zark", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Black, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
             Text("TV", color = VermelhoCel, fontSize = 21.sp, fontWeight = FontWeight.Black, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
@@ -1366,19 +1369,25 @@ private fun ShellCelular(
                 Text("Pesquisar pelo título…", color = Color(0x77FFFFFF), fontSize = 14.sp, maxLines = 1)
             }
         }
-        // ---- Abas de cima (só no Início) ----
+        // ---- Abas de cima (só no Início): botões arredondados, o escolhido em vermelho ----
         if (!naTv) {
-            LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            LazyRow(
+                Modifier.fillMaxWidth().background(FundoCel),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 items(subAbas) { (nome, aba) ->
                     val sel = aba == tab
-                    Column(Modifier.clickable { onTab(aba) }, horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(nome, color = if (sel) VermelhoCel else Color(0xDDFFFFFF), fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(6.dp))
-                        Box(Modifier.width(if (sel) 110.dp else 0.dp).height(3.dp).background(if (sel) VermelhoCel else Color.Transparent))
-                    }
+                    Text(
+                        nome, color = if (sel) Color.White else Color(0xCCFFFFFF), fontSize = 14.sp,
+                        fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium, maxLines = 1,
+                        modifier = Modifier.clip(RoundedCornerShape(20.dp))
+                            .background(if (sel) VermelhoCel else Color(0xFF1C1C22))
+                            .border(1.dp, if (sel) VermelhoCel else Color(0x1FFFFFFF), RoundedCornerShape(20.dp))
+                            .clickable { onTab(aba) }.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
                 }
             }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x14FFFFFF)))
         }
         Box(Modifier.fillMaxWidth().weight(1f)) {
             when (tab) {
@@ -1445,52 +1454,67 @@ private fun iniciaisCel(t: String) = t.split(' ').filter { it.isNotBlank() }.tak
 @Composable
 private fun CarrosselCel(vm: TvViewModel, itens: List<Pair<VodEntity, String>>, onOpen: (VodEntity) -> Unit) {
     if (itens.isEmpty()) {
-        Box(Modifier.fillMaxWidth().padding(12.dp).aspectRatio(16f / 10f).clip(RoundedCornerShape(14.dp)).background(CartaoCel))
+        Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp).aspectRatio(16f / 11f).clip(RoundedCornerShape(16.dp)).background(CartaoCel))
         return
     }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val estado = androidx.compose.foundation.pager.rememberPagerState { itens.size }
     LaunchedEffect(itens.size) {
         while (true) {
-            delay(5_000)
+            delay(6_000)
             runCatching { estado.animateScrollToPage((estado.currentPage + 1) % itens.size) }
         }
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        androidx.compose.foundation.pager.HorizontalPager(state = estado, modifier = Modifier.padding(top = 12.dp)) { i ->
+        androidx.compose.foundation.pager.HorizontalPager(
+            state = estado,
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            pageSpacing = 10.dp,
+        ) { i ->
             val (item, rotulo) = itens[i]
             var fav by remember(item.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.favoritos(ctx).contains(item.id)) }
+            // Imagem larga do filme (quando o servidor tiver), senão o pôster.
+            var fundo by remember(item.id) { mutableStateOf<String?>(null) }
+            LaunchedEffect(item.id) { fundo = runCatching { vm.zarkFicha(item)?.fundo }.getOrNull() }
             Box(
-                Modifier.padding(horizontal = 12.dp).fillMaxWidth().aspectRatio(16f / 11f).clip(RoundedCornerShape(14.dp))
+                Modifier.fillMaxWidth().aspectRatio(16f / 11f).clip(RoundedCornerShape(16.dp))
                     .background(CartaoCel).clickable { onOpen(item) }
             ) {
-                // Fundo borrado com o próprio pôster e o pôster inteiro à direita (sem cortar).
-                AsyncImage(item.poster, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(18.dp), alpha = 0.55f)
-                Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color(0xF00B0B0F), Color(0x330B0B0F)))))
-                AsyncImage(item.poster, item.title, contentScale = ContentScale.Fit,
-                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().padding(10.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)))
-                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(0.58f).padding(14.dp)) {
-                    Text(rotulo, color = VermelhoCel, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(4.dp))
-                    Text(item.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black, maxLines = 3, overflow = TextOverflow.Ellipsis, lineHeight = 22.sp)
-                    item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let {
-                        Text("★ " + String.format(java.util.Locale.US, "%.1f", it), color = Color(0xFFFFD54F), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
+                AsyncImage(
+                    fundo ?: item.poster, item.title, contentScale = ContentScale.Crop,
+                    alignment = if (fundo != null) Alignment.Center else Alignment.TopCenter, modifier = Modifier.fillMaxSize(),
+                )
+                Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(
+                    0f to Color.Transparent, 0.35f to Color(0x22000000), 1f to Color(0xF00B0B0F))))
+                Text(
+                    rotulo, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.TopStart).padding(10.dp)
+                        .background(if (rotulo.contains("ALTA")) VermelhoCel else Color(0xCC000000), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                )
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(14.dp)) {
+                    Text(item.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 25.sp)
+                    val info = listOfNotNull(
+                        item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let { "★ " + String.format(java.util.Locale.US, "%.1f", it) },
+                        item.year?.take(4)?.takeIf { it.isNotBlank() },
+                        if (item.kind == VodKind.SERIES) "Série" else "Filme",
+                    )
+                    Text(info.joinToString("  ·  "), color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("▶ Assistir", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(VermelhoCel).clickable { onOpen(item) }.padding(horizontal = 12.dp, vertical = 8.dp))
-                        Text(if (fav) "✓ Na lista" else "+ Minha Lista", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0x33FFFFFF)).clickable { fav = vm.zarkFavoritar(item) }.padding(horizontal = 12.dp, vertical = 8.dp))
+                        Text("▶  Assistir", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color.White).clickable { onOpen(item) }.padding(horizontal = 18.dp, vertical = 9.dp))
+                        Text(if (fav) "✓  Na lista" else "+  Minha Lista", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0x44FFFFFF)).clickable { fav = vm.zarkFavoritar(item) }.padding(horizontal = 16.dp, vertical = 9.dp))
                     }
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             itens.indices.forEach { k ->
                 val sel = k == estado.currentPage
-                Box(Modifier.size(width = if (sel) 16.dp else 6.dp, height = 6.dp).clip(RoundedCornerShape(3.dp)).background(if (sel) VermelhoCel else Color(0x55FFFFFF)))
+                Box(Modifier.size(width = if (sel) 18.dp else 6.dp, height = 6.dp).clip(RoundedCornerShape(3.dp)).background(if (sel) VermelhoCel else Color(0x55FFFFFF)))
             }
         }
     }
@@ -1513,7 +1537,7 @@ private fun RecomendacoesCel(
     var jogos by remember { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkJogos.Jogo>>(emptyList()) }
     LaunchedEffect(Unit) { jogos = runCatching { io.github.axon07.channelbox.data.ZarkJogos.hoje(vm.zarkHttp) }.getOrDefault(emptyList()).filter { it.estado != "post" }.take(15) }
     LazyColumn(verticalArrangement = Arrangement.spacedBy(20.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
-        item { CarrosselCel(vm, destaques, onOpen) }
+        item { Column { Spacer(Modifier.height(4.dp)); CarrosselCel(vm, destaques, onOpen) } }
         if (jogos.isNotEmpty()) item {
             Column {
                 TituloCel("🏆 Jogos de hoje", onTodos = { onTab(Aba.JOGOS) })
