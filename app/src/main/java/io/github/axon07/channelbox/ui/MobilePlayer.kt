@@ -119,7 +119,7 @@ fun BoxScope.PlaybackCel(
     // Carregando: abrindo o filme (ainda sem duração) ou esperando dados — mostra a rodinha.
     val carregando = (ui.buffering && ui.playing) || (ui.duration <= 0L && ui.position <= 0L && !ui.ended)
     if (carregando && ajuste == null) Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-        LoadingRing()
+        CarregandoYt(48.dp)
         if (ui.duration <= 0L) Text("Abrindo…", color = Color(0xCCFFFFFF), fontSize = 14.sp, modifier = Modifier.padding(top = 10.dp))
     }
 

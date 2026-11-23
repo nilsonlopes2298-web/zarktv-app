@@ -395,3 +395,29 @@ private fun IconTapTint(icon: ImageVector, tint: Color, onClick: () -> Unit, siz
         AppIcon(icon, tint = tint, size = size)
     }
 }
+
+/** Celular: rodinha igual à do YouTube — só um arco branco que gira, aumenta e diminui. Discreta. */
+@Composable
+internal fun CarregandoYt(tamanho: androidx.compose.ui.unit.Dp = 44.dp) {
+    val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "yt")
+    val giro by t.animateFloat(
+        0f, 360f,
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1_400, easing = androidx.compose.animation.core.LinearEasing)),
+        label = "giro",
+    )
+    val fase by t.animateFloat(
+        0f, 1f,
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1_100, easing = androidx.compose.animation.core.FastOutSlowInEasing), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "fase",
+    )
+    androidx.compose.foundation.Canvas(Modifier.size(tamanho)) {
+        val traco = 3.5.dp.toPx()
+        val varre = 30f + 240f * fase
+        drawArc(
+            color = Color.White, startAngle = giro * 2f + fase * 120f, sweepAngle = varre, useCenter = false,
+            topLeft = androidx.compose.ui.geometry.Offset(traco / 2, traco / 2),
+            size = androidx.compose.ui.geometry.Size(size.width - traco, size.height - traco),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = traco, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+        )
+    }
+}

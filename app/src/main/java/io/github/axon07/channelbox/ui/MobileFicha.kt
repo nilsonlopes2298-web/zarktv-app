@@ -96,12 +96,11 @@ private fun VideoTopo(b: VodBrowser, exo: androidx.media3.exoplayer.ExoPlayer, i
         if (!tocando || carregando) {
             AsyncImage(imagem, titulo, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Color(0x55000000)))
-            Box(
+            if (carregando) Box(Modifier.align(Alignment.Center)) { CarregandoYt(40.dp) }
+            else Box(
                 Modifier.align(Alignment.Center).size(56.dp).clip(CircleShape).background(Color(0x66000000)),
                 contentAlignment = Alignment.Center,
-            ) {
-                if (carregando) LoadingRing() else AppIcon(AppIcons.Play, tint = Color.White, size = 30.dp)
-            }
+            ) { AppIcon(AppIcons.Play, tint = Color.White, size = 30.dp) }
         }
         Box(
             Modifier.align(Alignment.TopStart).padding(8.dp).size(40.dp).clip(CircleShape).clickable(onClick = onVoltar),
@@ -112,7 +111,7 @@ private fun VideoTopo(b: VodBrowser, exo: androidx.media3.exoplayer.ExoPlayer, i
             Modifier.align(Alignment.TopEnd).padding(8.dp).size(40.dp).clip(CircleShape).clickable(onClick = onTransmitir),
             contentAlignment = Alignment.Center,
         ) { AppIcon(AppIcons.Transmitir, tint = Color.White, size = 20.dp) }
-        if (tocando) MiniControles(exo) { b.acaoTelaCheia?.invoke() }
+        if (tocando && !carregando) MiniControles(exo) { b.acaoTelaCheia?.invoke() }
     }
 }
 
