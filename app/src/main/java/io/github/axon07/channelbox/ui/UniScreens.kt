@@ -1459,7 +1459,7 @@ private fun iniciaisCel(t: String) = t.split(' ').filter { it.isNotBlank() }.tak
 @Composable
 private fun CarrosselCel(vm: TvViewModel, itens: List<Pair<VodEntity, String>>, onOpen: (VodEntity) -> Unit) {
     if (itens.isEmpty()) {
-        Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp).aspectRatio(16f / 11f).clip(RoundedCornerShape(16.dp)).background(CartaoCel))
+        Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp)).background(CartaoCel))
         return
     }
     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -1482,7 +1482,7 @@ private fun CarrosselCel(vm: TvViewModel, itens: List<Pair<VodEntity, String>>, 
             var fundo by remember(item.id) { mutableStateOf<String?>(null) }
             LaunchedEffect(item.id) { fundo = runCatching { vm.zarkFicha(item)?.fundo }.getOrNull() }
             Box(
-                Modifier.fillMaxWidth().aspectRatio(16f / 11f).clip(RoundedCornerShape(16.dp))
+                Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp))
                     .background(CartaoCel).clickable { onOpen(item) }
             ) {
                 AsyncImage(
@@ -1498,20 +1498,7 @@ private fun CarrosselCel(vm: TvViewModel, itens: List<Pair<VodEntity, String>>, 
                         .padding(horizontal = 8.dp, vertical = 3.dp),
                 )
                 Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(16.dp)) {
-                    Text(item.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 28.sp)
-                    val info = listOfNotNull(
-                        item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let { "★ " + String.format(java.util.Locale.US, "%.1f", it) },
-                        item.year?.take(4)?.takeIf { it.isNotBlank() },
-                        if (item.kind == VodKind.SERIES) "Série" else "Filme",
-                    )
-                    Text(info.joinToString("  ·  "), color = Texto2, fontSize = 13.sp)
-                    Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("▶  Assistir", color = FundoCel, fontSize = 14.sp, fontWeight = FontWeight.Medium,
-                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color.White).clickable { onOpen(item) }.padding(horizontal = 20.dp, vertical = 12.dp))
-                        Text(if (fav) "✓  Na lista" else "+  Minha Lista", color = Texto1, fontSize = 14.sp, fontWeight = FontWeight.Medium,
-                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0x33EDEDED)).clickable { fav = vm.zarkFavoritar(item) }.padding(horizontal = 16.dp, vertical = 12.dp))
-                    }
+                    Text(item.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 24.sp)
                 }
             }
         }
