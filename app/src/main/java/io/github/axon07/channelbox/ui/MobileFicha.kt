@@ -74,19 +74,34 @@ private val Laranja = Color(0xFFFF9800)
 private fun VideoTopo(b: VodBrowser, exo: androidx.media3.exoplayer.ExoPlayer, imagem: String?, titulo: String, onVoltar: () -> Unit, onTransmitir: () -> Unit, onTocar: () -> Unit) {
     val tocando = b.previewId != null
     DisposableEffect(Unit) { onDispose { b.previewRect = null } }
+    // Rodinha desde o toque até aparecer a imagem do vídeo.
+    var pediu by remember { mutableStateOf(false) }
+    var pronto by remember { mutableStateOf(false) }
+    LaunchedEffect(tocando, b.previewId) {
+        pronto = false
+        while (true) {
+            pronto = tocando && exo.playbackState == androidx.media3.common.Player.STATE_READY
+            if (pronto) pediu = false
+            kotlinx.coroutines.delay(250)
+        }
+    }
+    LaunchedEffect(pediu) { if (pediu) { kotlinx.coroutines.delay(25_000); pediu = false } }
+    val carregando = pediu || (tocando && !pronto && exo.playbackState != androidx.media3.common.Player.STATE_ENDED)
     Box(
         Modifier.fillMaxWidth().aspectRatio(16f / 9f)
             .background(if (tocando) Color.Transparent else Color.Black)
             .then(if (tocando) Modifier.onGloballyPositioned { b.previewRect = it.boundsInRoot() } else Modifier)
-            .clickable { if (!tocando) onTocar() }
+            .clickable { if (!tocando) { pediu = true; onTocar() } }
     ) {
-        if (!tocando) {
+        if (!tocando || carregando) {
             AsyncImage(imagem, titulo, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Color(0x55000000)))
             Box(
                 Modifier.align(Alignment.Center).size(56.dp).clip(CircleShape).background(Color(0x66000000)),
                 contentAlignment = Alignment.Center,
-            ) { AppIcon(AppIcons.Play, tint = Color.White, size = 30.dp) }
+            ) {
+                if (carregando) LoadingRing() else AppIcon(AppIcons.Play, tint = Color.White, size = 30.dp)
+            }
         }
         Box(
             Modifier.align(Alignment.TopStart).padding(8.dp).size(40.dp).clip(CircleShape).clickable(onClick = onVoltar),

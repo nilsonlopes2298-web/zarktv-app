@@ -116,7 +116,12 @@ fun BoxScope.PlaybackCel(
         Text(it, color = Color.White, fontSize = 15.sp, modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(10.dp))
             .background(Color(0xAA000000)).padding(horizontal = 16.dp, vertical = 8.dp))
     }
-    if (ui.buffering && ui.playing && ajuste == null) Box(Modifier.align(Alignment.Center)) { LoadingRing() }
+    // Carregando: abrindo o filme (ainda sem duração) ou esperando dados — mostra a rodinha.
+    val carregando = (ui.buffering && ui.playing) || (ui.duration <= 0L && ui.position <= 0L && !ui.ended)
+    if (carregando && ajuste == null) Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+        LoadingRing()
+        if (ui.duration <= 0L) Text("Abrindo…", color = Color(0xCCFFFFFF), fontSize = 14.sp, modifier = Modifier.padding(top = 10.dp))
+    }
 
     if (bloqueado) {
         if (visivel) Box(
@@ -159,7 +164,7 @@ fun BoxScope.PlaybackCel(
         Box(Modifier.size(52.dp).clip(CircleShape).background(Color(0x66000000)).clickable { onSeek(-10_000); toque++ }, contentAlignment = Alignment.Center) {
             Text("−10", color = Color.White, fontSize = 14.sp)
         }
-        if (!(ui.buffering && ui.playing)) Box(
+        if (!carregando) Box(
             Modifier.size(68.dp).clip(CircleShape).background(Color(0x66000000)).clickable { onToggle(); toque++ },
             contentAlignment = Alignment.Center,
         ) {
