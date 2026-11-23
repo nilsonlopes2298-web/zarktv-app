@@ -402,8 +402,109 @@ ${msg ? `<div class="card ok">${esc(msg)}</div>` : ''}
 <label>Link do suporte</label><input name="suporte" value="${esc(c.suporte)}">
 <label>URL de renovação automática (opcional — ZarkPlay Gestor)</label><input name="renovacaoUrl" value="${esc(c.renovacaoUrl)}">
 <button>Salvar configuração</button></form>
+${painelMonitor()}
 <div class="card"><h1>Pedidos</h1><table><tr><th>Data</th><th>Cliente</th><th>Plano</th><th>Gateway</th><th>Status</th><th></th></tr>${linhas || '<tr><td colspan="6">Nenhum pedido ainda.</td></tr>'}</table></div>
 <form method="post" action="/checkout/admin/sair"><button class="btn cinza">Sair</button></form>`, true);
+}
+
+// ---------- Monitor de servidores ------------------------------------------------------
+// A cada 5 min testa cada servidor/DNS do Web Play (config.json) e, com a conta de teste, se o vídeo sai.
+// Avisa no WhatsApp quando cai e quando volta. /checkout/api/status mostra o resultado para os apps.
+
+const ARQ_MONITOR = path.join(DADOS, 'monitor.json');
+const CONFIG_WEB = process.env.CONFIG_WEB || 'http://tv.zarktvqx.cfd/config.json';
+const monitorPadrao = { contas: {}, status: {}, ultimo: '' }; // contas: { Club: { usuario, senha } }
+const monitor = () => ({ ...monitorPadrao, ...ler(ARQ_MONITOR, {}) });
+
+async function tempo(fn) { const t = Date.now(); try { const r = await fn(); return { ok: r !== false, ms: Date.now() - t }; } catch (e) { return { ok: false, ms: Date.now() - t, erro: e.name === 'TimeoutError' ? 'não respondeu' : (e.message || 'erro') }; } }
+
+async function testarDns(dns) {
+  const base = dns.replace(/\/+$/, '');
+  return tempo(async () => {
+    const r = await fetch(base + '/player_api.php', { signal: AbortSignal.timeout(8000), redirect: 'manual' });
+    await r.body?.cancel();
+    return r.status < 500 || r.status === 512;
+  });
+}
+
+// Com a conta de teste: login, pega um canal e baixa os primeiros bytes do vídeo.
+async function testarVideo(dns, conta) {
+  const base = dns.replace(/\/+$/, '');
+  const q = `username=${encodeURIComponent(conta.usuario)}&password=${encodeURIComponent(conta.senha)}`;
+  return tempo(async () => {
+    const cats = await (await fetch(`${base}/player_api.php?${q}&action=get_live_categories`, { signal: AbortSignal.timeout(10000) })).json();
+    const cat = Array.isArray(cats) && cats[0] ? cats[0].category_id : null;
+    if (!cat) throw new Error('login da conta de teste não funcionou');
+    const lista = await (await fetch(`${base}/player_api.php?${q}&action=get_live_streams&category_id=${encodeURIComponent(cat)}`, { signal: AbortSignal.timeout(10000) })).json();
+    const canal = Array.isArray(lista) && lista[0];
+    if (!canal) throw new Error('sem canais na conta de teste');
+    const r = await fetch(`${base}/live/${encodeURIComponent(conta.usuario)}/${encodeURIComponent(conta.senha)}/${canal.stream_id}.ts`,
+      { signal: AbortSignal.timeout(10000), headers: { 'User-Agent': 'VLC/3.0.20 LibVLC/3.0.20' } });
+    if (!r.ok) { await r.body?.cancel(); throw new Error('vídeo recusado (HTTP ' + r.status + ')'); }
+    const leitor = r.body.getReader();
+    const { value } = await leitor.read();
+    await leitor.cancel();
+    if (!value || !value.length) throw new Error('vídeo sem dados');
+    return true;
+  });
+}
+
+let verificando = false;
+async function verificarServidores() {
+  if (verificando) return;
+  verificando = true;
+  try {
+    const cfgWeb = await (await fetch(CONFIG_WEB, { signal: AbortSignal.timeout(10000) })).json();
+    const lista = (cfgWeb.servidores || cfgWeb.servers || []).map((s) => ({ nome: s.nome || s.name || s.id, dns: (s.dns || s.urls || []).filter(Boolean) }));
+    const m = monitor();
+    const novo = {};
+    for (const sv of lista) {
+      const dnsRes = [];
+      for (const d of sv.dns.slice(0, 6)) dnsRes.push({ dns: d, ...(await testarDns(d)) });
+      const algumDns = dnsRes.some((x) => x.ok);
+      const conta = m.contas[sv.nome];
+      let video = null;
+      if (conta && conta.usuario) {
+        const dnsBom = dnsRes.find((x) => x.ok)?.dns || sv.dns[0];
+        video = dnsBom ? { dns: dnsBom, ...(await testarVideo(dnsBom, conta)) } : { ok: false, erro: 'nenhum DNS respondeu' };
+      }
+      const ok = algumDns && (video ? video.ok : true);
+      novo[sv.nome] = { ok, dns: dnsRes, video, em: agora(), desde: m.status[sv.nome]?.ok === ok ? (m.status[sv.nome]?.desde || agora()) : agora() };
+      const antes = m.status[sv.nome];
+      const cfg = config();
+      if (antes && antes.ok && !ok) {
+        const motivo = !algumDns ? 'nenhum DNS respondeu' : (video?.erro || 'o vídeo não sai');
+        whats(cfg.whats.numeroAdmin, `🔴 *Servidor ${sv.nome} fora do ar* — ZarkTV\n${motivo}\n🕒 ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
+      } else if (antes && !antes.ok && ok) {
+        whats(cfg.whats.numeroAdmin, `🟢 *Servidor ${sv.nome} voltou* — ZarkTV\n🕒 ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
+      }
+    }
+    gravar(ARQ_MONITOR, { ...m, status: novo, ultimo: agora() });
+  } catch (e) {
+    console.error('Monitor:', e.message);
+  } finally {
+    verificando = false;
+  }
+}
+setTimeout(verificarServidores, 15_000);
+setInterval(verificarServidores, 5 * 60_000);
+
+function painelMonitor() {
+  const m = monitor();
+  const nomes = Object.keys(m.status).length ? Object.keys(m.status) : config().servidores;
+  const linhas = nomes.map((n) => {
+    const st = m.status[n];
+    const dns = (st?.dns || []).map((d) => `<div class="dica">${d.ok ? '🟢' : '🔴'} ${esc(d.dns)} ${d.ok ? `· ${d.ms} ms` : `· ${esc(d.erro || 'falhou')}`}</div>`).join('');
+    const video = st?.video ? `<div class="dica">${st.video.ok ? '🟢 Vídeo saindo' : '🔴 Vídeo: ' + esc(st.video.erro || 'não sai')}</div>` : '<div class="dica">⚪ Vídeo não testado (cadastre a conta de teste abaixo)</div>';
+    return `<tr><td><b>${esc(n)}</b><br>${st ? (st.ok ? '<span class="ok">No ar</span>' : '<span class="erro">Fora do ar</span>') : 'Aguardando teste'}</td><td>${dns}${video}</td></tr>`;
+  }).join('');
+  const contas = nomes.map((n) => `<div class="linha"><div><label>${esc(n)} — usuário de teste</label><input name="u_${esc(n)}" value="${esc(m.contas[n]?.usuario || '')}"></div>
+<div><label>Senha</label><input name="p_${esc(n)}" type="password" placeholder="${m.contas[n]?.senha ? '•••• (salva)' : ''}"></div><div></div><div></div></div>`).join('');
+  return `<div class="card"><h1>Monitor de servidores</h1><p class="dica">Testa a cada 5 minutos${m.ultimo ? ' · último teste: ' + esc(m.ultimo) : ''}. Avisa no seu WhatsApp quando um servidor cai e quando volta.</p>
+<table><tr><th>Servidor</th><th>Detalhes</th></tr>${linhas}</table>
+<form method="post" action="/checkout/admin/monitor/agora"><button class="btn cinza">Testar agora</button></form></div>
+<form class="card" method="post" action="/checkout/admin/monitor"><h2>Contas de teste (para conferir se o vídeo sai)</h2>
+<p class="dica">Use uma conta sua de cada servidor. Fica guardada só nesta VPS.</p>${contas}<button>Salvar contas de teste</button></form>`;
 }
 
 // ---------- rotas -------------------------------------------------------------------
@@ -418,6 +519,10 @@ async function rotas(req, res) {
   }
 
   // ---- API do app ZarkTV (Perfil → Pagar agora): planos, gerar Pix e conferir pagamento ----
+  if (req.method === 'GET' && rota === '/checkout/api/status') {
+    const m = monitor();
+    return json(res, 200, { ultimo: m.ultimo, servidores: Object.fromEntries(Object.entries(m.status).map(([n, st]) => [n, { ok: st.ok, desde: st.desde }])) });
+  }
   if (req.method === 'GET' && rota === '/checkout/api/planos') {
     return json(res, 200, { planos: cfg.planos.map((p) => ({ id: p.id, nome: p.nome, dias: p.dias, valor: Number(p.valor) })), gateway: cfg.gateway });
   }
@@ -531,6 +636,25 @@ async function rotas(req, res) {
     if (req.method === 'GET' && rota === '/checkout/admin') return enviar(res, 200, paginaAdmin(url.searchParams.get('ok') ? 'Configuração salva.' : ''));
     if (req.method === 'POST' && rota === '/checkout/admin/sair') {
       return enviar(res, 303, '', 'text/plain', { Location: '/checkout/admin', 'Set-Cookie': 'zk_adm=; Path=/checkout; Max-Age=0' });
+    }
+    if (req.method === 'POST' && rota === '/checkout/admin/monitor') {
+      const b = await lerCorpo(req);
+      const m = monitor();
+      const contas = { ...m.contas };
+      for (const k of Object.keys(b)) {
+        if (!k.startsWith('u_')) continue;
+        const n = k.slice(2);
+        const usuario = String(b[k] || '').trim();
+        const senha = String(b['p_' + n] || '').trim() || contas[n]?.senha || '';
+        if (usuario) contas[n] = { usuario, senha }; else delete contas[n];
+      }
+      gravar(ARQ_MONITOR, { ...m, contas });
+      verificarServidores();
+      return enviar(res, 303, '', 'text/plain', { Location: '/checkout/admin?ok=1' });
+    }
+    if (req.method === 'POST' && rota === '/checkout/admin/monitor/agora') {
+      await verificarServidores();
+      return enviar(res, 303, '', 'text/plain', { Location: '/checkout/admin' });
     }
     if (req.method === 'POST' && rota === '/checkout/admin/pago') {
       const b = await lerCorpo(req);
