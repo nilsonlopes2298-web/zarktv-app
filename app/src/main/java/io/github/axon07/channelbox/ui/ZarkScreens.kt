@@ -180,6 +180,111 @@ fun ZarkLoginScreen(
         runCatching { first.requestFocus() }
     }
 
+    // ZarkTV Mobile: entrada pequena e limpa, pensada para o celular em pé.
+    if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
+        val t1 = Color(0xFFEDEDED); val t2 = Color(0xFFA1A1A6); val t3 = Color(0xFF85858B)
+        val campo: @Composable (String, String, (String) -> Unit, Boolean, androidx.compose.ui.graphics.vector.ImageVector, (@Composable () -> Unit)?) -> Unit =
+            { rotulo, valor, mudar, senha, icone, fim ->
+                Row(
+                    Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF1C1C1F))
+                        .border(1.dp, Color(0x14EDEDED), RoundedCornerShape(10.dp)).padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AppIcon(icone, tint = t3, size = 18.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Box(Modifier.weight(1f)) {
+                        if (valor.isEmpty()) Text(rotulo, color = t3, fontSize = 15.sp)
+                        androidx.compose.foundation.text.BasicTextField(
+                            valor, mudar, singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(color = t1, fontSize = 15.sp),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.Accent),
+                            visualTransformation = if (senha) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = if (senha) androidx.compose.ui.text.input.KeyboardType.Password else androidx.compose.ui.text.input.KeyboardType.Text,
+                                autoCorrect = false,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    fim?.invoke()
+                }
+            }
+        Box(Modifier.fillMaxSize().background(Color(0xFF0F0F10))) {
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Spacer(Modifier.height(72.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AppIcon(AppIcons.Play, tint = Palette.Accent, size = 28.dp)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Zark", color = t1, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    Text("TV", color = Palette.Accent, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text("Canais ao vivo, jogos, filmes e séries", color = t2, fontSize = 14.sp)
+                Spacer(Modifier.height(40.dp))
+                Column(Modifier.widthIn(max = 420.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    campo("Usuário", user, { user = it; erro = null }, false, AppIcons.User, null)
+                    campo("Senha", pass, { pass = it; erro = null }, !verSenha, AppIcons.Lock) {
+                        Box(Modifier.clip(RoundedCornerShape(6.dp)).clickable { verSenha = !verSenha }.padding(6.dp)) {
+                            AppIcon(AppIcons.Eye, tint = if (verSenha) Palette.Accent else t3, size = 18.dp)
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.clip(RoundedCornerShape(6.dp)).clickable { lembrar = !lembrar }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(18.dp).clip(RoundedCornerShape(4.dp)).background(if (lembrar) Palette.Accent else Color.Transparent)
+                                    .border(1.5.dp, if (lembrar) Palette.Accent else t3, RoundedCornerShape(4.dp)),
+                                contentAlignment = Alignment.Center,
+                            ) { if (lembrar) Text("✓", color = Color.White, fontSize = 12.sp) }
+                            Spacer(Modifier.width(8.dp))
+                            Text("Lembrar de mim", color = t2, fontSize = 13.sp)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            if (manual) "Servidor: ${servers.getOrNull(sel)?.name.orEmpty()}" else "Servidor: automático",
+                            color = t2, fontSize = 13.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { manual = !manual }.padding(vertical = 6.dp, horizontal = 4.dp),
+                        )
+                    }
+                    if (manual) androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(servers.size) { i ->
+                            val s = i == sel
+                            Text(
+                                servers[i].name, color = if (s) Color.White else t1, fontSize = 13.sp,
+                                modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (s) Palette.Accent else Color(0xFF232325))
+                                    .clickable { selName = servers[i].name }.padding(horizontal = 14.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
+                    erro?.let { Text(it, color = Color(0xFFE5484D), fontSize = 13.sp) }
+                    if (submitted && refreshState is RefreshState.Failed) Text(refreshState.message, color = Color(0xFFE5484D), fontSize = 13.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(4.dp))
+                    Box(
+                        Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(10.dp))
+                            .background(if (canEnter) Palette.Accent else Color(0xFF3A1A1C)).clickable(enabled = canEnter) { entrar() },
+                        contentAlignment = Alignment.Center,
+                    ) { Text(if (testing) "Conferindo…" else "Entrar", color = if (canEnter) Color.White else t3, fontSize = 16.sp, fontWeight = FontWeight.Medium) }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Ver planos", color = t1, fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable {
+                            runCatching { uri.openUri(ZarkConfig.checkoutUrl(context, user.trim(), servers.getOrNull(sel)?.name.orEmpty())) }
+                        }.padding(10.dp))
+                        Text("·", color = t3, fontSize = 14.sp)
+                        Text("Suporte", color = t1, fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable {
+                            runCatching { uri.openUri(ZarkConfig.WHATSAPP) }
+                        }.padding(10.dp))
+                    }
+                }
+                Spacer(Modifier.height(40.dp))
+                Text("Versão ${io.github.axon07.channelbox.BuildConfig.VERSION_NAME}", color = Color(0x66EDEDED), fontSize = 11.sp)
+                Text("Opções avançadas", color = Color(0x33EDEDED), fontSize = 10.sp, modifier = Modifier.tap(onClick = onAdvanced).padding(8.dp))
+                Spacer(Modifier.height(16.dp))
+            }
+        }
+        return
+    }
+
     // Proporção por aparelho: TV/tablet deitado = marca à esquerda e cartão compacto à direita;
     // celular em pé = marca em cima e cartão na largura da tela.
     val cfg = androidx.compose.ui.platform.LocalConfiguration.current
