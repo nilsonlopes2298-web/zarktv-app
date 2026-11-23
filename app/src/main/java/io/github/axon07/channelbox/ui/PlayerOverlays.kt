@@ -353,6 +353,23 @@ fun BoxScope.RecIndicator() {
 /** Short message at the top of the screen. */
 @Composable
 fun BoxScope.ToastMessage(text: String) {
+    if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
+        Text(
+            text,
+            fontSize = 15.sp,
+            lineHeight = 20.sp,
+            color = Color(0xFFEDEDED),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 3,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(horizontal = 32.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color(0xF2232325))
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+        )
+        return
+    }
     Text(
         text,
         fontSize = 15.sp,

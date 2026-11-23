@@ -1158,7 +1158,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             zarkConfirmarDados.value = { zarkBaixar(item, titulo, capa, true) }
             return
         }
-        val url = item.url ?: return showToast("Este título não pode ser baixado")
+        val url = item.url ?: return showToast("Download deste título ainda está em desenvolvimento")
         val ctx = getApplication<Application>()
         if (io.github.axon07.channelbox.data.Baixados.baixado(ctx, item.id) != null) return showToast("Já está nos seus downloads (Perfil → Baixados)")
         viewModelScope.launch {
@@ -1174,7 +1174,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
                 url.replace(Regex("""^https?://[^/]+"""), "http://tv.zarktvqx.cfd/v/" + sid(nome))
             }
             val foi = io.github.axon07.channelbox.data.Baixados.baixar(ctx, c.http, item, titulo, capa, final)
-            showToast(if (foi) "Baixando \"$titulo\" — acompanhe em Perfil → Baixados" else "Não deu para começar o download")
+            showToast(if (foi) "Baixando \"$titulo\" — acompanhe em Perfil → Baixados" else "Download deste título ainda está em desenvolvimento")
         }
     }
 

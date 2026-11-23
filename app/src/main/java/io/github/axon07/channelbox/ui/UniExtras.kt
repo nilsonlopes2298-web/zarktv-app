@@ -418,9 +418,9 @@ fun NovaVersaoDialog(
     }
     // ZarkTV Mobile: aviso pequeno, embaixo da tela (o da TV ocupava o celular inteiro).
     if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
-        Box(Modifier.fillMaxSize().background(Color(0x66000000)).tap { }, contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize().background(Color(0x66000000)).tap { }, contentAlignment = Alignment.Center) {
             Column(
-                Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 48.dp).background(Color(0xFF232325), RoundedCornerShape(16.dp))
+                Modifier.fillMaxWidth().padding(horizontal = 24.dp).background(Color(0xFF232325), RoundedCornerShape(16.dp))
                     .border(1.dp, Color(0x14EDEDED), RoundedCornerShape(16.dp)).padding(16.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

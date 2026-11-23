@@ -2439,9 +2439,9 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         }
         lembreteAntes?.let { l ->
             LaunchedEffect(l.id) { delay(20_000); if (lembreteAntes?.id == l.id) lembreteAntes = null }
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Row(
-                    Modifier.padding(start = 12.dp, end = 12.dp, top = 40.dp).fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                    Modifier.padding(horizontal = 24.dp).fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
                         .background(Color(0xF0232325)).padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

@@ -224,8 +224,8 @@ private fun BaixadosCel(onAbrir: (VodEntity) -> Unit, onVoltar: () -> Unit) {
                         Text(b.titulo, color = PT1, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            when { p == 100 -> "Pronto · toque para assistir"; p < 0 -> "Não deu para baixar"; else -> "Baixando… $p%" },
-                            color = when { p == 100 -> Color(0xFF4CC38A); p < 0 -> PVermelho; else -> PT2 }, fontSize = 12.sp,
+                            when { p == 100 -> "Pronto · toque para assistir"; p < 0 -> "Em desenvolvimento para este título"; else -> "Baixando… $p%" },
+                            color = when { p == 100 -> Color(0xFF4CC38A); p < 0 -> PT3; else -> PT2 }, fontSize = 12.sp,
                         )
                         if (p in 0..99) {
                             Spacer(Modifier.height(6.dp))
