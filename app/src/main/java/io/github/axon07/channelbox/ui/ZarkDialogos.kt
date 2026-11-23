@@ -227,7 +227,7 @@ fun TelaVencida(
 
 /** Servidor do cliente fora do ar (pelo monitor do painel): aviso claro no meio da tela. */
 @Composable
-fun AvisoManutencao(onOk: () -> Unit) {
+fun AvisoManutencao(texto: String, onOk: () -> Unit) {
     androidx.activity.compose.BackHandler { onOk() }
     val foco = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(80); runCatching { foco.requestFocus() } }
@@ -237,9 +237,9 @@ fun AvisoManutencao(onOk: () -> Unit) {
                 .padding(horizontal = 22.dp, vertical = 22.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("Servidor em manutenção", color = Color(0xFFEDEDED), fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Text(if (texto.isBlank()) "Servidor em manutenção" else "Aviso", color = Color(0xFFEDEDED), fontSize = 18.sp, fontWeight = FontWeight.Medium)
             Text(
-                "Alguns canais e filmes podem não abrir agora. Já estamos resolvendo — volte a tentar em alguns minutos.",
+                texto.ifBlank { "Alguns canais e filmes podem não abrir agora. Já estamos resolvendo — volte a tentar em alguns minutos." },
                 color = Color(0xFFA1A1A6), fontSize = 14.sp, lineHeight = 20.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.padding(top = 8.dp, bottom = 18.dp),
             )

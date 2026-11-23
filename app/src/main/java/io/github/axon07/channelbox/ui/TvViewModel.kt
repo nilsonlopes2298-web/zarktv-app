@@ -1305,12 +1305,13 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         // ("em manutenção") em vez de deixar o vídeo só carregando. Confere a cada 5 min.
         viewModelScope.launch {
             kotlinx.coroutines.delay(5_000)
-            var avisado = false
+            var avisado: String? = null
             while (true) {
-                val fora = runCatching { servidorForaDoAr() }.getOrDefault(false)
-                if (fora && !avisado) zarkManutencao.value = true
-                if (!fora) zarkManutencao.value = false
-                avisado = fora
+                val aviso = runCatching { servidorForaDoAr() }.getOrNull()
+                // Mostra uma vez por aviso (de novo só se o texto mudar); some quando o servidor volta.
+                if (aviso != null && aviso != avisado) zarkManutencao.value = aviso
+                if (aviso == null) zarkManutencao.value = null
+                avisado = aviso
                 kotlinx.coroutines.delay(5 * 60_000L)
             }
         }
@@ -1801,19 +1802,21 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     val zarkHttp get() = c.http
 
     /** true = o painel diz que o servidor deste cliente está fora do ar (mostra o aviso de manutenção). */
-    val zarkManutencao = MutableStateFlow(false)
+    val zarkManutencao = MutableStateFlow<String?>(null)
 
-    private suspend fun servidorForaDoAr(): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val base = io.github.axon07.channelbox.data.ZarkConfig.checkoutBase(getApplication()) ?: return@withContext false
-        val txt = c.http.newCall(okhttp3.Request.Builder().url("$base/api/status").build()).execute().use { it.body?.string() } ?: return@withContext false
-        val o = kotlinx.serialization.json.Json.parseToJsonElement(txt) as? kotlinx.serialization.json.JsonObject ?: return@withContext false
-        val servidores = o["servidores"] as? kotlinx.serialization.json.JsonObject ?: return@withContext false
+    /** Texto do aviso do servidor deste cliente ("" = aviso padrão de manutenção), ou null se está tudo certo. */
+    private suspend fun servidorForaDoAr(): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val base = io.github.axon07.channelbox.data.ZarkConfig.checkoutBase(getApplication()) ?: return@withContext null
+        val txt = c.http.newCall(okhttp3.Request.Builder().url("$base/api/status").build()).execute().use { it.body?.string() } ?: return@withContext null
+        val o = kotlinx.serialization.json.Json.parseToJsonElement(txt) as? kotlinx.serialization.json.JsonObject ?: return@withContext null
+        val servidores = o["servidores"] as? kotlinx.serialization.json.JsonObject ?: return@withContext null
         fun sid(n: String) = java.text.Normalizer.normalize(n, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "").lowercase().replace(Regex("[^a-z0-9]+"), "")
         val meu = sid(settings.value?.playlists?.firstOrNull { it.enabled }?.name.orEmpty())
-        if (meu.isEmpty()) return@withContext false
+        if (meu.isEmpty()) return@withContext null
         val st = servidores.entries.firstOrNull { sid(it.key) == meu || meu.contains(sid(it.key)) }?.value as? kotlinx.serialization.json.JsonObject
-            ?: return@withContext false
-        (st["ok"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "false"
+            ?: return@withContext null
+        if ((st["ok"] as? kotlinx.serialization.json.JsonPrimitive)?.content != "false") return@withContext null
+        (st["msg"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
     }
 
     /** Conta conferida no player_api (vencimento e status), ou null enquanto não conferiu. */
