@@ -413,7 +413,7 @@ ${painelMonitor()}
 
 const ARQ_MONITOR = path.join(DADOS, 'monitor.json');
 const CONFIG_WEB = process.env.CONFIG_WEB || 'http://tv.zarktvqx.cfd/config.json';
-const monitorPadrao = { contas: {}, status: {}, ultimo: '' }; // contas: { Club: { usuario, senha } }
+const monitorPadrao = { contas: {}, status: {}, ultimo: '', avisoApps: false }; // contas: { Club: { usuario, senha } }
 const monitor = () => ({ ...monitorPadrao, ...ler(ARQ_MONITOR, {}) });
 
 async function tempo(fn) { const t = Date.now(); try { const r = await fn(); return { ok: r !== false, ms: Date.now() - t }; } catch (e) { return { ok: false, ms: Date.now() - t, erro: e.name === 'TimeoutError' ? 'não respondeu' : (e.message || 'erro') }; } }
@@ -502,6 +502,8 @@ function painelMonitor() {
 <div><label>Senha</label><input name="p_${esc(n)}" type="password" placeholder="${m.contas[n]?.senha ? '•••• (salva)' : ''}"></div><div></div><div></div></div>`).join('');
   return `<div class="card"><h1>Monitor de servidores</h1><p class="dica">Testa a cada 5 minutos${m.ultimo ? ' · último teste: ' + esc(m.ultimo) : ''}. Avisa no seu WhatsApp quando um servidor cai e quando volta.</p>
 <table><tr><th>Servidor</th><th>Detalhes</th></tr>${linhas}</table>
+<form method="post" action="/checkout/admin/monitor/aviso"><p>Aviso nos apps: <b>${m.avisoApps ? 'ligado' : 'desligado'}</b> — quando ligado, o cliente vê "Servidor em manutenção" no meio da tela se o servidor dele cair.</p>
+<input type="hidden" name="ligar" value="${m.avisoApps ? '0' : '1'}"><button class="btn ${m.avisoApps ? 'cinza' : ''}">${m.avisoApps ? 'Desligar aviso nos apps' : 'Ligar aviso nos apps'}</button></form>
 <form method="post" action="/checkout/admin/monitor/agora"><button class="btn cinza">Testar agora</button></form></div>
 <form class="card" method="post" action="/checkout/admin/monitor"><h2>Contas de teste (para conferir se o vídeo sai)</h2>
 <p class="dica">Use uma conta sua de cada servidor. Fica guardada só nesta VPS.</p>${contas}<button>Salvar contas de teste</button></form>`;
@@ -521,7 +523,9 @@ async function rotas(req, res) {
   // ---- API do app ZarkTV (Perfil → Pagar agora): planos, gerar Pix e conferir pagamento ----
   if (req.method === 'GET' && rota === '/checkout/api/status') {
     const m = monitor();
-    return json(res, 200, { ultimo: m.ultimo, servidores: Object.fromEntries(Object.entries(m.status).map(([n, st]) => [n, { ok: st.ok, desde: st.desde }])) });
+    // Aviso desligado no admin: os apps não recebem nada (não mostram "manutenção").
+    const st = m.avisoApps ? Object.fromEntries(Object.entries(m.status).map(([n, x]) => [n, { ok: x.ok, desde: x.desde }])) : {};
+    return json(res, 200, { ultimo: m.ultimo, aviso: !!m.avisoApps, servidores: st });
   }
   if (req.method === 'GET' && rota === '/checkout/api/planos') {
     return json(res, 200, { planos: cfg.planos.map((p) => ({ id: p.id, nome: p.nome, dias: p.dias, valor: Number(p.valor) })), gateway: cfg.gateway });
@@ -651,6 +655,11 @@ async function rotas(req, res) {
       gravar(ARQ_MONITOR, { ...m, contas });
       verificarServidores();
       return enviar(res, 303, '', 'text/plain', { Location: '/checkout/admin?ok=1' });
+    }
+    if (req.method === 'POST' && rota === '/checkout/admin/monitor/aviso') {
+      const b = await lerCorpo(req);
+      gravar(ARQ_MONITOR, { ...monitor(), avisoApps: b.ligar === '1' });
+      return enviar(res, 303, '', 'text/plain', { Location: '/checkout/admin' });
     }
     if (req.method === 'POST' && rota === '/checkout/admin/monitor/agora') {
       await verificarServidores();
