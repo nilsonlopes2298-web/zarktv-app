@@ -1082,6 +1082,42 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** ZarkTV: ficha do filme/série (sinopse, elenco, capa de fundo) direto do servidor. */
+    /** Endereço que outro aparelho (TV/download) consegue abrir: o direto, ou o do Web Play se o direto recusar. */
+    suspend fun zarkUrlAcessivel(url: String): String {
+        val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                c.http.newCall(okhttp3.Request.Builder().url(url).header("Range", "bytes=0-0").header("User-Agent", "VLC/3.0.20 LibVLC/3.0.20").build())
+                    .execute().use { it.isSuccessful }
+            }.getOrDefault(false)
+        }
+        if (ok) return url
+        fun sid(n: String) = java.text.Normalizer.normalize(n, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "").lowercase().replace(Regex("[^a-z0-9]+"), "")
+        val nome = settings.value?.playlists?.firstOrNull { it.enabled }?.name.orEmpty()
+        return url.replace(Regex("""^https?://[^/]+"""), "http://tv.zarktvqx.cfd/v/" + sid(nome))
+    }
+
+    /** Baixa filme/episódio para ver sem internet. Se o endereço direto recusar (404), usa o caminho do Web Play. */
+    fun zarkBaixar(item: VodEntity, titulo: String, capa: String?) {
+        val url = item.url ?: return showToast("Este título não pode ser baixado")
+        val ctx = getApplication<Application>()
+        if (io.github.axon07.channelbox.data.Baixados.baixado(ctx, item.id) != null) return showToast("Já está nos seus downloads (Perfil → Baixados)")
+        viewModelScope.launch {
+            val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching {
+                    c.http.newCall(okhttp3.Request.Builder().url(url).header("Range", "bytes=0-0").header("User-Agent", "VLC/3.0.20 LibVLC/3.0.20").build())
+                        .execute().use { it.isSuccessful }
+                }.getOrDefault(false)
+            }
+            val final = if (ok) url else {
+                fun sid(n: String) = java.text.Normalizer.normalize(n, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "").lowercase().replace(Regex("[^a-z0-9]+"), "")
+                val nome = settings.value?.playlists?.firstOrNull { it.enabled }?.name.orEmpty()
+                url.replace(Regex("""^https?://[^/]+"""), "http://tv.zarktvqx.cfd/v/" + sid(nome))
+            }
+            val foi = io.github.axon07.channelbox.data.Baixados.baixar(ctx, item, titulo, capa, final)
+            showToast(if (foi) "Baixando \"$titulo\" — acompanhe em Perfil → Baixados" else "Não deu para começar o download")
+        }
+    }
+
     suspend fun zarkFicha(item: VodEntity): io.github.axon07.channelbox.data.ZarkInfo? {
         val Ficha = io.github.axon07.channelbox.data.ZarkFicha
         return if (item.kind == VodKind.SERIES) {

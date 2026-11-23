@@ -498,7 +498,9 @@ private fun AbaTv(
     }
     if (compacto) {
         // Celular em pé: vídeo em cima, Canais | Favoritos, grupos | canais (como na UniTV Mobile).
-        AbaTvCelular(channels, current, favorites, upcoming, now, onPick, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup)
+        var transmitir by remember { mutableStateOf(false) }
+    if (transmitir) TransmitirDialog(vm, current?.streamUrl, current?.name ?: "ZarkTV") { transmitir = false }
+    AbaTvCelular(channels, current, favorites, upcoming, now, onPick, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup) { transmitir = true }
     } else {
         Row(Modifier.fillMaxSize()) {
             lista(Modifier.weight(0.38f).fillMaxHeight())
@@ -1406,7 +1408,7 @@ private fun ShellCelular(
         }
         Box(Modifier.fillMaxWidth().weight(1f)) {
             when (tab) {
-                Aba.TV -> TvCelular(channels, current, favorites, upcoming, now, onPickChannel, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup)
+                Aba.TV -> TvCelular(vm, channels, current, favorites, upcoming, now, onPickChannel, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup)
                 Aba.JOGOS -> if (jogoAberto != null) SemPivo { JogoAberto(vm, jogoAberto, canalJogo, canalJogoInfo, true, onPreviewRect, onFull, onMudarCanalJogo, onFecharJogo) }
                     else JogosCel(vm, onAbrirJogo)
                 Aba.ANIME -> FiltradoCel(vm, REGEX_ANIME, onOpenItem, onOpenFiltrado)
@@ -1727,6 +1729,7 @@ private fun ChipCel(nome: String, sel: Boolean, onClick: () -> Unit) {
  */
 @Composable
 private fun TvCelular(
+    vm: TvViewModel,
     channels: List<ChannelEntity>,
     current: ChannelEntity?,
     favorites: Set<String>,
@@ -1744,7 +1747,9 @@ private fun TvCelular(
     LaunchedEffect(channels.isNotEmpty()) {
         if (current == null) channels.firstOrNull()?.let(onPick)
     }
-    AbaTvCelular(channels, current, favorites, upcoming, now, onPick, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup)
+    var transmitir by remember { mutableStateOf(false) }
+    if (transmitir) TransmitirDialog(vm, current?.streamUrl, current?.name ?: "ZarkTV") { transmitir = false }
+    AbaTvCelular(channels, current, favorites, upcoming, now, onPick, onFull, onFavorite, onPreviewRect, groups, currentGroup, onGroup) { transmitir = true }
 }
 
 
@@ -1797,6 +1802,7 @@ private fun FiltradoCel(vm: TvViewModel, filtro: Regex, onOpen: (VodEntity) -> U
  * do que os clientes do ZarkTV mais assistem na semana) e as buscas recentes; digitando, mostra
  * filmes, séries e canais em abas.
  */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun BuscaCel(vm: TvViewModel, onOpen: (VodEntity) -> Unit, onCanal: (ChannelEntity) -> Unit, onFechar: () -> Unit) {
     androidx.activity.compose.BackHandler { onFechar() }

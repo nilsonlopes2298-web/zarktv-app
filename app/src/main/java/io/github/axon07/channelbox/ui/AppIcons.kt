@@ -89,6 +89,10 @@ object AppIcons {
     val Resolucao = icon("resolucao", stroke("M3,5H21V17H3Z M8,21H16 M12,17V21"))
     val Bell = icon("bell", stroke("M6,17V11A6,6 0 0,1 18,11V17L20,19H4Z"), stroke("M10,21H14"))
     val Tv = icon("tv", stroke("M3,6H21V17H3Z M8,21H16 M12,17V21"))
+    /** Transmitir para outra tela (cast). */
+    val Transmitir = icon("transmitir", stroke("M3,9V6H21V18H14"), stroke("M3,13A5,5 0 0,1 8,18 M3,16A2,2 0 0,1 5,18"), fill("M3,18.5A0.5,0.5 0 1,0 3.01,18.5Z"))
+    /** Compartilhar (três pontos ligados). */
+    val Partilhar = icon("partilhar", stroke("M6,10A2,2 0 1,1 5.99,10Z M18,4A2,2 0 1,1 17.99,4Z M18,16A2,2 0 1,1 17.99,16Z M7.8,11L16.2,6.6 M7.8,13L16.2,17.4"))
     val Star = star(true)
     val StarOutline = star(false)
     val Settings = gear()

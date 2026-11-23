@@ -68,7 +68,7 @@ private val Laranja = Color(0xFFFF9800)
 
 /** Vídeo do topo. Parado: imagem + play. Tocando: janela transparente (o TvApp desenha o vídeo atrás). */
 @Composable
-private fun VideoTopo(b: VodBrowser, imagem: String?, titulo: String, onVoltar: () -> Unit, onTocar: () -> Unit) {
+private fun VideoTopo(b: VodBrowser, imagem: String?, titulo: String, onVoltar: () -> Unit, onTransmitir: () -> Unit, onTocar: () -> Unit) {
     val tocando = b.previewId != null
     DisposableEffect(Unit) { onDispose { b.previewRect = null } }
     Box(
@@ -89,6 +89,11 @@ private fun VideoTopo(b: VodBrowser, imagem: String?, titulo: String, onVoltar: 
             Modifier.align(Alignment.TopStart).padding(8.dp).size(40.dp).clip(CircleShape).clickable(onClick = onVoltar),
             contentAlignment = Alignment.Center,
         ) { AppIcon(AppIcons.Voltar, tint = Color.White, size = 22.dp) }
+        // Transmitir para a TV (DLNA) ou espelhar a tela.
+        Box(
+            Modifier.align(Alignment.TopEnd).padding(8.dp).size(40.dp).clip(CircleShape).clickable(onClick = onTransmitir),
+            contentAlignment = Alignment.Center,
+        ) { AppIcon(AppIcons.Transmitir, tint = Color.White, size = 20.dp) }
         if (tocando) Box(
             Modifier.align(Alignment.BottomEnd).padding(8.dp).size(40.dp).clip(CircleShape).background(Color(0x66000000))
                 .clickable { b.acaoTelaCheia?.invoke() },
@@ -124,22 +129,24 @@ private fun CabecalhoCel(titulo: String, ficha: ZarkInfo?, plot: String?, rating
     ficha?.elenco?.takeIf { it.isNotBlank() }?.let { Spacer(Modifier.height(4.dp)); Text("Elenco: $it", color = T2, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
 }
 
-/** Favoritos · Partilhar · Player externo (ícone em cima, nome embaixo). */
+/** Baixar · Partilhar · Favoritos (como na UniTV). [baixar] = o arquivo que vai ser baixado (filme ou episódio). */
 @Composable
-private fun AcoesCel(vm: TvViewModel, item: VodEntity, url: String?) {
+private fun AcoesCel(vm: TvViewModel, item: VodEntity, baixar: VodEntity?) {
     val ctx = LocalContext.current
     var fav by remember(item.id) { mutableStateOf(ZarkPrefs.ehFavorito(ctx, item.id)) }
     Row(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-        AcaoCel(if (fav) AppIcons.EstrelaCheia else AppIcons.Estrela, "Favoritos", Modifier.weight(1f), if (fav) Vermelho else T1) { fav = vm.zarkFavoritar(item) }
-        AcaoCel(AppIcons.Externo, "Partilhar", Modifier.weight(1f)) {
+        AcaoCel(AppIcons.Download, "Baixar", Modifier.weight(1f)) {
+            val alvo = baixar ?: item
+            val titulo = if (alvo.id != item.id) "${item.title} T${alvo.season}E${alvo.episode}" else item.title
+            vm.zarkBaixar(alvo, titulo, item.poster)
+        }
+        AcaoCel(AppIcons.Partilhar, "Partilhar", Modifier.weight(1f)) {
             runCatching {
                 ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain")
                     .putExtra(Intent.EXTRA_TEXT, "Assista \"${item.title}\" no ZarkTV: https://tv.zarktvqx.cfd"), "Partilhar").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
         }
-        AcaoCel(AppIcons.Play, "Outro player", Modifier.weight(1f)) {
-            url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, item.title) }
-        }
+        AcaoCel(if (fav) AppIcons.EstrelaCheia else AppIcons.Estrela, "Favoritos", Modifier.weight(1f), if (fav) Vermelho else T1) { fav = vm.zarkFavoritar(item) }
     }
 }
 
@@ -193,8 +200,10 @@ fun FichaFilmeCel(b: VodBrowser, movie: VodEntity, progress: VodProgressEntity?,
     val rol = rememberScrollState()
     LaunchedEffect(movie.id) { rol.scrollTo(0) }
     val voltar = { b.movie = null; b.focusToken++; b.voltarInicio?.invoke(); Unit }
+    var transmitir by remember { mutableStateOf(false) }
+    if (transmitir) TransmitirDialog(vm, movie.url, movie.title) { transmitir = false }
     Column(Modifier.fillMaxSize()) {
-        VideoTopo(b, ficha?.fundo ?: movie.poster, movie.title, voltar) { b.acaoPreview?.invoke(movie, null) ?: onPlay(movie, null) }
+        VideoTopo(b, ficha?.fundo ?: movie.poster, movie.title, voltar, { transmitir = true }) { b.acaoPreview?.invoke(movie, null) ?: onPlay(movie, null) }
         Column(Modifier.fillMaxWidth().weight(1f).background(Fundo).verticalScroll(rol).padding(horizontal = 16.dp, vertical = 16.dp)) {
             CabecalhoCel(movie.title, ficha, movie.plot, movie.rating, movie.year)
             if (progress != null && progress.position > 0 && b.previewId == null) {
@@ -203,7 +212,7 @@ fun FichaFilmeCel(b: VodBrowser, movie: VodEntity, progress: VodProgressEntity?,
                     modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Vermelho).clickable { b.acaoPreview?.invoke(movie, null) ?: onPlay(movie, null) }
                         .padding(horizontal = 16.dp, vertical = 12.dp))
             }
-            AcoesCel(vm, movie, movie.url)
+            AcoesCel(vm, movie, movie)
             ParecidosCel(vm, movie) { b.movie = it }
             Spacer(Modifier.height(24.dp))
         }
@@ -233,8 +242,11 @@ fun FichaSerieCel(b: VodBrowser, show: VodEntity, progress: Map<String, VodProgr
     val tocar: (VodEntity) -> Unit = { ep -> b.focusId = ep.id; b.acaoPreview?.invoke(ep, show) ?: onPlay(ep, show) }
     val voltar = { b.closeShow(); b.voltarInicio?.invoke(); Unit }
     val rol = rememberScrollState()
+    var transmitir by remember { mutableStateOf(false) }
+    val epAtual = episodes?.firstOrNull { it.id == b.previewId } ?: ultimo ?: inSeason.firstOrNull()
+    if (transmitir) TransmitirDialog(vm, epAtual?.url, show.title + (epAtual?.let { " T${it.season}E${it.episode}" } ?: "")) { transmitir = false }
     Column(Modifier.fillMaxSize()) {
-        VideoTopo(b, ficha?.fundo ?: show.poster, show.title, voltar) {
+        VideoTopo(b, ficha?.fundo ?: show.poster, show.title, voltar, { transmitir = true }) {
             (ultimo ?: inSeason.firstOrNull() ?: episodes?.firstOrNull())?.let(tocar)
         }
         Column(Modifier.fillMaxWidth().weight(1f).background(Fundo).verticalScroll(rol).padding(horizontal = 16.dp, vertical = 16.dp)) {
@@ -273,7 +285,7 @@ fun FichaSerieCel(b: VodBrowser, show: VodEntity, progress: Map<String, VodProgr
                     }
                 }
             }
-            AcoesCel(vm, show, (ultimo ?: inSeason.firstOrNull())?.url)
+            AcoesCel(vm, show, b.episodes?.firstOrNull { it.id == b.previewId } ?: ultimo ?: inSeason.firstOrNull())
             ParecidosCel(vm, show) { b.closeShow(); b.openShow(it) }
             Spacer(Modifier.height(24.dp))
         }

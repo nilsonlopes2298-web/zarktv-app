@@ -74,6 +74,8 @@ fun PerfilCel(
     onAbrir: (VodEntity) -> Unit,
 ) {
     val historico by remember { vm.vodContinuar() }.collectAsState(initial = emptyList())
+    var verBaixados by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    if (verBaixados) { BaixadosCel(onAbrir) { verBaixados = false }; return }
     val dias = conta?.expira?.let { ZarkConfig.diasRestantes(it) }
     val vence = conta?.expira?.let { ZarkConfig.dataBr(it) }
     LazyColumn(Modifier.fillMaxSize().background(PFundo), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp)) {
@@ -108,7 +110,8 @@ fun PerfilCel(
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(PCartao).padding(vertical = 12.dp)) {
                 Atalho(AppIcons.Estrela, "Favoritos", Modifier.weight(1f), onFavoritosVod)
                 Atalho(AppIcons.Tv, "Canais favoritos", Modifier.weight(1f), onFavoritosCanais)
-                Atalho(AppIcons.Play, "Suporte", Modifier.weight(1f), onSuporte)
+                Atalho(AppIcons.Download, "Baixados", Modifier.weight(1f)) { verBaixados = true }
+                Atalho(AppIcons.Headset, "Suporte", Modifier.weight(1f), onSuporte)
             }
             Spacer(Modifier.height(16.dp))
         }
@@ -179,5 +182,62 @@ private fun Linha(icone: ImageVector, nome: String, valor: String?, onClick: () 
             Text("›", color = PT3, fontSize = 18.sp)
         }
         if (!ultima) Box(Modifier.fillMaxWidth().padding(start = 46.dp).height(1.dp).background(PLinha))
+    }
+}
+
+
+/** Perfil → Baixados: o que foi baixado para ver sem internet, com o andamento. */
+@Composable
+private fun BaixadosCel(onAbrir: (VodEntity) -> Unit, onVoltar: () -> Unit) {
+    androidx.activity.compose.BackHandler { onVoltar() }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var itens by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(io.github.axon07.channelbox.data.Baixados.lista(ctx)) }
+    var tick by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(2_000); tick++ } }
+    Column(Modifier.fillMaxSize().background(PFundo)) {
+        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onVoltar), contentAlignment = Alignment.Center) { AppIcon(AppIcons.Voltar, tint = PT1, size = 22.dp) }
+            Text("Baixados", color = PT1, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+        }
+        if (itens.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                Text("Nada baixado ainda. Na ficha do filme ou da série, toque em Baixar.", color = PT3, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+            return@Column
+        }
+        LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(itens, key = { it.id }) { b ->
+                val p = androidx.compose.runtime.remember(tick, b.id) { io.github.axon07.channelbox.data.Baixados.progresso(ctx, b) }
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(PCartao).clickable(enabled = p == 100) {
+                        onAbrir(VodEntity(b.id, "baixado", io.github.axon07.channelbox.data.VodKind.MOVIE, b.titulo, "", b.capa, "file://" + b.arquivo,
+                            null, null, 0, 0, 0, 0, null, null, null))
+                    }.padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.width(56.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(6.dp)).background(Color(0xFF232325))) {
+                        if (!b.capa.isNullOrBlank()) AsyncImage(b.capa, b.titulo, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(b.titulo, color = PT1, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            when { p == 100 -> "Pronto · toque para assistir"; p < 0 -> "Não deu para baixar"; else -> "Baixando… $p%" },
+                            color = when { p == 100 -> Color(0xFF4CC38A); p < 0 -> PVermelho; else -> PT2 }, fontSize = 12.sp,
+                        )
+                        if (p in 0..99) {
+                            Spacer(Modifier.height(6.dp))
+                            Box(Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x22FFFFFF))) {
+                                Box(Modifier.fillMaxWidth(p / 100f).height(3.dp).background(PVermelho))
+                            }
+                        }
+                    }
+                    Text("Apagar", color = PT3, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable {
+                        io.github.axon07.channelbox.data.Baixados.apagar(ctx, b.id); itens = io.github.axon07.channelbox.data.Baixados.lista(ctx)
+                    }.padding(8.dp))
+                }
+            }
+        }
     }
 }

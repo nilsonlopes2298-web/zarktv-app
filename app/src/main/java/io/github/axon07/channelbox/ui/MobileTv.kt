@@ -60,6 +60,7 @@ fun AbaTvCelular(
     groups: List<Pair<ChannelFilter, String>>,
     currentGroup: ChannelFilter,
     onGroup: (ChannelFilter) -> Unit,
+    onTransmitir: () -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val porNome = androidx.compose.runtime.remember(upcoming) {
@@ -92,9 +93,7 @@ fun AbaTvCelular(
                     }
                 }
                 if (current != null) IconeVideo(if (current.id in favorites) "★" else "☆") { onFavorite(current) }
-                IconeVideo("Transmitir") {
-                    runCatching { ctx.startActivity(Intent("android.settings.CAST_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                }
+                IconeVideo("Transmitir") { onTransmitir() }
             }
             if (current != null) Box(
                 Modifier.align(Alignment.BottomEnd).padding(8.dp).clip(RoundedCornerShape(6.dp))
