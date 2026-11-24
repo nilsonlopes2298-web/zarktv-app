@@ -118,8 +118,11 @@ fun TamanhoProporcional(conteudo: @androidx.compose.runtime.Composable () -> Uni
     val dens = androidx.compose.ui.platform.LocalDensity.current
     val w = cfg.screenWidthDp.toFloat()
     val h = cfg.screenHeightDp.toFloat()
-    val fator = if (w >= h) minOf(w / 960f, h / 540f).coerceIn(0.8f, 1.3f) else (w / 411f).coerceIn(0.85f, 1.2f)
-    if (kotlin.math.abs(fator - 1f) < 0.03f) { conteudo(); return }
+    val fatorCalc = if (w >= h) minOf(w / 960f, h / 540f).coerceIn(0.8f, 1.3f) else (w / 411f).coerceIn(0.85f, 1.2f)
+    val fator = if (kotlin.math.abs(fatorCalc - 1f) < 0.03f) 1f else fatorCalc
+    // Sempre o MESMO formato (sempre com o CompositionLocalProvider): antes, com fator ≈ 1 o conteúdo
+    // era montado sem ele, e ao girar o celular (tela cheia) o Android jogava fora toda a tela aberta —
+    // voltava para o início, girava de volta e o vídeo continuava tocando por trás.
     val novaCfg = android.content.res.Configuration(cfg).apply {
         screenWidthDp = (w / fator).toInt()
         screenHeightDp = (h / fator).toInt()
