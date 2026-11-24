@@ -56,9 +56,11 @@ fun PinDialog(title: String, setup: Boolean, onSubmit: (String) -> Boolean, onCa
     var first by remember { mutableStateOf<String?>(null) } // setup: the first entry
     var message by remember { mutableStateOf<String?>(null) }
     val firstKey = remember { FocusRequester() }
+    // No celular (toque) nenhuma tecla começa marcada; o foco inicial é só para o controle da TV.
+    val celular = io.github.axon07.channelbox.system.Aparelho.soCelular
     LaunchedEffect(Unit) {
         delay(60)
-        runCatching { firstKey.requestFocus() }
+        if (!celular) runCatching { firstKey.requestFocus() }
     }
 
     fun complete(entered: String) {
@@ -161,10 +163,12 @@ fun PinDialog(title: String, setup: Boolean, onSubmit: (String) -> Boolean, onCa
                             colors = ClickableSurfaceDefaults.colors(
                                 containerColor = DialogStyle.Rest,
                                 contentColor = Palette.Text,
-                                focusedContainerColor = DialogStyle.Focus,
-                                focusedContentColor = DialogStyle.OnFocus,
+                                focusedContainerColor = if (celular) DialogStyle.Rest else DialogStyle.Focus,
+                                focusedContentColor = if (celular) Palette.Text else DialogStyle.OnFocus,
+                                pressedContainerColor = Color(0xFFE50914),
+                                pressedContentColor = Color.White,
                             ),
-                            scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.03f)),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = if (celular) 1f else ZarkLeve.escala(1.03f)),
                         ) {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text(k, fontSize = 20.sp, fontWeight = FontWeight.Medium)

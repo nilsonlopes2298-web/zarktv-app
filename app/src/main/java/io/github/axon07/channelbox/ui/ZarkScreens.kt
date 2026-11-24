@@ -408,7 +408,8 @@ fun ZarkLoginScreen(
         else FundoRiscosVermelhos()
         if (deitado) {
             Row(
-                Modifier.fillMaxSize().padding(start = 64.dp, end = 48.dp, top = 28.dp, bottom = 24.dp),
+                // imePadding: na Android TV o teclado sobe por baixo e o cartão sobe junto (o campo fica à vista).
+                Modifier.fillMaxSize().imePadding().padding(start = 64.dp, end = 48.dp, top = 28.dp, bottom = 24.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f).fillMaxHeight().padding(end = 36.dp), verticalArrangement = Arrangement.SpaceBetween) {

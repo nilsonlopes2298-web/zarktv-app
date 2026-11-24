@@ -1440,7 +1440,8 @@ private fun ShellCelular(
     val subAbas = buildList {
         add("Recomendações" to Aba.DESTAQUES); add("Jogos" to Aba.JOGOS); add("Filmes" to Aba.FILMES); add("Séries" to Aba.SERIES)
         add("Animes" to Aba.ANIME); add("Desenhos" to Aba.KIDS)
-        add("Adulto" to Aba.EXPLORAR) // pede a senha do adulto para abrir (como a UniTV)
+        // Adulto só aparece na tela inicial depois de liberado em Perfil → Conteúdo Hot (+18).
+        if (adultoLiberado) add("Hot +18" to Aba.EXPLORAR)
     }
     // Pesquisa própria do celular (por cima de tudo, com o mais buscado).
     var buscando by remember { mutableStateOf(false) }
@@ -1907,11 +1908,90 @@ private fun FiltradoCel(vm: TvViewModel, filtro: Regex, onOpen: (VodEntity) -> U
         Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) { Text("Nenhuma categoria encontrada no seu servidor.", color = Texto3, fontSize = 14.sp) }
         return
     }
+    // "Ver todos" abre o catálogo no padrão do celular (categorias em chips, busca e grade de 3),
+    // em vez da tela dividida da TV.
+    var aberta by remember { mutableStateOf<Pair<String, String>?>(null) }
+    aberta?.let { atual ->
+        CatalogoCel(vm, fileiras, atual, onOpen, onTrocar = { aberta = it }) { aberta = null }
+        return
+    }
     val primeira = fileiras.first()
     val topo by remember(primeira) { vm.vodTop(primeira.first, primeira.second, 6) }.collectAsState(initial = emptyList())
     LazyColumn(verticalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)) {
         item { CarrosselCel(vm, topo.map { it to "" }, onOpen) }
-        items(fileiras, key = { it.first + "|" + it.second }) { (k, c) -> FileiraCatCel(vm, k, c, onOpen) { onFiltrado(k, filtro) } }
+        items(fileiras, key = { it.first + "|" + it.second }) { (k, c) -> FileiraCatCel(vm, k, c, onOpen) { aberta = k to c } }
+    }
+}
+
+/** Catálogo de uma categoria no celular: chips das categorias (com quantidade), busca e grade de capas. */
+@Composable
+private fun CatalogoCel(
+    vm: TvViewModel,
+    fileiras: List<Pair<String, String>>,
+    atual: Pair<String, String>,
+    onOpen: (VodEntity) -> Unit,
+    onTrocar: (Pair<String, String>) -> Unit,
+    onVoltar: () -> Unit,
+) {
+    androidx.activity.compose.BackHandler { onVoltar() }
+    var busca by remember(atual) { mutableStateOf("") }
+    val itens by remember(atual, busca) { vm.vodItems(atual.first, atual.second, busca.trim()) }.collectAsState(initial = null)
+    val catsF by remember { vm.vodCategories(VodKind.MOVIE) }.collectAsState(initial = emptyList())
+    val catsS by remember { vm.vodCategories(VodKind.SERIES) }.collectAsState(initial = emptyList())
+    fun qtd(k: String, c: String) = (if (k == VodKind.SERIES) catsS else catsF).firstOrNull { it.name == c }?.count
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).clip(CircleShape).tap(onClick = onVoltar), contentAlignment = Alignment.Center) {
+                AppIcon(AppIcons.Voltar, tint = Texto1, size = 22.dp)
+            }
+            Row(
+                Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xFF1C1C1F)).padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppIcon(AppIcons.Search, tint = Texto3, size = 16.dp)
+                Spacer(Modifier.width(8.dp))
+                Box(Modifier.weight(1f)) {
+                    if (busca.isEmpty()) Text("Buscar nesta categoria", color = Texto3, fontSize = 14.sp)
+                    androidx.compose.foundation.text.BasicTextField(
+                        busca, { busca = it }, singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Texto1, fontSize = 14.sp),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(VermelhoCel),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+        androidx.compose.foundation.lazy.LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(fileiras.size) { i ->
+                val f = fileiras[i]
+                val sel = f == atual
+                val nome = f.second.replace(Regex("\\s*\\+?18\\+?"), "").trim().ifBlank { f.second }
+                Row(
+                    Modifier.clip(RoundedCornerShape(16.dp)).background(if (sel) VermelhoCel else Color(0xFF1C1C1F))
+                        .tap(onClick = { onTrocar(f) }).padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(nome, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                    qtd(f.first, f.second)?.let { Text("  $it", color = if (sel) Color(0xCCFFFFFF) else Texto3, fontSize = 12.sp) }
+                }
+            }
+        }
+        val lista = itens
+        when {
+            lista == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Carregando…", color = Texto3, fontSize = 14.sp) }
+            lista.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nada encontrado.", color = Texto3, fontSize = 14.sp) }
+            else -> androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(3),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(lista.size, key = { lista[it].id }) { i -> CapaCel(vm, lista[i], Modifier.fillMaxWidth()) { onOpen(lista[i]) } }
+            }
+        }
     }
 }
 

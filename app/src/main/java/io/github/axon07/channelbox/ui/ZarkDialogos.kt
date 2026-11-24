@@ -89,21 +89,25 @@ fun DialogoContinuar(titulo: String, detalhe: String?, posicao: Long, onContinua
     val hhmmss = "%02d:%02d:%02d".format(s / 3600, (s % 3600) / 60, s % 60)
     // Celular: aviso pequeno embaixo, sem tampar a tela.
     if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
-        // Em cima, por cima do vídeo (onde a pessoa está olhando).
-        Box(Modifier.fillMaxSize().background(Color(0x66000000)), contentAlignment = Alignment.Center) {
-            Row(
-                Modifier.padding(horizontal = 24.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xF0232325))
-                    .border(1.dp, Color(0x14EDEDED), RoundedCornerShape(12.dp)).padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+        // Dentro do próprio vídeo (parte de baixo da janelinha), sem escurecer a tela:
+        // uma barrinha mostra o tempo até continuar sozinho.
+        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+            val alturaVideo = maxWidth * 9f / 16f
+            Column(
+                Modifier.align(Alignment.TopCenter).padding(top = (alturaVideo - 68.dp).coerceAtLeast(8.dp)).padding(horizontal = 12.dp)
+                    .fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xE6141416)),
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text("Continuar de $hhmmss?", color = Color(0xFFEDEDED), fontSize = 14.sp)
-                    Text("Continua sozinho em ${falta}s", color = Color(0xFF85858B), fontSize = 12.sp)
+                Row(Modifier.padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Continuar de onde parou", color = Color(0xFFEDEDED), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text("$hhmmss · em ${falta}s", color = Color(0xFF85858B), fontSize = 11.sp)
+                    }
+                    Text("Do início", color = Color(0xFFA1A1A6), fontSize = 12.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(16.dp)).clickable(onClick = onInicio).padding(horizontal = 10.dp, vertical = 8.dp))
+                    Text("Continuar", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xFFE50914)).clickable(onClick = onContinuar).padding(horizontal = 14.dp, vertical = 8.dp))
                 }
-                Text("Do início", color = Color(0xFFA1A1A6), fontSize = 13.sp,
-                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onInicio).padding(horizontal = 10.dp, vertical = 8.dp))
-                Text("Continuar", color = Color.White, fontSize = 13.sp,
-                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFFE50914)).clickable(onClick = onContinuar).padding(horizontal = 12.dp, vertical = 8.dp))
+                Box(Modifier.fillMaxWidth(falta / 8f).height(2.dp).background(Color(0xFFE50914)))
             }
         }
         return

@@ -162,7 +162,7 @@ fun PerfilCel(
         run {
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(PCartao)) {
                 Linha(AppIcons.User, "Trocar de conta", null, onOutraConta)
-                Linha(AppIcons.Estrela, "Conteúdo adulto", if (adultoLiberado) "Liberado" else "Bloqueado", onAdulto)
+                Linha(AppIcons.Estrela, "Conteúdo Hot (+18)", if (adultoLiberado) "Liberado" else "Bloqueado", onAdulto)
                 Linha(AppIcons.Calendario, "Controle parental", null, onControleParental)
                 Linha(AppIcons.Play, "Player de filmes", playerFilmes, onPlayerFilmes)
                 Linha(AppIcons.Resolucao, "Configurações", null, onConfiguracoes)

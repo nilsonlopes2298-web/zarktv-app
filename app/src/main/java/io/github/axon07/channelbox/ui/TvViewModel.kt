@@ -1954,8 +1954,9 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             repo.vodChanged()
             showToast("Conteúdo adulto liberado")
         }
-        _pinRequest.value = if (hasPin) PinRequest("Digite a senha do conteúdo adulto", onSuccess = liberar)
-        else PinRequest("Crie uma senha de 4 números para o conteúdo adulto", setup = true, onSuccess = liberar)
+        // Hot (+18): ao liberar, a aba "Hot +18" aparece na tela inicial do app.
+        _pinRequest.value = if (hasPin) PinRequest("Hot +18: digite a senha para liberar.\nA aba Hot vai aparecer na tela inicial.", onSuccess = liberar)
+        else PinRequest("Hot +18: crie uma senha de 4 números.\nDepois de liberado, a aba Hot aparece na tela inicial.", setup = true, onSuccess = liberar)
     }
 
     fun zarkLimparConta() {
