@@ -1,5 +1,7 @@
 package io.github.axon07.channelbox.ui
 
+import androidx.compose.foundation.layout.Box
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -85,8 +87,26 @@ fun GuideSearchScreen(
             Text("Buscar na programação", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Palette.Text)
         }
         Spacer(Modifier.height(16.dp))
-        Column(Modifier.widthIn(max = 640.dp)) {
-            TvTextField("Nome do programa ou do canal", state.query, { state.query = it }, fieldModifier = Modifier.focusRequester(field))
+        // Busca por voz: o botão do microfone usa o reconhecimento de voz do aparelho (Android TV, Fire Stick, celular).
+        val ctxVoz = androidx.compose.ui.platform.LocalContext.current
+        val intentVoz = remember {
+            android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
+                .putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Fale o nome do programa ou do canal")
+        }
+        val temVoz = remember { runCatching { ctxVoz.packageManager.queryIntentActivities(intentVoz, 0).isNotEmpty() }.getOrDefault(false) }
+        val ouvir = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { r ->
+            r.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.let { state.query = it }
+        }
+        Row(Modifier.widthIn(max = 820.dp), verticalAlignment = Alignment.Bottom) {
+            Box(Modifier.weight(1f)) {
+                TvTextField("Nome do programa ou do canal", state.query, { state.query = it }, fieldModifier = Modifier.focusRequester(field))
+            }
+            if (temVoz) {
+                Spacer(Modifier.width(12.dp))
+                PillButton("Falar", primary = true) { runCatching { ouvir.launch(intentVoz) } }
+            }
         }
         Spacer(Modifier.height(16.dp))
         val results = state.results
