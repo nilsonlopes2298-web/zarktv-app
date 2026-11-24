@@ -69,6 +69,8 @@ object ZarkDiag {
         val ms = SystemClock.elapsedRealtime() - travouEm
         travouEm = 0L
         prefs?.let { p -> p.edit().putLong("travadas_ms", p.getLong("travadas_ms", 0L) + ms).apply() }
+        // Travada de mais de 1,5 s vai para o relatório do painel (aparelho, canal, servidor e quanto durou).
+        if (ms > 1_500) ZarkRelatorio.registrar("Travada", "${ms / 100 / 10.0} s (${if (tipoAtual == "canal") "canal ao vivo" else "filme/série"})")
     }
 
     /** Erro do player, agrupado por tipo (nunca guarda o endereço). */

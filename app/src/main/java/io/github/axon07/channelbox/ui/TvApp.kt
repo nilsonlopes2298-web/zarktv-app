@@ -198,7 +198,13 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     // Guarda o "destaque do momento" (em alta e novidades do catálogo) para a próxima tela de entrada.
     val ctxDestaque = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(channelsLoaded) {
-        if (channelsLoaded) runCatching { DestaquesEntrada.atualizar(ctxDestaque, vm) }
+        // Espera o app assentar (canal já tocando) e faz no máximo 1 vez a cada 12 h, para não pesar na TV Box.
+        if (!channelsLoaded) return@LaunchedEffect
+        val prefsD = ctxDestaque.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE)
+        if (System.currentTimeMillis() - prefsD.getLong("destaques_entrada_em", 0L) < 12 * 3600_000L) return@LaunchedEffect
+        delay(45_000)
+        runCatching { DestaquesEntrada.atualizar(ctxDestaque, vm) }
+        prefsD.edit().putLong("destaques_entrada_em", System.currentTimeMillis()).apply()
     }
     /** A long Back press already went to full screen (swallow the rest of that press). */
     var backLongFired by remember { mutableStateOf(false) }
