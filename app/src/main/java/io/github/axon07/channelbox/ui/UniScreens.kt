@@ -1529,7 +1529,9 @@ private fun CarrosselCel(vm: TvViewModel, itens: List<Pair<VodEntity, String>>, 
         androidx.compose.foundation.pager.HorizontalPager(
             state = estado,
             contentPadding = PaddingValues(horizontal = 12.dp),
-            pageSpacing = 10.dp,
+            // Espaço entre cards maior que a margem: os vizinhos ficam fora da tela
+            // (antes, com 10 < 12, aparecia uma tirinha do card anterior e do próximo).
+            pageSpacing = 24.dp,
         ) { i ->
             val (item, rotulo) = itens[i]
             var fav by remember(item.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkPrefs.favoritos(ctx).contains(item.id)) }
