@@ -1086,14 +1086,29 @@ private fun JogoAberto(
                         vm.showToast(if (lembrete) "Vamos te avisar quando o jogo começar" else "Lembrete removido")
                     }
                     PilulaJogo(AppIcons.Close, "Voltar", false, Modifier.weight(1f), onVoltar)
-                } else Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                    BotaoQuadrado(AppIcons.Grid, "Tela cheia", Color(0xFFD32F2F), Modifier.focusRequester(foco)) { if (canal != null) onFull() }
-                    BotaoQuadrado(AppIcons.Refresh, "Mudar de canal", Color(0x55FFFFFF), Modifier, onMudar)
-                    if (j.estado == "pre") BotaoQuadrado(AppIcons.History, if (lembrete) "Lembrete ligado" else "Lembrete", if (lembrete) Color(0xFFF9A825) else Color(0x55FFFFFF), Modifier) {
+                } else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // TV: pílulas com ícone (padrão do app), foco com anel vermelho e leve aumento.
+                    PilulaTv(AppIcons.Grid, "Tela cheia", true, Modifier.focusRequester(foco)) { if (canal != null) onFull() }
+                    PilulaTv(AppIcons.Refresh, "Próximo canal", false, Modifier, onMudar)
+                    if (j.estado == "pre") PilulaTv(AppIcons.Bell, if (lembrete) "Avisando" else "Lembrar", lembrete, Modifier) {
                         lembrete = io.github.axon07.channelbox.data.ZarkLembretes.alternar(ctx, j.id, j.inicio, "${j.casa.nome} x ${j.fora.nome}")
                         vm.showToast(if (lembrete) "Vamos te avisar quando o jogo começar" else "Lembrete removido")
                     }
-                    BotaoQuadrado(AppIcons.Close, "Voltar", Color(0x55FFFFFF), Modifier, onVoltar)
+                    PilulaTv(AppIcons.Close, "Voltar", false, Modifier, onVoltar)
+                }
+                // Qualidade do canal do jogo (FHD, HD, SD…): se uma resolução travar ou estiver bloqueada, troca aqui.
+                val todosCanais by vm.allChannels.collectAsState()
+                val qualidades = remember(canal?.id, todosCanais.size) { if (canal == null) emptyList() else Qualidades.variantes(canal, todosCanais, { it.name }, { it.id }) }
+                if (qualidades.isNotEmpty()) {
+                    Text("Qualidade", color = Color(0x99FFFFFF), fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
+                    androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(qualidades.size) { i ->
+                            val q = qualidades[i]
+                            PillButton(Qualidades.rotulo(q.name), primary = q.id == canal?.id) {
+                                if (q.id != canal?.id) vm.withChannelAccess(q) { vm.tune(q) }
+                            }
+                        }
+                    }
                 }
                 // Onde mais o jogo está passando (FHD, HD, SD, outros canais): toca para trocar.
                 // Se o canal der erro, o app já passa sozinho para a próxima opção.
@@ -1350,6 +1365,30 @@ private fun EscudoArte(t: io.github.axon07.channelbox.data.ZarkJogos.Time, tam: 
     Box(Modifier.size(tam).clip(CircleShape).background(Color(0xFF1C1C1F)).border(1.dp, Color(0x33FFFFFF), CircleShape), contentAlignment = Alignment.Center) {
         if (t.logo != null) AsyncImage(t.logo, t.nome, contentScale = ContentScale.Fit, modifier = Modifier.size(tam * 0.66f))
         else Text(t.nome.split(' ').filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1).uppercase() }, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+/** Botão do jogo na TV: pílula de 52 dp com ícone, anel vermelho no foco (controle remoto). */
+@Composable
+private fun PilulaTv(icone: ImageVector, label: String, destaque: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(52.dp).onFocusChanged { f = it.isFocused }
+            .border(if (f) 3.dp else 0.dp, if (f) Color(0xFFFF3347) else Color.Transparent, RoundedCornerShape(26.dp))
+            .tap(onClick = onClick),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(26.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (destaque) Color(0xFFE50914) else Color(0xFF1C1C1F),
+            focusedContainerColor = if (destaque) Color(0xFFE50914) else Color(0xFF2A2A2E),
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.06f)),
+    ) {
+        Row(Modifier.fillMaxHeight().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            AppIcon(icone, tint = Color.White, size = 20.dp)
+            Spacer(Modifier.width(10.dp))
+            Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        }
     }
 }
 
