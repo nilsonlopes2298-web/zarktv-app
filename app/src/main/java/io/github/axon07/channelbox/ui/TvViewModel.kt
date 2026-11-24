@@ -1305,6 +1305,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     private val jaTentados = mutableSetOf<String>()
 
     init {
+        viewModelScope.launch { while (true) { delay(45_000); runCatching { conferirTela() } } }
         // Relatório de erros para o painel: quem (usuário), em qual servidor e o que estava assistindo.
         io.github.axon07.channelbox.player.ZarkRelatorio.contexto = {
             val pl = settings.value?.playlists?.firstOrNull { it.enabled }
@@ -1949,21 +1950,68 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Liberar/bloquear o conteúdo adulto: sempre pede a senha (cria uma na primeira vez). */
+    // ---- Uma tela por conta: a cada 45 s, enquanto toca, avisa o painel; se a conta estiver em outro
+    // aparelho (e o painel decidir que este para), pausa e mostra o aviso com "Assistir aqui".
+    val zarkOutraTela = MutableStateFlow<String?>(null)
+    private var sessaoInicio = System.currentTimeMillis()
+    private val aparelhoId: String by lazy {
+        runCatching { android.provider.Settings.Secure.getString(getApplication<Application>().contentResolver, android.provider.Settings.Secure.ANDROID_ID) }
+            .getOrNull().orEmpty().ifBlank { java.util.UUID.randomUUID().toString() }
+    }
+    private suspend fun conferirTela() {
+        if (!player.exo.isPlaying) return
+        val pl = settings.value?.playlists?.firstOrNull { it.enabled && it.xtUser.isNotBlank() } ?: return
+        val corpo = kotlinx.serialization.json.buildJsonObject {
+            put("usuario", kotlinx.serialization.json.JsonPrimitive(pl.xtUser.trim()))
+            put("servidor", kotlinx.serialization.json.JsonPrimitive(pl.name))
+            put("aparelho", kotlinx.serialization.json.JsonPrimitive(aparelhoId))
+            put("modelo", kotlinx.serialization.json.JsonPrimitive(android.os.Build.MODEL.orEmpty()))
+            put("inicio", kotlinx.serialization.json.JsonPrimitive(sessaoInicio))
+        }.toString()
+        val resposta = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                c.http.newCall(
+                    okhttp3.Request.Builder().url("https://painel.zarktvqx.cfd/checkout/api/sessao")
+                        .post(corpo.toRequestBody("application/json".toMediaType())).build()
+                ).execute().use { r -> r.body?.string().orEmpty() }
+            }.getOrNull()
+        } ?: return // painel fora do ar: não atrapalha quem está assistindo
+        val o = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(resposta) as? kotlinx.serialization.json.JsonObject }.getOrNull() ?: return
+        if ((o["ok"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "false") {
+            runCatching { player.exo.pause() }
+            zarkOutraTela.value = (o["outro"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: "outro aparelho"
+        }
+    }
+    /** "Assistir aqui": este aparelho passa a ser o que assiste (o outro para no próximo aviso dele). */
+    fun zarkAssistirAqui() {
+        sessaoInicio = System.currentTimeMillis()
+        zarkOutraTela.value = null
+        runCatching { player.exo.play() }
+        viewModelScope.launch { delay(1_500); runCatching { conferirTela() } }
+    }
+
+    /** Aviso depois de liberar/bloquear o Hot (+18): título e texto, mostrado num cartão com "Entendi". */
+    val zarkAvisoHot = MutableStateFlow<Pair<String, String>?>(null)
+
+    /** Liberar/bloquear o conteúdo Hot (+18): pede a senha nos dois casos (cria uma na primeira vez) e confirma o que mudou. */
     fun zarkAlternarAdulto() {
         val ctx = getApplication<Application>()
         if (zarkAdulto.value) {
-            ZarkPrefs.setAdulto(ctx, false)
-            zarkAdulto.value = false
-            repo.vodChanged()
-            showToast("Conteúdo adulto bloqueado")
+            val bloquear = {
+                ZarkPrefs.setAdulto(ctx, false)
+                zarkAdulto.value = false
+                repo.vodChanged()
+                zarkAvisoHot.value = "Hot +18 bloqueado" to "A aba Hot e os canais e filmes adultos saíram da tela inicial. Para ver de novo, libere com a sua senha em Perfil → Hot +18."
+            }
+            _pinRequest.value = if (hasPin) PinRequest("Hot +18: digite a senha para BLOQUEAR.\nA aba Hot vai sair da tela inicial.", onSuccess = bloquear)
+            else { bloquear(); null }
             return
         }
         val liberar = {
             ZarkPrefs.setAdulto(ctx, true)
             zarkAdulto.value = true
             repo.vodChanged()
-            showToast("Conteúdo adulto liberado")
+            zarkAvisoHot.value = "Hot +18 liberado" to "A aba Hot e os canais e filmes adultos agora aparecem na tela inicial deste aparelho. Para esconder de novo, vá em Perfil → Hot +18 e digite a senha."
         }
         // Hot (+18): ao liberar, a aba "Hot +18" aparece na tela inicial do app.
         _pinRequest.value = if (hasPin) PinRequest("Hot +18: digite a senha para liberar.\nA aba Hot vai aparecer na tela inicial.", onSuccess = liberar)

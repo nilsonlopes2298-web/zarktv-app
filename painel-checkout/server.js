@@ -31,6 +31,7 @@ fs.mkdirSync(DADOS, { recursive: true, mode: 0o700 });
 // ---------- armazenamento ----------------------------------------------------------------
 
 const CONFIG_PADRAO = {
+  telas: 'novo', // uso em 2 aparelhos ao mesmo tempo: 'novo' (o último que abriu assiste), 'primeiro' (quem já estava continua) ou 'livre'
   gateway: 'chave', // 'chave' (Pix na sua chave, cliente manda o comprovante), 'mercadopago' ou 'infinitepay'
   pixChave: '',
   pixNome: '',
@@ -156,6 +157,40 @@ function painelErros() {
 <h2>Por aparelho</h2><table>${contar((e) => `${e.marca} ${e.modelo}`.trim())}</table>
 <h2>Últimos</h2><table><tr><th>Quando</th><th>Cliente</th><th>Canal</th><th>Erro</th><th>Aparelho</th></tr>${ultimos || '<tr><td colspan="5">Nenhum erro recebido ainda.</td></tr>'}</table>
 <form method="post" action="/checkout/admin/erros/limpar"><button class="btn cinza">Limpar relatório</button></form></div>`;
+}
+
+// ---------- Uma tela por conta (uso simultâneo) ------------------------------------------
+// Cada app avisa a cada ~45 s enquanto está tocando: usuário, servidor, id do aparelho, modelo e
+// quando começou a assistir. Se a mesma conta estiver tocando em 2 aparelhos, um deles para.
+const sessoes = new Map(); // "servidor|usuario" -> Map(aparelho -> { modelo, inicio, visto })
+function verificarSessao(b, modo) {
+  const usuario = String(b.usuario || '').trim().toLowerCase().slice(0, 60);
+  const aparelho = String(b.aparelho || '').slice(0, 80);
+  if (!usuario || !aparelho || modo === 'livre') return { ok: true };
+  const chave = String(b.servidor || '').toLowerCase().slice(0, 40) + '|' + usuario;
+  const agora = Date.now();
+  const lista = sessoes.get(chave) || new Map();
+  for (const [id, x] of lista) if (agora - x.visto > 100_000) lista.delete(id);
+  const anterior = lista.get(aparelho);
+  const inicio = Number(b.inicio) || anterior?.inicio || agora;
+  lista.set(aparelho, { modelo: String(b.modelo || '').slice(0, 60), inicio, visto: agora });
+  sessoes.set(chave, lista);
+  if (lista.size < 2) return { ok: true };
+  const ordem = [...lista.entries()].sort((a, b2) => (modo === 'primeiro' ? a[1].inicio - b2[1].inicio : b2[1].inicio - a[1].inicio));
+  const [vencedor, dados] = ordem[0];
+  if (vencedor === aparelho) return { ok: true };
+  return { ok: false, outro: dados.modelo || 'outro aparelho', modo };
+}
+function painelTelas(c) {
+  const agora = Date.now();
+  const emUso = [...sessoes.entries()].map(([k, l]) => [k, [...l.values()].filter((x) => agora - x.visto < 100_000)]).filter(([, l]) => l.length > 0);
+  const linhas = emUso.map(([k, l]) => `<tr><td>${esc(k.split('|')[1])}</td><td>${esc(k.split('|')[0])}</td><td>${l.map((x) => esc(x.modelo)).join(', ')}</td></tr>`).join('');
+  const op = (v, t) => `<option value="${v}" ${c.telas === v ? 'selected' : ''}>${t}</option>`;
+  return `<form class="card" method="post" action="/checkout/admin/telas"><h1>Uma tela por conta</h1>
+<p>Se a mesma conta estiver assistindo em 2 aparelhos ao mesmo tempo:</p>
+<select name="telas">${op('novo', 'O último que abriu assiste (o outro para)')}${op('primeiro', 'Quem já estava assistindo continua (o novo não abre)')}${op('livre', 'Liberado (pode usar em vários ao mesmo tempo)')}</select>
+<button>Salvar</button>
+<h2>Assistindo agora</h2><table><tr><th>Cliente</th><th>Servidor</th><th>Aparelho(s)</th></tr>${linhas || '<tr><td colspan="3">Ninguém assistindo agora.</td></tr>'}</table></form>`;
 }
 
 // Limite simples: no máximo 10 pedidos por IP a cada 10 minutos.
@@ -444,6 +479,7 @@ ${msg ? `<div class="card ok">${esc(msg)}</div>` : ''}
 <label>URL de renovação automática (opcional — ZarkPlay Gestor)</label><input name="renovacaoUrl" value="${esc(c.renovacaoUrl)}">
 <button>Salvar configuração</button></form>
 ${painelMonitor()}
+${painelTelas(c)}
 ${painelErros()}
 <div class="card"><h1>Pedidos</h1><table><tr><th>Data</th><th>Cliente</th><th>Plano</th><th>Gateway</th><th>Status</th><th></th></tr>${linhas || '<tr><td colspan="6">Nenhum pedido ainda.</td></tr>'}</table></div>
 <form method="post" action="/checkout/admin/sair"><button class="btn cinza">Sair</button></form>`, true);
@@ -574,6 +610,9 @@ async function rotas(req, res) {
     // Aviso manual do admin vale sempre (com ou sem o automático).
     for (const [n, texto] of Object.entries(m.avisos || {})) st[n] = { ...(st[n] || {}), ok: false, msg: texto };
     return json(res, 200, { ultimo: m.ultimo, aviso: !!m.avisoApps, servidores: st });
+  }
+  if (req.method === 'POST' && rota === '/checkout/api/sessao') {
+    try { return json(res, 200, verificarSessao(await lerCorpo(req, 4_000), cfg.telas || 'novo')); } catch { return json(res, 200, { ok: true }); }
   }
   if (req.method === 'POST' && rota === '/checkout/api/erros') {
     if (limitarErros(ipDe(req))) return json(res, 429, { ok: false });
@@ -724,6 +763,11 @@ async function rotas(req, res) {
     if (req.method === 'POST' && rota === '/checkout/admin/monitor/agora') {
       await verificarServidores();
       return enviar(res, 303, '', 'text/plain', { Location: '/checkout/admin' });
+    }
+    if (req.method === 'POST' && rota === '/checkout/admin/telas') {
+      const b = await lerCorpo(req);
+      gravar(ARQ_CONFIG, { ...config(), telas: ['novo', 'primeiro', 'livre'].includes(b.telas) ? b.telas : 'novo' });
+      return enviar(res, 303, '', 'text/plain', { Location: '/checkout/admin?ok=1' });
     }
     if (req.method === 'POST' && rota === '/checkout/admin/erros/limpar') {
       gravar(ARQ_ERROS, []);

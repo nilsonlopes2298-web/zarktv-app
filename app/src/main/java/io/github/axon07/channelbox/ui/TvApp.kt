@@ -2583,6 +2583,18 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     AvisoInicioJogo(jg, Modifier.align(Alignment.TopCenter).padding(top = 16.dp))
                 }
             }
+            // Uma tela por conta: a conta foi aberta em outro aparelho.
+            vm.zarkOutraTela.collectAsStateWithLifecycle().value?.let { outro ->
+                ActionDialog(
+                    "Sua conta está em uso em outro aparelho",
+                    "Ela está assistindo agora em: $outro. A conta só pode assistir em um aparelho por vez.",
+                    listOf(DialogAction("Assistir aqui") { vm.zarkAssistirAqui() }, DialogAction("Fechar") { vm.zarkOutraTela.value = null }),
+                )
+            }
+            // Confirmação do Hot +18 (liberado ou bloqueado), igual no celular e na TV.
+            vm.zarkAvisoHot.collectAsStateWithLifecycle().value?.let { (titulo, texto) ->
+                ActionDialog(titulo, texto, listOf(DialogAction("Entendi") { vm.zarkAvisoHot.value = null }))
+            }
             pinRequest?.let { r ->
                 key(r) {
                     PinDialog(r.title, r.setup, onSubmit = { vm.submitPin(it) }, onCancel = {
