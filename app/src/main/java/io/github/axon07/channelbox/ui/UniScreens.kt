@@ -554,29 +554,24 @@ fun ListaDeCanais(
             voltouDoCanal.value = false
         }
     }
-    Column(modifier.background(Color(0x55000000), RoundedCornerShape(8.dp))) {
-        Row(Modifier.fillMaxWidth().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Sem botões ◀ ▶: toca/OK no nome do grupo abre a lista de grupos.
-            Box(Modifier.weight(1f)) {
-                LinhaFocavel(selecionado = verGrupos, onClick = { verGrupos = !verGrupos }) {
-                    Text(
-                        (groups.firstOrNull { it.first == currentGroup }?.second ?: groupLabel.ifBlank { "Lista de Canais" }) + if (verGrupos) "  ▲" else "  ▼",
-                        color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                        textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth().padding(8.dp),
-                    )
+    // Lista de canais (usada sozinha ou ao lado dos grupos).
+    val listaCanais: @Composable (Modifier) -> Unit = { mod ->
+      Column(mod) {
+        // Outras qualidades do canal que está tocando (FHD, HD, SD…): troca com um clique.
+        val atualCh = current
+        val variantes = remember(atualCh?.id, channels) { if (atualCh == null) emptyList() else Qualidades.variantes(atualCh, channels, { it.name }, { it.id }) }
+        if (variantes.isNotEmpty()) {
+            androidx.compose.foundation.lazy.LazyRow(
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                item { Text("Qualidade", color = Color(0x99FFFFFF), fontSize = 12.sp, modifier = Modifier.padding(end = 4.dp)) }
+                items(variantes.size) { i ->
+                    val v = variantes[i]
+                    PillButton(Qualidades.rotulo(v.name), primary = v.id == atualCh?.id) { if (v.id != atualCh?.id) onPick(v) }
                 }
             }
-        }
-        if (verGrupos && groups.isNotEmpty()) {
-            // Grupos de canais (o ★ Favoritos é um deles).
-            LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
-                items(groups) { (f, nome) ->
-                    LinhaFocavel(selecionado = f == currentGroup, onClick = { onGroup(f); verGrupos = false }) {
-                        Text(nome, color = Color.White, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
-                    }
-                }
-            }
-            return@Column
         }
         if (channels.isEmpty()) {
             Text(
@@ -623,6 +618,54 @@ fun ListaDeCanais(
                 }
             }
         }
+      }
+    }
+    // Grupos ao lado: só de passar o foco num grupo, os canais dele já aparecem à direita (▶ para entrar).
+    var grupoEmFoco by remember { mutableStateOf<ChannelFilter?>(null) }
+    LaunchedEffect(grupoEmFoco) {
+        val g = grupoEmFoco ?: return@LaunchedEffect
+        delay(250)
+        if (g != currentGroup) onGroup(g)
+    }
+    Column(modifier.background(Color(0x55000000), RoundedCornerShape(8.dp))) {
+        Row(Modifier.fillMaxWidth().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Sem botões ◀ ▶: toca/OK no nome do grupo abre a lista de grupos.
+            Box(Modifier.weight(1f)) {
+                LinhaFocavel(selecionado = verGrupos, onClick = { verGrupos = !verGrupos }) {
+                    Text(
+                        (groups.firstOrNull { it.first == currentGroup }?.second ?: groupLabel.ifBlank { "Lista de Canais" }) + if (verGrupos) "  ▲" else "  ▼",
+                        color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    )
+                }
+            }
+        }
+        if (verGrupos && groups.isNotEmpty()) {
+            // Grupos de canais (o ★ Favoritos é um deles).
+            Row(Modifier.fillMaxWidth().weight(1f)) {
+                LazyColumn(Modifier.weight(0.42f).fillMaxHeight()) {
+                    items(groups) { (f, nome) ->
+                        val atual = f == currentGroup
+                        LinhaFocavel(
+                            selecionado = atual,
+                            modifier = Modifier.onFocusChanged { if (it.isFocused) grupoEmFoco = f },
+                            onClick = { onGroup(f); verGrupos = false },
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Barrinha vermelha que cresce no grupo aberto.
+                                val barra by androidx.compose.animation.core.animateDpAsState(if (atual) 18.dp else 0.dp, label = "barraGrupo")
+                                Box(Modifier.padding(start = 8.dp).size(width = 3.dp, height = barra).background(Color(0xFFE50914), RoundedCornerShape(2.dp)))
+                                Text(nome, color = Color.White, fontSize = 15.sp, fontWeight = if (atual) FontWeight.Bold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp))
+                            }
+                        }
+                    }
+                }
+                Box(Modifier.width(1.dp).fillMaxHeight().background(Color(0x22FFFFFF)))
+                listaCanais(Modifier.weight(0.58f).fillMaxHeight())
+            }
+            return@Column
+        }
+        listaCanais(Modifier.fillMaxWidth().weight(1f))
         Text("OK no canal: assistir · OK de novo: tela cheia · Segure OK: favoritar", color = Color(0x99FFFFFF), fontSize = 11.sp, modifier = Modifier.padding(8.dp))
     }
 }

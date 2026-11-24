@@ -102,6 +102,28 @@ fun AbaTvCelular(
             ) { AppIcon(AppIcons.TelaCheia, tint = Color.White, size = 18.dp) }
         }
 
+        // ---- Outras qualidades do canal que está tocando (FHD, HD, SD…) ----
+        val atualCh = current
+        val variantes = androidx.compose.runtime.remember(atualCh?.id, channels) { if (atualCh == null) emptyList() else Qualidades.variantes(atualCh, channels, { it.name }, { it.id }) }
+        if (variantes.isNotEmpty()) androidx.compose.foundation.lazy.LazyRow(
+            Modifier.fillMaxWidth().background(Color(0xFF141416)),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            item { Text("Qualidade", color = Color(0xFFA1A1A6), fontSize = 12.sp) }
+            items(variantes.size) { i ->
+                val v = variantes[i]
+                val sel = v.id == atualCh?.id
+                Text(
+                    Qualidades.rotulo(v.name), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                        .background(if (sel) vermelho else Color(0xFF2A2A2E)).clickable { if (!sel) onPick(v) }
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                )
+            }
+        }
+
         // ---- Canais | Favoritos ----
         val favoritos = currentGroup == ChannelFilter.Favorites
         Row(Modifier.fillMaxWidth().background(Color(0xFF19191B)).padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {

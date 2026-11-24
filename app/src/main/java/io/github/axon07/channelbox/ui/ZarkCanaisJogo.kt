@@ -29,3 +29,21 @@ object JogoOpcoes {
     val atual = mutableIntStateOf(0)
     var escolher: (Int) -> Unit = {}
 }
+
+/**
+ * Outras qualidades do mesmo canal (ex.: "BandSports FHD" ↔ "BandSports HD" ↔ "BandSports SD"):
+ * compara o nome sem as marcas de qualidade. Rótulo curto para o botão (FHD, HD, SD, 4K…).
+ */
+object Qualidades {
+    private val marcas = Regex("""(?i)\b(fhd|full ?hd|uhd|4k|hd|sd|hevc|h\.?265|h\.?264|60fps|fps|alt\d*|backup|bkp|\d{3,4}p)\b|[\[\]\(\)|¹²³⁴•*★_-]""")
+    fun base(nome: String) = nome.replace(marcas, " ").replace(Regex("\\s+"), " ").trim().lowercase()
+    fun rotulo(nome: String): String {
+        val m = Regex("""(?i)\b(fhd|full ?hd|uhd|4k|hd|sd|hevc|h\.?265|\d{3,4}p)\b""").findAll(nome).map { it.value.uppercase().replace("FULL HD", "FHD").replace("FULLHD", "FHD") }.toList()
+        return m.joinToString(" ").ifBlank { "Normal" }
+    }
+    fun <T> variantes(atual: T, todos: List<T>, nome: (T) -> String, id: (T) -> String): List<T> {
+        val b = base(nome(atual))
+        if (b.length < 2) return emptyList()
+        return todos.filter { base(nome(it)) == b }.distinctBy(id).takeIf { it.size > 1 }.orEmpty()
+    }
+}
