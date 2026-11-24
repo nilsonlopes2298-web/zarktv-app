@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.offset
@@ -187,6 +188,16 @@ fun ZarkLoginScreen(
     // ZarkTV Mobile: entrada pequena e limpa, pensada para o celular em pé.
     if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
         val t1 = Color(0xFFEDEDED); val t2 = Color(0xFFA1A1A6); val t3 = Color(0xFF85858B)
+        val haptico = androidx.compose.ui.platform.LocalHapticFeedback.current
+        val tremer = remember { androidx.compose.animation.core.Animatable(0f) }
+        LaunchedEffect(erro) {
+            if (erro != null) {
+                runCatching { haptico.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) }
+                for (x in listOf(-10f, 10f, -6f, 6f, 0f)) tremer.animateTo(x, tween(45))
+            }
+        }
+        val subir = remember { androidx.compose.animation.core.Animatable(1f) }
+        LaunchedEffect(Unit) { subir.animateTo(0f, tween(550, delayMillis = 150, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
         val campo: @Composable (String, String, (String) -> Unit, Boolean, androidx.compose.ui.graphics.vector.ImageVector, (@Composable () -> Unit)?) -> Unit =
             { rotulo, valor, mudar, senha, icone, fim ->
                 Row(
@@ -216,9 +227,10 @@ fun ZarkLoginScreen(
         androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF0F0F10))) {
             val alturaTela = maxHeight
             ParedeCapas()
+            FundoEletrico(sobreposto = true)
             // Tudo centralizado no meio da tela (rola se o teclado apertar).
             Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).heightIn(min = alturaTela).padding(horizontal = 32.dp),
+                Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).heightIn(min = alturaTela).padding(horizontal = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -228,10 +240,16 @@ fun ZarkLoginScreen(
                     Text("Zark", color = t1, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     Text("TV", color = Palette.Accent, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                 }
-                Spacer(Modifier.height(6.dp))
-                Text("Canais ao vivo, jogos, filmes e séries", color = t2, fontSize = 13.sp)
-                Spacer(Modifier.height(32.dp))
-                Column(Modifier.widthIn(max = 360.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Spacer(Modifier.height(16.dp))
+                Text("Bem-vindo de volta", color = t1, fontSize = 21.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(4.dp))
+                Text("Acesse sua conta para continuar", color = t2, fontSize = 13.sp)
+                Spacer(Modifier.height(28.dp))
+                Column(
+                    Modifier.widthIn(max = 360.dp).fillMaxWidth()
+                        .graphicsLayer { translationY = subir.value * 400.dp.toPx(); alpha = 1f - subir.value; translationX = tremer.value * density },
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     campo("Usuário", user, { user = it; erro = null }, false, AppIcons.User, null)
                     campo("Senha", pass, { pass = it; erro = null }, !verSenha, AppIcons.Lock) {
                         Box(Modifier.clip(RoundedCornerShape(6.dp)).clickable { verSenha = !verSenha }.padding(6.dp)) {
@@ -276,11 +294,11 @@ fun ZarkLoginScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                         Text("Ver planos", color = t1, fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable {
                             runCatching { uri.openUri(ZarkConfig.checkoutUrl(context, user.trim(), servers.getOrNull(sel)?.name.orEmpty())) }
-                        }.padding(10.dp))
+                        }.padding(horizontal = 12.dp, vertical = 16.dp))
                         Text("·", color = t3, fontSize = 14.sp)
-                        Text("Suporte", color = t1, fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable {
+                        Text("Preciso de ajuda", color = t1, fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable {
                             runCatching { uri.openUri(ZarkConfig.WHATSAPP) }
-                        }.padding(10.dp))
+                        }.padding(horizontal = 12.dp, vertical = 16.dp))
                     }
                 }
                 Spacer(Modifier.height(32.dp))

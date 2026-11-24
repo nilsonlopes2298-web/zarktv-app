@@ -246,16 +246,28 @@ object ZarkConfig {
         }
 
     // "Lembrar de mim": guarda usuário e senha para preencher o login da próxima vez.
+    /** Celular/tablet (não TV): a senha lembrada vai criptografada no cofre do Android. */
+    private fun usaCofre(context: Context) = !io.github.axon07.channelbox.ui.ehTv(context)
+
     fun lembrar(context: Context, user: String?, pass: String?) {
+        val cifrada = if (user != null && pass != null && usaCofre(context)) ZarkCofre.cifrar(pass) else null
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
-            if (user == null) remove("lembrar_user").remove("lembrar_pass").putBoolean("lembrar", false)
-            else putString("lembrar_user", user).putString("lembrar_pass", pass).putBoolean("lembrar", true)
+            if (user == null) remove("lembrar_user").remove("lembrar_pass").remove("lembrar_pass_c").putBoolean("lembrar", false)
+            else if (cifrada != null) putString("lembrar_user", user).putString("lembrar_pass_c", cifrada).remove("lembrar_pass").putBoolean("lembrar", true)
+            else putString("lembrar_user", user).putString("lembrar_pass", pass).remove("lembrar_pass_c").putBoolean("lembrar", true)
         }.apply()
     }
 
     fun lembrado(context: Context): Triple<Boolean, String, String> {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        return Triple(p.getBoolean("lembrar", true), p.getString("lembrar_user", "").orEmpty(), p.getString("lembrar_pass", "").orEmpty())
+        val user = p.getString("lembrar_user", "").orEmpty()
+        var pass = p.getString("lembrar_pass_c", null)?.let { ZarkCofre.decifrar(it) }.orEmpty()
+        if (pass.isEmpty()) {
+            pass = p.getString("lembrar_pass", "").orEmpty()
+            // Senha antiga guardada aberta: passa para o cofre na primeira vez (sem deslogar ninguém).
+            if (pass.isNotEmpty() && user.isNotEmpty() && usaCofre(context)) lembrar(context, user, pass)
+        }
+        return Triple(p.getBoolean("lembrar", true), user, pass)
     }
 
     // Player de filmes e séries: interno (padrão) ou externo (VLC, MX Player…).
