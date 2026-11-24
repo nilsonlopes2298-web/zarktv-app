@@ -59,7 +59,8 @@ jobs:
           elif [ "$TAG" = "beta" ]; then
             ./gradlew --no-daemon assembleUnicoRelease assembleTvRelease assembleMobileRelease -PappVersionName="$VERSAO"
           else
-            ./gradlew --no-daemon assembleUnicoRelease -PappVersionName="$VERSAO"
+            # Produção: os três apps (atual, ZarkTV TV e ZarkTV Mobile) pedem atualização pela versão "latest".
+            ./gradlew --no-daemon assembleUnicoRelease assembleTvRelease assembleMobileRelease -PappVersionName="$VERSAO"
           fi
 
       - name: Renomear e gerar version.json

@@ -19,6 +19,7 @@ const ADMIN_SENHA = process.env.ADMIN_SENHA || '';
 const DADOS = path.join(__dirname, 'data');
 const ARQ_CONFIG = path.join(DADOS, 'config.json');
 const ARQ_PEDIDOS = path.join(DADOS, 'pedidos.json');
+const ARQ_ERROS = path.join(DADOS, 'erros.json');
 const SEGREDO_SESSAO = crypto.createHash('sha256').update('zarktv:' + ADMIN_SENHA).digest();
 
 if (!ADMIN_SENHA) {
@@ -115,6 +116,46 @@ function senhaConfere(s) {
   const a = crypto.createHash('sha256').update(String(s || '')).digest();
   const b = crypto.createHash('sha256').update(ADMIN_SENHA).digest();
   return crypto.timingSafeEqual(a, b);
+}
+
+// ---------- Erros dos aparelhos (relatório que os apps mandam) ---------------------------
+// Cada app manda pacotes pequenos: aparelho + eventos (usuário, servidor, canal, tipo do erro).
+// Guarda só os últimos 5000; nunca recebe senha nem endereço de canal.
+const erros = () => ler(ARQ_ERROS, []);
+const envioErros = new Map();
+function limitarErros(ip) {
+  const t = Date.now();
+  const lista = (envioErros.get(ip) || []).filter((x) => t - x < 60_000);
+  lista.push(t);
+  envioErros.set(ip, lista);
+  return lista.length > 20;
+}
+function guardarErros(corpo) {
+  const ap = corpo && typeof corpo.aparelho === 'object' ? corpo.aparelho : {};
+  const txt = (v, n = 80) => String(v ?? '').slice(0, n);
+  const aparelho = { marca: txt(ap.marca, 40), modelo: txt(ap.modelo, 60), android: Number(ap.android) || 0, app: txt(ap.app, 20), versao: txt(ap.versao, 10) };
+  const novos = (Array.isArray(corpo?.eventos) ? corpo.eventos : []).slice(0, 20).map((e) => ({
+    quando: new Date(Number(e.quando) || Date.now()).toISOString(),
+    tipo: txt(e.tipo), detalhe: txt(e.detalhe, 120), usuario: txt(e.usuario, 60), servidor: txt(e.servidor, 40), canal: txt(e.canal), leve: !!e.leve,
+    ...aparelho,
+  }));
+  if (novos.length) gravar(ARQ_ERROS, [...novos.reverse(), ...erros()].slice(0, 5000));
+}
+function painelErros() {
+  const todos = erros();
+  const dia = Date.now() - 24 * 3600_000;
+  const hoje = todos.filter((e) => Date.parse(e.quando) > dia);
+  const contar = (f) => Object.entries(hoje.reduce((m, e) => { const k = f(e) || '—'; m[k] = (m[k] || 0) + 1; return m; }, {}))
+    .sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => `<tr><td>${esc(k)}</td><td>${n}</td></tr>`).join('') || '<tr><td colspan="2">Nada nas últimas 24 horas.</td></tr>';
+  const ultimos = todos.slice(0, 40).map((e) => `<tr><td>${esc(new Date(e.quando).toLocaleString('pt-BR', { timeZone: 'America/Fortaleza' }))}</td><td>${esc(e.usuario)}<br><small>${esc(e.servidor)}</small></td><td>${esc(e.canal)}</td><td>${esc(e.tipo)}<br><small>${esc(e.detalhe)}</small></td><td>${esc(e.marca)} ${esc(e.modelo)}<br><small>Android ${esc(e.android)} · app ${esc(e.app)} (${esc(e.versao)})${e.leve ? ' · fraco' : ''}</small></td></tr>`).join('');
+  return `<div class="card"><h1>Erros dos aparelhos</h1>
+<p>${hoje.length} erro(s) nas últimas 24 horas. Os apps mandam sozinhos quando um canal ou filme não abre ou demora mais de 10 segundos.</p>
+<h2>Por tipo</h2><table>${contar((e) => e.tipo)}</table>
+<h2>Por canal</h2><table>${contar((e) => e.canal)}</table>
+<h2>Por servidor</h2><table>${contar((e) => e.servidor)}</table>
+<h2>Por aparelho</h2><table>${contar((e) => `${e.marca} ${e.modelo}`.trim())}</table>
+<h2>Últimos</h2><table><tr><th>Quando</th><th>Cliente</th><th>Canal</th><th>Erro</th><th>Aparelho</th></tr>${ultimos || '<tr><td colspan="5">Nenhum erro recebido ainda.</td></tr>'}</table>
+<form method="post" action="/checkout/admin/erros/limpar"><button class="btn cinza">Limpar relatório</button></form></div>`;
 }
 
 // Limite simples: no máximo 10 pedidos por IP a cada 10 minutos.
@@ -403,6 +444,7 @@ ${msg ? `<div class="card ok">${esc(msg)}</div>` : ''}
 <label>URL de renovação automática (opcional — ZarkPlay Gestor)</label><input name="renovacaoUrl" value="${esc(c.renovacaoUrl)}">
 <button>Salvar configuração</button></form>
 ${painelMonitor()}
+${painelErros()}
 <div class="card"><h1>Pedidos</h1><table><tr><th>Data</th><th>Cliente</th><th>Plano</th><th>Gateway</th><th>Status</th><th></th></tr>${linhas || '<tr><td colspan="6">Nenhum pedido ainda.</td></tr>'}</table></div>
 <form method="post" action="/checkout/admin/sair"><button class="btn cinza">Sair</button></form>`, true);
 }
@@ -532,6 +574,11 @@ async function rotas(req, res) {
     // Aviso manual do admin vale sempre (com ou sem o automático).
     for (const [n, texto] of Object.entries(m.avisos || {})) st[n] = { ...(st[n] || {}), ok: false, msg: texto };
     return json(res, 200, { ultimo: m.ultimo, aviso: !!m.avisoApps, servidores: st });
+  }
+  if (req.method === 'POST' && rota === '/checkout/api/erros') {
+    if (limitarErros(ipDe(req))) return json(res, 429, { ok: false });
+    try { guardarErros(await lerCorpo(req)); } catch (e) { console.error('Relatório de erros inválido:', e.message); }
+    return json(res, 200, { ok: true });
   }
   if (req.method === 'GET' && rota === '/checkout/api/planos') {
     return json(res, 200, { planos: cfg.planos.map((p) => ({ id: p.id, nome: p.nome, dias: p.dias, valor: Number(p.valor) })), gateway: cfg.gateway });
@@ -676,6 +723,10 @@ async function rotas(req, res) {
     }
     if (req.method === 'POST' && rota === '/checkout/admin/monitor/agora') {
       await verificarServidores();
+      return enviar(res, 303, '', 'text/plain', { Location: '/checkout/admin' });
+    }
+    if (req.method === 'POST' && rota === '/checkout/admin/erros/limpar') {
+      gravar(ARQ_ERROS, []);
       return enviar(res, 303, '', 'text/plain', { Location: '/checkout/admin' });
     }
     if (req.method === 'POST' && rota === '/checkout/admin/pago') {

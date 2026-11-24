@@ -1294,6 +1294,11 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     private val jaTentados = mutableSetOf<String>()
 
     init {
+        // Relatório de erros para o painel: quem (usuário), em qual servidor e o que estava assistindo.
+        io.github.axon07.channelbox.player.ZarkRelatorio.contexto = {
+            val pl = settings.value?.playlists?.firstOrNull { it.enabled }
+            mapOf("usuario" to pl?.xtUser, "servidor" to pl?.name, "canal" to current.value?.name)
+        }
         // ZarkTV: enquanto um filme/episódio toca, guarda a posição a cada 15 s (mesmo que o app feche de repente).
         viewModelScope.launch {
             while (true) {

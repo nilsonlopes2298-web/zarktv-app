@@ -50,6 +50,8 @@ object ZarkDiag {
             aberturas.addLast(ms)
             while (aberturas.size > MAX) aberturas.removeFirst()
             prefs?.edit()?.putString("aberturas", aberturas.joinToString(","))?.apply()
+            // Demorou demais para abrir: vai para o relatório do painel (com o tempo).
+            if (ms > 10_000) ZarkRelatorio.registrar("Abertura lenta", "${ms / 1000} s (${if (tipoAtual == "canal") "canal ao vivo" else "filme/série"})")
         }
         somar("aberturas_$tipoAtual")
     }
@@ -89,6 +91,7 @@ object ZarkDiag {
             else -> e.errorCodeName
         }
         somar("erro|$tipo")
+        ZarkRelatorio.registrar(tipo, if (tipoAtual == "canal") "canal ao vivo" else "filme/série")
     }
 
     private fun somar(chave: String) {
