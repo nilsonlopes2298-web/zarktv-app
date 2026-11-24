@@ -100,20 +100,21 @@ fun PerfilUni(
             Column(mod.verticalScroll(rememberScrollState()).padding(vertical = 16.dp)) {
                 // Cards grandes
                 Row(Modifier.fillMaxWidth().height(if (compacto) 120.dp else 170.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Renovar em dourado (chama a atenção sem parecer erro), com os dias que faltam.
                     CardPerfil(
-                        if (dias != null && dias < 0) "Renove seu acesso" else "Renovar / Pagar",
-                        vence?.let { "Vence em $it" } ?: "Pix na hora",
-                        AppIcons.Star, Brush.linearGradient(listOf(Color(0xFF2B2B2B), Color(0xFF000000))), Color(0xFFFFC107),
-                        Modifier.weight(2.6f).fillMaxHeight().focusRequester(foco), onRenovar,
+                        if (dias != null && dias < 0) "Reativar agora" else "Renovar agora",
+                        when { dias == null -> "Pix na hora"; dias < 0 -> "Venceu · Pix na hora"; else -> "Faltam $dias dias · Pix na hora" },
+                        AppIcons.Star, Brush.linearGradient(listOf(Color(0xFFFFC83D), Color(0xFFF59E0B))), Color(0xFF231800),
+                        Modifier.weight(2.6f).fillMaxHeight().focusRequester(foco), onRenovar, textoEscuro = true,
                     )
-                    CardPerfil("Convidar amigos", "Indique o ZarkTV", AppIcons.Home, Brush.linearGradient(listOf(Color(0xFFFF7043), Color(0xFFD84315))), Color.White, Modifier.weight(1f).fillMaxHeight(), onConvidar)
+                    CardPerfil("Convidar amigos", "Indique o ZarkTV", AppIcons.Home, CartaoNeutro, Color(0xFFE50914), Modifier.weight(1f).fillMaxHeight(), onConvidar)
                 }
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth().height(if (compacto) 96.dp else 130.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CardPerfil("Conteúdo adulto", if (adultoLiberado) "Liberado" else "Bloqueado", AppIcons.Lock, Brush.linearGradient(listOf(Color(0xFF1E88E5), Color(0xFF1565C0))), Color.White, Modifier.weight(1f).fillMaxHeight(), onAdulto)
-                    CardPerfil("Suporte", "WhatsApp", AppIcons.Phone, Brush.linearGradient(listOf(Color(0xFF43A047), Color(0xFF2E7D32))), Color.White, Modifier.weight(1f).fillMaxHeight(), onSuporte)
-                    CardPerfil("Meus favoritos", "Filmes e séries", AppIcons.Star, Brush.linearGradient(listOf(Color(0xFF29B6F6), Color(0xFF0277BD))), Color.White, Modifier.weight(1f).fillMaxHeight(), onFavoritosVod)
-                    CardPerfil("Canais favoritos", "TV ao vivo", AppIcons.Tv, Brush.linearGradient(listOf(Color(0xFFFFA726), Color(0xFFEF6C00))), Color.White, Modifier.weight(1f).fillMaxHeight(), onFavoritosCanais)
+                    CardPerfil("Hot +18", if (adultoLiberado) "Liberado" else "Bloqueado", AppIcons.Lock, CartaoNeutro, Color(0xFFE50914), Modifier.weight(1f).fillMaxHeight(), onAdulto)
+                    CardPerfil("Suporte", "WhatsApp", AppIcons.Phone, CartaoNeutro, Color(0xFFE50914), Modifier.weight(1f).fillMaxHeight(), onSuporte)
+                    CardPerfil("Meus favoritos", "Filmes e séries", AppIcons.Star, CartaoNeutro, Color(0xFFE50914), Modifier.weight(1f).fillMaxHeight(), onFavoritosVod)
+                    CardPerfil("Canais favoritos", "TV ao vivo", AppIcons.Tv, CartaoNeutro, Color(0xFFE50914), Modifier.weight(1f).fillMaxHeight(), onFavoritosCanais)
                 }
                 if (historico.isNotEmpty()) {
                     Spacer(Modifier.height(18.dp))
@@ -156,7 +157,7 @@ fun PerfilUni(
         }
         val lateral: @Composable (Modifier) -> Unit = { mod ->
             Column(mod.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.size(96.dp).clip(CircleShape).background(Color(0xFF9E9E9E)), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(96.dp).clip(CircleShape).background(Color(0xFFE50914)), contentAlignment = Alignment.Center) {
                     Text(usuario.take(1).uppercase().ifBlank { "Z" }, color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.height(14.dp))
@@ -168,10 +169,32 @@ fun PerfilUni(
                     Spacer(Modifier.width(8.dp))
                     Text(if (verSenha) "ocultar" else "ver", color = Color(0xFFFFB74D), fontSize = 13.sp, modifier = Modifier.tap(onClick = { verSenha = !verSenha }).padding(4.dp))
                 }
-                Spacer(Modifier.height(10.dp))
-                Text("Sua conta expira em:", color = Color.White, fontSize = 15.sp)
-                Text(vence ?: if (conta == null) "conferindo…" else "sem vencimento", color = if (dias != null && dias <= 5) Color(0xFFFFD54F) else Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                if (vence != null) Text("(dd-mm-aaaa)", color = Color(0xAAFFFFFF), fontSize = 12.sp)
+                Spacer(Modifier.height(12.dp))
+                // Selo da conta: Ativa (verde), vence em poucos dias (âmbar) ou vencida (vermelho).
+                val (selo, corSelo) = when {
+                    dias == null -> (if (conta == null) "Conferindo…" else "Conta ativa") to Color(0xFF22C55E)
+                    dias < 0 -> "Conta vencida" to Color(0xFFEF4444)
+                    dias <= 5 -> "Vence em $dias dias" to Color(0xFFF59E0B)
+                    else -> "Conta ativa" to Color(0xFF22C55E)
+                }
+                Row(Modifier.clip(RoundedCornerShape(50)).background(corSelo.copy(alpha = 0.16f)).padding(horizontal = 12.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(8.dp).clip(CircleShape).background(corSelo))
+                    Spacer(Modifier.width(6.dp))
+                    Text(selo, color = corSelo, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                }
+                if (vence != null) Text("Vencimento: " + vence.replace('-', '/'), color = Color(0xCCFFFFFF), fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+                // Seu aparelho: modelo, internet medida e versão (ajuda o suporte).
+                val mbs = remember { runCatching { vm.player.velocidadeMBs() }.getOrDefault(0.0) }
+                Spacer(Modifier.height(12.dp))
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFF141416)).padding(12.dp)) {
+                    Text("Seu aparelho", color = Color(0x99FFFFFF), fontSize = 12.sp)
+                    Text(android.os.Build.MODEL.orEmpty(), color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (mbs > 0.05) Text(
+                        (if (mbs >= 2.0) "Internet boa" else if (mbs >= 0.7) "Internet ok" else "Internet fraca") + " · %.0f Mb/s".format(mbs * 8),
+                        color = if (mbs >= 0.7) Color(0xFF22C55E) else Color(0xFFF59E0B), fontSize = 13.sp,
+                    )
+                    Text("Versão ${io.github.axon07.channelbox.BuildConfig.VERSION_NAME}", color = Color(0x99FFFFFF), fontSize = 12.sp)
+                }
                 Spacer(Modifier.height(22.dp))
                 BotaoPilulaPerfil("Sair da conta", onSair)
                 Spacer(Modifier.height(12.dp))
@@ -195,26 +218,28 @@ fun PerfilUni(
     }
 }
 
+private val CartaoNeutro = Brush.linearGradient(listOf(Color(0xFF1C1C1F), Color(0xFF141416)))
+
 @Composable
-private fun CardPerfil(titulo: String, sub: String, icone: ImageVector, fundo: Brush, corIcone: Color, modifier: Modifier, onClick: () -> Unit) {
+private fun CardPerfil(titulo: String, sub: String, icone: ImageVector, fundo: Brush, corIcone: Color, modifier: Modifier, onClick: () -> Unit, textoEscuro: Boolean = false) {
     var f by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
         modifier = modifier.onFocusChanged { f = it.isFocused }
-            .border(if (f) 3.dp else 0.dp, if (f) Color(0xFFFFE082) else Color.Transparent, RoundedCornerShape(8.dp))
+            .border(if (f) 3.dp else 1.dp, if (f) Color(0xFFE50914) else Color(0x14FFFFFF), RoundedCornerShape(14.dp))
             .tap(onClick = onClick),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
         colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color.Transparent),
         scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.03f)),
     ) {
         Column(
-            Modifier.fillMaxSize().background(fundo, RoundedCornerShape(8.dp)).padding(12.dp),
+            Modifier.fillMaxSize().background(fundo, RoundedCornerShape(14.dp)).padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
         ) {
             AppIcon(icone, tint = corIcone, size = 34.dp)
             Spacer(Modifier.height(8.dp))
-            Text(titulo, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
-            Text(sub, color = Color(0xDDFFFFFF), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(titulo, color = if (textoEscuro) Color(0xFF231800) else Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+            Text(sub, color = if (textoEscuro) Color(0xCC231800) else Color(0xB3FFFFFF), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -225,13 +250,13 @@ private fun QuadroFuncao(icone: ImageVector, nome: String, modifier: Modifier, o
     Surface(
         onClick = onClick,
         modifier = modifier.height(96.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
-        colors = ClickableSurfaceDefaults.colors(containerColor = Color(0x33FFFFFF), focusedContainerColor = Color(0xFFE53935)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+        colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF1C1C1F), focusedContainerColor = Color(0xFFE50914)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.04f)),
     ) {
         Column(Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0xDDFFFFFF)), contentAlignment = Alignment.Center) {
-                AppIcon(icone, tint = Color(0xFF8E2A2A), size = 22.dp)
+            Box(Modifier.size(40.dp).clip(CircleShape).background(if (f) Color(0x33FFFFFF) else Color(0x1AE50914)), contentAlignment = Alignment.Center) {
+                AppIcon(icone, tint = if (f) Color.White else Color(0xFFE50914), size = 22.dp)
             }
             Spacer(Modifier.height(6.dp))
             Text(nome, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
@@ -246,7 +271,7 @@ private fun BotaoPilulaPerfil(label: String, onClick: () -> Unit) {
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().height(48.dp).onFocusChanged { f = it.isFocused }.tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
-        colors = ClickableSurfaceDefaults.colors(containerColor = Color(0x66FFFFFF), focusedContainerColor = Color(0xFFE53935)),
+        colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF1C1C1F), focusedContainerColor = Color(0xFFE50914)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.03f)),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(label, color = Color.White, fontSize = 16.sp) }
