@@ -144,12 +144,26 @@ fun ZarkAberturaAnimada(onFim: () -> Unit) {
     Box(
         Modifier
             .fillMaxSize()
-            .graphicsLayer { alpha = 1f - saida; scaleX = 1f + 0.08f * saida; scaleY = 1f + 0.08f * saida }
+            .graphicsLayer { val z = 1f + 0.03f * fase(0.45f, 0.87f) + 0.08f * saida; alpha = 1f - saida; scaleX = z; scaleY = z }
             .background(ZarkAnimacao.fundo)
             .pointerInput(Unit) { detectTapGestures { } },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.fillMaxSize()) {
+            val abre = fase(0.40f, 0.62f)
+            val apaga = 1f - fase(0.70f, 0.88f)
+            if (!leve && abre > 0f && apaga > 0f) {
+                val cx = size.width / 2f
+                for (k in -3..3) {
+                    val dist = kotlin.math.abs(k) / 3f
+                    val x = cx + k * size.width * 0.07f * abre
+                    val larg = size.width * (0.006f + 0.014f * (1f - dist))
+                    drawRect(
+                        Brush.verticalGradient(listOf(Color.Transparent, ZarkAnimacao.corEfeito.copy(alpha = 0.38f * apaga * (1f - dist * 0.7f)), Color.Transparent)),
+                        topLeft = Offset(x - larg / 2f, 0f), size = androidx.compose.ui.geometry.Size(larg, size.height),
+                    )
+                }
+            }
             pontos.forEach { (x, y, r, atraso) ->
                 val a = fase(atraso, atraso + 0.3f)
                 val alfa = if (a < 1f) a * 0.8f else 0.8f - 0.6f * fase(atraso + 0.3f, 0.6f)

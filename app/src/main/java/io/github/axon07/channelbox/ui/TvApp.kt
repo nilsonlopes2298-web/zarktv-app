@@ -192,6 +192,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     val menuRows = remember(menuSections, expandedSections) { vm.menuRows(menuSections, expandedSections) }
     val current by vm.current.collectAsStateWithLifecycle()
     val channelsLoaded by vm.channelsLoaded.collectAsStateWithLifecycle()
+    // Guarda o "destaque do momento" (em alta e novidades do catálogo) para a próxima tela de entrada.
+    val ctxDestaque = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(channelsLoaded) {
+        if (channelsLoaded) runCatching { DestaquesEntrada.atualizar(ctxDestaque, vm) }
+    }
     /** A long Back press already went to full screen (swallow the rest of that press). */
     var backLongFired by remember { mutableStateOf(false) }
     val upcoming by vm.upcoming.collectAsStateWithLifecycle()

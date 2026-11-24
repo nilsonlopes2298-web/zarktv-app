@@ -226,25 +226,33 @@ fun ZarkLoginScreen(
             }
         androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF0F0F10))) {
             val alturaTela = maxHeight
-            ParedeCapas()
+            // Destaque do momento em cima (filme/série em alta, novidade, jogo do dia) e o login subindo de baixo.
+            DestaqueEntrada(vm, tv = false, modifier = Modifier.fillMaxWidth().height(alturaTela * 0.56f))
             FundoEletrico(sobreposto = true)
-            // Tudo centralizado no meio da tela (rola se o teclado apertar).
+            Row(Modifier.padding(start = 24.dp, top = 28.dp), verticalAlignment = Alignment.CenterVertically) {
+                AppIcon(AppIcons.Play, tint = Palette.Accent, size = 22.dp)
+                Spacer(Modifier.width(4.dp))
+                Text("Zark", color = t1, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text("TV", color = Palette.Accent, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            }
             Column(
-                Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).heightIn(min = alturaTela).padding(horizontal = 32.dp),
+                Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).heightIn(min = alturaTela),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Bottom,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    AppIcon(AppIcons.Play, tint = Palette.Accent, size = 24.dp)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Zark", color = t1, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                    Text("TV", color = Palette.Accent, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.height(16.dp))
-                Text("Bem-vindo de volta", color = t1, fontSize = 21.sp, fontWeight = FontWeight.Medium)
+              Spacer(Modifier.height(alturaTela * 0.40f))
+              Column(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(Color(0xF7141416))
+                    .border(1.dp, Color(0x14EDEDED), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+              ) {
+                Text("Bem-vindo de volta", color = t1, fontSize = 22.sp, fontWeight = FontWeight.Medium, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(4.dp))
-                Text("Acesse sua conta para continuar", color = t2, fontSize = 13.sp)
-                Spacer(Modifier.height(28.dp))
+                Text("Acesse sua conta para continuar", color = t2, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(20.dp))
                 Column(
                     Modifier.widthIn(max = 360.dp).fillMaxWidth()
                         .graphicsLayer { translationY = subir.value * 400.dp.toPx(); alpha = 1f - subir.value; translationX = tremer.value * density },
@@ -301,10 +309,10 @@ fun ZarkLoginScreen(
                         }.padding(horizontal = 12.dp, vertical = 16.dp))
                     }
                 }
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(12.dp))
                 Text("Versão ${io.github.axon07.channelbox.BuildConfig.VERSION_NAME}", color = Color(0x66EDEDED), fontSize = 11.sp)
                 Text("Opções avançadas", color = Color(0x33EDEDED), fontSize = 10.sp, modifier = Modifier.tap(onClick = onAdvanced).padding(8.dp))
-                Spacer(Modifier.height(16.dp))
+              }
             }
         }
         return
@@ -388,35 +396,22 @@ fun ZarkLoginScreen(
     val logoApp: @Composable (androidx.compose.ui.unit.Dp) -> Unit = { _ -> }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF070607))) {
-        FundoRiscosVermelhos()
+        // TV / deitado: destaque do momento na tela inteira (detalhes à esquerda), login à direita.
+        if (deitado) DestaqueEntrada(vm, tv = true, modifier = Modifier.fillMaxSize(), rodapeTv = "Entre para assistir")
+        else FundoRiscosVermelhos()
         if (deitado) {
             Row(
-                Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 24.dp),
+                Modifier.fillMaxSize().padding(start = 64.dp, end = 48.dp, top = 28.dp, bottom = 24.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(Modifier.weight(1f).padding(end = 36.dp)) {
+                Column(Modifier.weight(1f).fillMaxHeight().padding(end = 36.dp), verticalArrangement = Arrangement.SpaceBetween) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        logoApp(if (baixo) 72.dp else 96.dp)
-                        Text("Zark", color = Color.White, fontSize = if (baixo) 48.sp else 64.sp, fontWeight = FontWeight.Bold)
-                        Text("TV", color = Palette.Accent, fontSize = if (baixo) 48.sp else 64.sp, fontWeight = FontWeight.Bold)
+                        AppIcon(AppIcons.Play, tint = Palette.Accent, size = if (baixo) 28.dp else 34.dp)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Zark", color = Color.White, fontSize = if (baixo) 30.sp else 38.sp, fontWeight = FontWeight.Bold)
+                        Text("TV", color = Palette.Accent, fontSize = if (baixo) 30.sp else 38.sp, fontWeight = FontWeight.Bold)
                     }
-                    Spacer(Modifier.height(16.dp))
-                    Box(Modifier.width(56.dp).height(4.dp).background(Palette.Accent, RoundedCornerShape(2.dp)))
-                    Spacer(Modifier.height(16.dp))
-                    Text("Canais ao vivo, esportes, filmes e séries\nno celular, na TV Box e na Smart TV.", color = Color(0xEBFFFFFF), fontSize = if (baixo) 16.sp else 20.sp, lineHeight = if (baixo) 22.sp else 28.sp)
-                    Spacer(Modifier.height(20.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        AppIcon(AppIcons.Phone, tint = Color(0xCCFFFFFF), size = 26.dp)
-                        Box(Modifier.padding(horizontal = 16.dp).width(1.dp).height(20.dp).background(Color(0x44FFFFFF)))
-                        AppIcon(AppIcons.Box, tint = Color(0xCCFFFFFF), size = 26.dp)
-                        Box(Modifier.padding(horizontal = 16.dp).width(1.dp).height(20.dp).background(Color(0x44FFFFFF)))
-                        AppIcon(AppIcons.Tv, tint = Color(0xCCFFFFFF), size = 28.dp)
-                    }
-                    Spacer(Modifier.height(if (baixo) 18.dp else 36.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.width(2.dp).height(14.dp).background(Palette.Accent))
-                        Text("  Versão $versao", color = Color(0x99FFFFFF), fontSize = 12.sp)
-                    }
+                    Text("Use as setas do controle e OK para confirmar · Versão $versao", color = Color(0x99FFFFFF), fontSize = 13.sp, modifier = Modifier.padding(bottom = 28.dp))
                 }
                 Box(Modifier.width(if (baixo) 360.dp else 420.dp).verticalScroll(rememberScrollState())) { formulario() }
             }
