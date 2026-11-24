@@ -145,13 +145,20 @@ fun TvApp(vm: TvViewModel) {
         ) {
             Box(Modifier.fillMaxSize()) {
                 TvAppContent(vm, s)
-                // Abertura: logo e versão, como na UniTV.
+                // Abertura. TV/TV Box: logo e versão, como na UniTV (sem mudança).
+                // Celular/tablet: abertura animada (ZarkAberturaMobile.kt), por cima da tela
+                // que já está carregando (login ou tela inicial), sem segurar o carregamento.
+                val ctxAbertura = androidx.compose.ui.platform.LocalContext.current
+                val celular = remember { !ehTv(ctxAbertura) && ZarkAnimacao.aberturaAtiva }
                 var abertura by remember { mutableStateOf(true) }
-                LaunchedEffect(Unit) {
+                if (!celular) LaunchedEffect(Unit) {
                     delay(1600)
                     abertura = false
                 }
-                if (abertura) ZarkAbertura(vm.appVersion)
+                if (abertura) {
+                    if (celular) ZarkAberturaAnimada(onFim = { abertura = false })
+                    else ZarkAbertura(vm.appVersion)
+                }
             }
         }
     }

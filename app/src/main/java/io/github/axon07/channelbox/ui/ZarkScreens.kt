@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -185,16 +188,29 @@ fun ZarkLoginScreen(
     val cfg = androidx.compose.ui.platform.LocalConfiguration.current
     val deitado = cfg.screenWidthDp > cfg.screenHeightDp
     val baixo = cfg.screenHeightDp < 600
+    // Celular/tablet em pé (nunca é TV): visual novo com painel que sobe de baixo.
+    val celularEmPe = !deitado && !ehTv(context)
+    val haptico = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val tremer = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(erro) {
+        if (erro != null && celularEmPe) {
+            runCatching { haptico.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) }
+            for (x in listOf(-10f, 10f, -6f, 6f, 0f)) tremer.animateTo(x, androidx.compose.animation.core.tween(45))
+        }
+    }
+    val subir = remember { androidx.compose.animation.core.Animatable(if (celularEmPe) 1f else 0f) }
+    LaunchedEffect(Unit) { if (celularEmPe) subir.animateTo(0f, androidx.compose.animation.core.tween(550, delayMillis = 150, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
     val formulario: @Composable () -> Unit = {
         Column(
-            Modifier
+            if (celularEmPe) Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+            else Modifier
                 .clip(RoundedCornerShape(22.dp))
                 .background(Brush.verticalGradient(listOf(Color(0xE61A0E10), Color(0xF20C0C0E))))
                 .border(1.5.dp, Brush.verticalGradient(listOf(Color(0xCCFF2D2D), Color(0x55FF2D2D))), RoundedCornerShape(22.dp))
                 .padding(horizontal = 26.dp, vertical = if (baixo) 18.dp else 24.dp),
             verticalArrangement = Arrangement.spacedBy(if (baixo) 10.dp else 14.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            if (!celularEmPe) Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.width(4.dp).height(if (baixo) 40.dp else 48.dp).background(Palette.Accent, RoundedCornerShape(2.dp)))
                 Spacer(Modifier.width(14.dp))
                 Column {
@@ -234,7 +250,7 @@ fun ZarkLoginScreen(
                 BotaoIconeTexto("Ver planos", AppIcons.Diamond, Modifier.weight(1f).height(if (baixo) 42.dp else 48.dp)) {
                     runCatching { uri.openUri(ZarkConfig.checkoutUrl(context, user.trim(), servers.getOrNull(sel)?.name.orEmpty())) }
                 }
-                BotaoIconeTexto("Suporte", AppIcons.Headset, Modifier.weight(1f).height(if (baixo) 42.dp else 48.dp)) {
+                BotaoIconeTexto(if (celularEmPe) "Preciso de ajuda" else "Suporte", AppIcons.Headset, Modifier.weight(1f).height(if (baixo) 42.dp else 48.dp)) {
                     runCatching { uri.openUri(ZarkConfig.WHATSAPP) }
                 }
             }
@@ -257,8 +273,50 @@ fun ZarkLoginScreen(
     val logoApp: @Composable (androidx.compose.ui.unit.Dp) -> Unit = { _ -> }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF070607))) {
-        FundoRiscosVermelhos()
-        if (deitado) {
+        if (celularEmPe) FundoEletrico() else FundoRiscosVermelhos()
+        if (celularEmPe) {
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
+            val alturaTela = maxHeight
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            ) {
+            Column(
+                Modifier.fillMaxWidth().heightIn(min = alturaTela),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+              Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(Modifier.height(if (baixo) 24.dp else 44.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Zark", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                    Text("TV", color = Palette.Accent, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(18.dp))
+                Text("Bem-vindo de volta", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(4.dp))
+                Text("Acesse sua conta para continuar", color = ZarkAnimacao.cinza, fontSize = 14.sp)
+                Spacer(Modifier.height(28.dp))
+              }
+                Box(
+                    Modifier
+                        .widthIn(max = 520.dp)
+                        .fillMaxWidth()
+                        .graphicsLayer { translationY = subir.value * 600.dp.toPx(); translationX = tremer.value * density }
+                        .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                        .background(Color(0xF2141416))
+                        .border(1.dp, Color(0xFF27272A), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                        .padding(horizontal = 18.dp, vertical = 20.dp),
+                ) {
+                    Column {
+                        formulario()
+                        Spacer(Modifier.height(10.dp))
+                        Text("Versão $versao", color = Color(0x66FFFFFF), fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            }
+            }
+            }
+        } else if (deitado) {
             Row(
                 Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 24.dp),
                 verticalAlignment = Alignment.CenterVertically,
