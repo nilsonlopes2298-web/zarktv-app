@@ -483,7 +483,18 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         // Playlist order, with channels that have no group collected at the very end.
         fun groupsOf(channels: List<ChannelEntity>): List<String> {
             val names = channels.map { it.groupTitle }.distinct()
-            val ordered = names.filter { it != ChannelFilter.UNGROUPED } + names.filter { it == ChannelFilter.UNGROUPED }
+            // ZarkTV: jogos do dia primeiro, depois os canais abertos (Globo, TV aberta, Band, SBT, Record…)
+            // e o resto em ordem alfabética. Grupos que a pessoa moveu continuam na ordem dela.
+            val jogos = Regex("""jogo|futebol|brasileir|campeonato|copa|libertadores|ppv|pay.?per.?view""", RegexOption.IGNORE_CASE)
+            val abertos = Regex("""globo|aberta|abertos|\bband\b(?! ?sports)|sbt|record|rede ?tv|cultura|tv brasil""", RegexOption.IGNORE_CASE)
+            fun prioridade(n: String) = when {
+                n == ChannelFilter.UNGROUPED -> 3
+                jogos.containsMatchIn(n) -> 0
+                abertos.containsMatchIn(n) -> 1
+                else -> 2
+            }
+            fun semAcento(n: String) = java.text.Normalizer.normalize(n, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "").lowercase()
+            val ordered = names.sortedWith(compareBy<String>({ prioridade(it) }, { semAcento(it) }))
             // Groups you've moved keep your order; the rest follow the playlist.
             val ov = overrides.value
             return ordered.sortedBy { ov[groupKey(originalGroup(it))]?.position ?: Int.MAX_VALUE }
