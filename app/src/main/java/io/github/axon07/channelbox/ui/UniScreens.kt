@@ -1007,6 +1007,8 @@ private fun JogoAberto(
                 } else if (canal == null) {
                     Text("Nenhum canal encontrado.\nUse \"Mudar de canal\".", color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center))
                 }
+                // Canal já liberado (30 min antes), mas o jogo ainda não começou: avisa a hora em cima do vídeo.
+                if (canal != null && !naoComecou && j.estado == "pre") AvisoInicioJogo(j, Modifier.align(Alignment.TopStart).padding(8.dp))
                 if (canal != null) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(canal.name, color = Color.White, fontSize = 13.sp, modifier = Modifier.background(Color(0x88000000), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
                     Spacer(Modifier.width(8.dp))
@@ -1266,6 +1268,27 @@ private fun TimeJogo(t: io.github.axon07.channelbox.data.ZarkJogos.Time, modifie
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         if (t.logo != null) AsyncImage(t.logo, null, modifier = Modifier.size(56.dp))
         Text(t.nome, color = Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+/** "Começa às 21:30 · faltam 18 min" em cima do vídeo, enquanto o jogo não começa (some sozinho na hora). */
+@Composable
+fun AvisoInicioJogo(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, modifier: Modifier = Modifier) {
+    var agora by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(j.id) { while (true) { delay(20_000); agora = System.currentTimeMillis() } }
+    val falta = ((j.inicio - agora) / 60_000).toInt()
+    if (falta < 0) return
+    val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
+    Row(
+        modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xCC09090B)).padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFFFFC83D)))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            if (falta == 0) "O jogo começa agora ($hora)" else "O jogo começa às $hora · faltam $falta min",
+            color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1,
+        )
     }
 }
 

@@ -2539,6 +2539,12 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onCancel = { textInput = null },
                 )
             }
+            // Tela cheia de um jogo que ainda não começou (canal liberado 30 min antes): mostra a hora do jogo.
+            jogoAberto?.let { jg ->
+                if (mode == Mode.PLAYER && jg.estado == "pre") Box(Modifier.fillMaxSize()) {
+                    AvisoInicioJogo(jg, Modifier.align(Alignment.TopCenter).padding(top = 16.dp))
+                }
+            }
             pinRequest?.let { r ->
                 key(r) {
                     PinDialog(r.title, r.setup, onSubmit = { vm.submitPin(it) }, onCancel = {
