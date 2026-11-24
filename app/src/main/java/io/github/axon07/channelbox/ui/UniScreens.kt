@@ -1677,7 +1677,8 @@ private fun CartaoJogoCel(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, mo
             .border(1.dp, if (aoVivo) VermelhoCel.copy(alpha = 0.5f) else LinhaCel, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick).padding(16.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // Altura fixa: com ou sem o sininho, todo cartão (programado, ao vivo, encerrado) fica igual.
+        Row(Modifier.height(32.dp), verticalAlignment = Alignment.CenterVertically) {
             if (j.ligaLogo != null) { AsyncImage(j.ligaLogo, null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)) }
             Text(j.liga, color = Texto2, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             // Jogo que ainda vai começar: sininho para lembrar (avisa 10 min antes e na hora).
@@ -1691,8 +1692,15 @@ private fun CartaoJogoCel(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, mo
         Row(verticalAlignment = Alignment.CenterVertically) {
             TimeCel(j.casa.nome, j.casa.logo, Modifier.weight(1f))
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                if (aoVivo || j.estado == "post") Text("${j.casa.placar ?: 0}  x  ${j.fora.placar ?: 0}", color = Texto1, fontSize = 24.sp, fontWeight = FontWeight.Medium)
-                else { Text(hora, color = Texto1, fontSize = 24.sp, fontWeight = FontWeight.Medium); Text(dia, color = Texto3, fontSize = 12.sp) }
+                // Sempre duas linhas (número grande + linha pequena), para o cartão não mudar de tamanho.
+                val grande = if (aoVivo || j.estado == "post") "${j.casa.placar ?: 0}  x  ${j.fora.placar ?: 0}" else hora
+                val pequena = when {
+                    aoVivo -> j.detalhe.ifBlank { "Começou $hora" }
+                    j.estado == "post" -> "Fim de jogo"
+                    else -> dia
+                }
+                Text(grande, color = Texto1, fontSize = 24.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                Text(pequena, color = if (aoVivo) VermelhoCel else Texto3, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(8.dp))
                 Text(
                     when { aoVivo -> "Ao vivo"; j.estado == "post" -> "Encerrado"; else -> "Ver jogo" },
