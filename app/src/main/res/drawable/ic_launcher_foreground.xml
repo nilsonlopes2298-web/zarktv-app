@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ZarkTV: ícone minimalista — play branco arredondado com o "Z" vazado em vermelho (zona segura de 66 dp). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="8"
+        android:strokeLineJoin="round"
+        android:pathData="M41,34 L41,74 L76,54 Z" />
+    <path
+        android:strokeColor="#FFE50914"
+        android:strokeWidth="5.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="miter"
+        android:pathData="M47,46.5 L59,46.5 L47,61.5 L59,61.5" />
+</vector>
