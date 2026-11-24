@@ -1052,7 +1052,17 @@ private fun JogoAberto(
                     }
                     BotaoQuadrado(AppIcons.Close, "Voltar", Color(0x55FFFFFF), Modifier, onVoltar)
                 }
-                if (canalInfo.isNotBlank()) Text(canalInfo, color = Color(0xCCFFFFFF), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                // Onde mais o jogo está passando (FHD, HD, SD, outros canais): toca para trocar.
+                // Se o canal der erro, o app já passa sozinho para a próxima opção.
+                val opcoes = JogoOpcoes.nomes.value
+                if (opcoes.size > 1) {
+                    Text("Assistir em", color = Color(0x99FFFFFF), fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
+                    androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(opcoes.size) { i ->
+                            PillButton(opcoes[i].take(22), primary = i == JogoOpcoes.atual.intValue) { JogoOpcoes.escolher(i) }
+                        }
+                    }
+                } else if (canalInfo.isNotBlank()) Text(canalInfo, color = Color(0xCCFFFFFF), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
             }
         }
         if (compacto) {

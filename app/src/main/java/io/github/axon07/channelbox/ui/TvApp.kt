@@ -264,6 +264,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var jogoAberto by remember { mutableStateOf<io.github.axon07.channelbox.data.ZarkJogos.Jogo?>(null) }
     var candidatosJogo by remember { mutableStateOf<List<ChannelEntity>>(emptyList()) }
     var jogoCanalIdx by remember { mutableIntStateOf(0) }
+    val zarkCtxJogo = LocalContext.current
     fun jogoEsperando(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo) =
         j.estado == "pre" && j.inicio - System.currentTimeMillis() > 30 * 60_000L // libera o canal 30 minutos antes do jogo
     // Jogo aberto: uns 20 min depois do fim (≈ 2h10 depois do início) fecha sozinho e para o canal.
@@ -300,7 +301,38 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         val porTime = allChannels.filter { ch -> !ehFilme(ch) && times.any { limpa(ch.name).contains(it) } }
         val esporte = Regex("""premiere|espn|sportv|tnt ?sports|band ?sports|combate|caz[eé] ?tv|disney ?\+|goat|nosso futebol|onefootball|dazn|eleven|\bsports?\b|futebol|ppv|pay-per-view|jogos""", RegexOption.IGNORE_CASE)
         val esportes = allChannels.filter { !ehFilme(it) && (esporte.containsMatchIn(it.name) || esporte.containsMatchIn(it.groupTitle)) }
-        return (porTime + porTransmissao + esportes).distinctBy { it.id }.take(60)
+        val lista = (porTime + porTransmissao + esportes).distinctBy { it.id }.take(60)
+        // Memória: o que já funcionou vem primeiro; o que deu erro há pouco vai para o fim.
+        return MemoriaCanais.ordenar(zarkCtxJogo, lista) { it.id }
+    }
+    // Opções do jogo para os botões embaixo do vídeo (FHD, HD, SD, outros canais…).
+    androidx.compose.runtime.SideEffect {
+        JogoOpcoes.nomes.value = if (jogoAberto == null) emptyList() else candidatosJogo.take(8).map { it.name }
+        JogoOpcoes.atual.intValue = jogoCanalIdx
+        JogoOpcoes.escolher = { i ->
+            candidatosJogo.getOrNull(i)?.let { ch -> jogoCanalIdx = i; vm.withChannelAccess(ch) { vm.tune(ch) } }
+        }
+    }
+    // Jogo aberto: canal que tocou entra na memória; canal com erro passa sozinho para a próxima opção.
+    var trocasAuto by remember(jogoAberto?.id) { mutableIntStateOf(0) }
+    LaunchedEffect(playerStatus, jogoAberto?.id) {
+        val j = jogoAberto ?: return@LaunchedEffect
+        val ch = current ?: return@LaunchedEffect
+        if (candidatosJogo.none { it.id == ch.id }) return@LaunchedEffect
+        when (playerStatus) {
+            is PlayerStatus.Playing -> MemoriaCanais.funcionou(zarkCtxJogo, ch.id)
+            is PlayerStatus.Error -> {
+                MemoriaCanais.deuErro(zarkCtxJogo, ch.id)
+                if (jogoEsperando(j) || candidatosJogo.size < 2 || trocasAuto >= minOf(5, candidatosJogo.size - 1)) return@LaunchedEffect
+                delay(1_500)
+                trocasAuto++
+                jogoCanalIdx = (jogoCanalIdx + 1) % candidatosJogo.size
+                val prox = candidatosJogo[jogoCanalIdx]
+                vm.showToast("Esse canal não abriu. Tentando: ${prox.name}")
+                vm.withChannelAccess(prox) { vm.tune(prox) }
+            }
+            else -> Unit
+        }
     }
     var homePreview by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     /** Filme/série aberto direto da tela principal: Voltar retorna para ela. */
