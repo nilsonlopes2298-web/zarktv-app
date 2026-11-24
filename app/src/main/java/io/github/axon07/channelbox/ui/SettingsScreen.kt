@@ -176,13 +176,14 @@ fun SettingsScreen(
     // Back on a sub-page returns to the category instead of leaving Settings.
     BackHandler(enabled = page != null) { closePage() }
 
-    Row(Modifier.fillMaxSize().background(Palette.Background)) {
+    // Mesmo fundo e mesmas cores da tela Configurações (ZarkAjustes): nada muda de visual ao entrar aqui.
+    Row(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF2A0E0E), Color(0xFF140A0C), Color(0xFF0B0B10))))) {
         // ---- Categories ----
         Column(
             Modifier
                 .width(290.dp)
                 .fillMaxHeight()
-                .background(Color(0xFF0F151C))
+                .background(Color(0x33000000))
                 .verticalScroll(rememberScrollState())
                 .padding(top = 28.dp, start = 14.dp, end = 14.dp, bottom = 16.dp)
         ) {
@@ -1309,11 +1310,11 @@ fun IconBadge(icon: ImageVector, size: androidx.compose.ui.unit.Dp = 30.dp, high
 /** Colours shared by every row: quiet at rest, a bright pill with dark text when focused (Google TV style). */
 private object Rows {
     val Rest = Color.Transparent
-    val Focus = Color(0xFFECF1F6)
-    val Pressed = Color(0xFFD9E1EA)
-    val OnFocus = Color(0xFF0E141B)
-    val OnFocusDim = Color(0xFF4A5868)
-    val Shape = RoundedCornerShape(12.dp)
+    val Focus = Color(0xFFE5482F)
+    val Pressed = Color(0xFFC93A24)
+    val OnFocus = Color.White
+    val OnFocusDim = Color(0xD9FFFFFF)
+    val Shape = RoundedCornerShape(6.dp)
 }
 
 @Composable
@@ -1328,7 +1329,7 @@ private fun CategoryRow(
     val content = when {
         focused -> Rows.OnFocus
         selected -> Color.White
-        else -> Color(0xFF9AA6B4)
+        else -> Color(0xCCFFFFFF)
     }
     Surface(
         onClick = onTap,
@@ -1342,7 +1343,7 @@ private fun CategoryRow(
             .tap(onClick = onTap),
         shape = ClickableSurfaceDefaults.shape(Rows.Shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (selected) Color(0x14FFFFFF) else Color.Transparent,
+            containerColor = if (selected) Color(0x33E5482F) else Color.Transparent,
             contentColor = Palette.Text,
             focusedContainerColor = Rows.Focus,
             focusedContentColor = Rows.OnFocus,
@@ -1351,7 +1352,7 @@ private fun CategoryRow(
         scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.02f)),
     ) {
         Row(
-            Modifier.fillMaxWidth().height(46.dp).padding(end = 12.dp),
+            Modifier.fillMaxWidth().height(52.dp).padding(end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Thin accent bar marks the open section.
@@ -1366,7 +1367,7 @@ private fun CategoryRow(
             AppIcon(category.icon(), tint = content, size = 18.dp)
             Spacer(Modifier.width(14.dp))
             Text(
-                category.title, fontSize = 14.sp,
+                category.title, fontSize = 17.sp,
                 fontWeight = if (selected || focused) FontWeight.SemiBold else FontWeight.Normal,
                 color = content, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
@@ -1396,7 +1397,7 @@ private fun SettingCard(
             .tap(onClick = onClick),
         shape = ClickableSurfaceDefaults.shape(Rows.Shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (highlight) Color(0x223D8BFD) else Rows.Rest,
+            containerColor = if (highlight) Color(0x33E5482F) else Rows.Rest,
             contentColor = Palette.Text,
             focusedContainerColor = Rows.Focus,
             focusedContentColor = Rows.OnFocus,
@@ -1455,7 +1456,7 @@ private fun InfoCard(title: String, text: String) {
             .background(Rows.Rest)
             .padding(horizontal = 18.dp, vertical = 12.dp)
     ) {
-        Text(title.uppercase(), fontSize = 10.sp, letterSpacing = 0.8.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF7D8A9A))
+        Text(title, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0x99FFFFFF))
         Text(text, fontSize = 14.sp, color = Palette.Text, modifier = Modifier.padding(top = 3.dp))
     }
 }
@@ -1464,7 +1465,7 @@ private fun InfoCard(title: String, text: String) {
 @Composable
 private fun ToggleSwitch(on: Boolean) {
     val track by androidx.compose.animation.animateColorAsState(
-        if (on) Palette.Accent else Color(0xFF465263), label = "track",
+        if (on) Palette.Accent else Color(0xFF3A3F4B), label = "track",
     )
     val thumbX by androidx.compose.animation.core.animateDpAsState(if (on) 20.dp else 0.dp, label = "thumb")
     Box(
