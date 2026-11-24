@@ -1086,15 +1086,18 @@ private fun JogoAberto(
                         vm.showToast(if (lembrete) "Vamos te avisar quando o jogo começar" else "Lembrete removido")
                     }
                     PilulaJogo(AppIcons.Close, "Voltar", false, Modifier.weight(1f), onVoltar)
-                } else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // TV: pílulas com ícone (padrão do app), foco com anel vermelho e leve aumento.
-                    PilulaTv(AppIcons.Grid, "Tela cheia", true, Modifier.focusRequester(foco)) { if (canal != null) onFull() }
-                    PilulaTv(AppIcons.Refresh, "Próximo canal", false, Modifier, onMudar)
-                    if (j.estado == "pre") PilulaTv(AppIcons.Bell, if (lembrete) "Avisando" else "Lembrar", lembrete, Modifier) {
-                        lembrete = io.github.axon07.channelbox.data.ZarkLembretes.alternar(ctx, j.id, j.inicio, "${j.casa.nome} x ${j.fora.nome}")
-                        vm.showToast(if (lembrete) "Vamos te avisar quando o jogo começar" else "Lembrete removido")
+                } else Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // TV (encaixe do Lovable): Tela cheia na largura toda; Próximo canal e Lembrar lado a lado; Voltar embaixo.
+                    PilulaTv(AppIcons.Grid, "Tela cheia", true, Modifier.fillMaxWidth().focusRequester(foco)) { if (canal != null) onFull() }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        PilulaTv(AppIcons.Refresh, "Próximo canal", false, Modifier.weight(1f), onMudar)
+                        if (j.estado == "pre") PilulaTv(AppIcons.Bell, if (lembrete) "Avisando" else "Lembrar", lembrete, Modifier.weight(1f)) {
+                            lembrete = io.github.axon07.channelbox.data.ZarkLembretes.alternar(ctx, j.id, j.inicio, "${j.casa.nome} x ${j.fora.nome}")
+                            vm.showToast(if (lembrete) "Vamos te avisar quando o jogo começar" else "Lembrete removido")
+                        }
+                        else PilulaTv(AppIcons.Close, "Voltar", false, Modifier.weight(1f), onVoltar)
                     }
-                    PilulaTv(AppIcons.Close, "Voltar", false, Modifier, onVoltar)
+                    if (j.estado == "pre") PilulaTv(AppIcons.Close, "Voltar", false, Modifier.fillMaxWidth(), onVoltar)
                 }
                 // Qualidade do canal do jogo (FHD, HD, SD…): se uma resolução travar ou estiver bloqueada, troca aqui.
                 val todosCanais by vm.allChannels.collectAsState()
@@ -1384,7 +1387,7 @@ private fun PilulaTv(icone: ImageVector, label: String, destaque: Boolean, modif
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.06f)),
     ) {
-        Row(Modifier.fillMaxHeight().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
             AppIcon(icone, tint = Color.White, size = 20.dp)
             Spacer(Modifier.width(10.dp))
             Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1)
