@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.offset
@@ -237,8 +238,9 @@ fun ZarkLoginScreen(
             }
             // Teclado aberto: o destaque some de cena e o painel fica logo acima do teclado (sem precisar arrastar).
             val densidade = androidx.compose.ui.platform.LocalDensity.current
-            val alturaTeclado = with(densidade) { androidx.compose.foundation.layout.WindowInsets.ime.getBottom(densidade).toDp() }
-            val tecladoAberto = alturaTeclado > 80.dp
+            val insetsTeclado = androidx.compose.foundation.layout.WindowInsets.ime
+            val alturaTeclado: androidx.compose.ui.unit.Dp = with(densidade) { insetsTeclado.getBottom(densidade).toDp() }
+            val tecladoAberto = alturaTeclado.value > 80f
             Column(
                 Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState())
                     .heightIn(min = (alturaTela - alturaTeclado).coerceAtLeast(0.dp)),

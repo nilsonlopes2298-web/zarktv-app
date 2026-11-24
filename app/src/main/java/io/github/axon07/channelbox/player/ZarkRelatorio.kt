@@ -43,6 +43,28 @@ object ZarkRelatorio {
         }
     }
 
+    /**
+     * Guarda o motivo quando o app fecha sozinho (travamento) e, na abertura seguinte,
+     * manda para o painel como "App fechou sozinho" com a linha do código onde aconteceu.
+     */
+    fun vigiarTravamentos(app: android.content.Context) {
+        val prefs = app.getSharedPreferences("zarktv_travamento", android.content.Context.MODE_PRIVATE)
+        prefs.getString("ultimo", null)?.let { guardado ->
+            prefs.edit().remove("ultimo").commit()
+            registrar("App fechou sozinho", guardado.take(120))
+        }
+        val anterior = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            runCatching {
+                val causa = generateSequence(e) { it.cause }.last()
+                val onde = (causa.stackTrace.firstOrNull { it.className.contains("channelbox") } ?: causa.stackTrace.firstOrNull())
+                    ?.let { "${it.fileName}:${it.lineNumber}" }.orEmpty()
+                prefs.edit().putString("ultimo", "${causa.javaClass.simpleName}: ${causa.message.orEmpty().take(60)} @ $onde").commit()
+            }
+            anterior?.uncaughtException(t, e)
+        }
+    }
+
     /** Um erro aconteceu (tipo já sem endereço). */
     fun registrar(tipo: String, detalhe: String = "") = runCatching {
         val agora = System.currentTimeMillis()

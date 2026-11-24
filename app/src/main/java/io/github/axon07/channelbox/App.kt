@@ -28,6 +28,8 @@ class App : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        // ZarkTV: se o app fechar por erro, guarda o motivo e manda para o painel na próxima abertura.
+        io.github.axon07.channelbox.player.ZarkRelatorio.vigiarTravamentos(this)
         io.github.axon07.channelbox.ui.ZarkLeve.detectar(this)
         io.github.axon07.channelbox.ui.ZarkLayout.atualizar(this)
         val settings = SettingsStore(this)
