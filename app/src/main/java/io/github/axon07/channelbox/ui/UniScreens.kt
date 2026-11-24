@@ -1067,7 +1067,18 @@ private fun JogoAberto(
 
         // Abas: Detalhes, Escalação do time, Estatísticas, Classificação.
         Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Celular: abas curtas numa linha que desliza, no mesmo tamanho do resto do app.
+        if (compacto) androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            val nomes = listOf("Lances", "Escalação", "Estatísticas", "Tabela")
+            items(nomes.size) { i ->
+                val sel = aba == i
+                Text(
+                    nomes[i], color = if (sel) Color.White else Color(0xB3FFFFFF), fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(if (sel) Color(0xFFE50914) else Color(0x1AFFFFFF))
+                        .tap(onClick = { aba = i }).padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
+        } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Detalhes", "Escalação do time", "Estatísticas", "Classificação").forEachIndexed { i, nome ->
                 var f by remember { mutableStateOf(false) }
                 Surface(
@@ -1086,7 +1097,11 @@ private fun JogoAberto(
         }
         Spacer(Modifier.height(8.dp))
         Box(
-            Modifier.fillMaxWidth().heightIn(min = 260.dp)
+            if (compacto) Modifier.fillMaxWidth().heightIn(min = 120.dp)
+                .background(Color(0xFF1C1C1F), RoundedCornerShape(12.dp))
+                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(12.dp))
+                .padding(12.dp)
+            else Modifier.fillMaxWidth().heightIn(min = 260.dp)
                 .background(Brush.verticalGradient(listOf(Color(0xFF1E6B2A), Color(0xFF17591F))), RoundedCornerShape(6.dp))
                 .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(6.dp))
                 .padding(16.dp)
@@ -1106,14 +1121,16 @@ private fun JogoAberto(
 @Composable
 private fun AbaLances(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, d: io.github.axon07.channelbox.data.ZarkJogoDetalhes.Detalhes) {
     Column(Modifier.fillMaxWidth()) {
-        Row(horizontalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.align(Alignment.End)) {
+        // Legenda que quebra linha no celular (antes "Substituição" saía letra por letra).
+        @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Legenda(Color.White, "Gol")
-            Legenda(Color(0xFFE53935), "Cartão vermelho")
-            Legenda(Color(0xFFFDD835), "Cartão amarelo")
+            Legenda(Color(0xFFE53935), "Vermelho")
+            Legenda(Color(0xFFFDD835), "Amarelo")
             Legenda(Color(0xFF66BB6A), "Substituição")
         }
         Spacer(Modifier.height(12.dp))
-        if (d.lances.isEmpty()) Text(if (j.estado == "pre") "O jogo ainda não começou." else "Nenhum lance registrado ainda.", color = Color.White, fontSize = 15.sp)
+        if (d.lances.isEmpty()) Text(if (j.estado == "pre") "O jogo ainda não começou." else "Nenhum lance registrado ainda.", color = Color(0xB3FFFFFF), fontSize = 14.sp)
         d.lances.forEach { l ->
             val cor = when (l.tipo) { "Gol" -> Color.White; "Cartão vermelho" -> Color(0xFFE53935); "Cartão amarelo" -> Color(0xFFFDD835); else -> Color(0xFF66BB6A) }
             Row(
@@ -1136,9 +1153,9 @@ private fun AbaLances(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo, d: io.
 @Composable
 private fun Legenda(cor: Color, nome: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(width = 12.dp, height = 16.dp).background(cor, RoundedCornerShape(2.dp)))
-        Spacer(Modifier.width(6.dp))
-        Text(nome, color = Color.White, fontSize = 13.sp)
+        Box(Modifier.size(width = 8.dp, height = 11.dp).background(cor, RoundedCornerShape(2.dp)))
+        Spacer(Modifier.width(5.dp))
+        Text(nome, color = Color(0xCCFFFFFF), fontSize = 12.sp, maxLines = 1)
     }
 }
 
