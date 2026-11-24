@@ -2037,8 +2037,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     conta = conta,
                     channels = visible,
                     favChannels = emptyList(),
-                    groupLabel = vm.filterTitle(filter, menuSections),
-                    groups = filtrosLista.map { f -> f to (Aba.rotulo(f, vm.filterTitle(f, menuSections))) },
+                    groupLabel = vm.filterTitle(filter, menuSections).uppercase(java.util.Locale("pt", "BR")),
+                    groups = filtrosLista.map { f -> f to (Aba.rotulo(f, vm.filterTitle(f, menuSections))).uppercase(java.util.Locale("pt", "BR")) },
                     currentGroup = filter,
                     onGroup = { vm.setFilter(it) },
                     jogoAberto = jogoAberto,
@@ -2191,7 +2191,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 val contagemGrupos = remember(allChannels) { allChannels.groupingBy { it.groupTitle }.eachCount() }
                 LiveScreen(
                     channels = visible,
-                    groupLabel = vm.filterTitle(filter, menuSections),
+                    groupLabel = vm.filterTitle(filter, menuSections).uppercase(java.util.Locale("pt", "BR")),
                     groups = filtros.map { f -> f to (vm.filterTitle(f, menuSections)) },
                     currentGroup = filter,
                     current = current,

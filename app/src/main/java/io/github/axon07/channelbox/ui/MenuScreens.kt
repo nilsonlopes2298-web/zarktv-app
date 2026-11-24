@@ -230,7 +230,7 @@ private fun GroupRow(
             Spacer(Modifier.width(8.dp))
         }
         Text(
-            filter.label,
+            filter.label.uppercase(java.util.Locale("pt", "BR")),
             fontSize = 15.sp,
             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
             color = if (active) Color(0xFF8FBBFF) else Palette.Text,
