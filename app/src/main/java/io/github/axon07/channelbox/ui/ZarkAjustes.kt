@@ -1,5 +1,7 @@
 package io.github.axon07.channelbox.ui
 
+import androidx.compose.runtime.collectAsState
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -313,6 +315,7 @@ private fun ConteudoAjuste(secao: Secao, vm: TvViewModel, escala: Int, versao: S
             Spacer(Modifier.height(16.dp))
             BotaoAjuste("Falar com o suporte", false) { onSuporte() }
         }
+        Secao.PARENTAL -> if (io.github.axon07.channelbox.system.Aparelho.soCelular) ParentalCel(vm)
         else -> Unit
     }
     }
@@ -321,50 +324,89 @@ private fun ConteudoAjuste(secao: Secao, vm: TvViewModel, escala: Int, versao: S
 /** Celular: lista de itens; tocando abre a tela do item inteira, com seta para voltar. */
 @Composable
 private fun AjustesCelular(onParental: () -> Unit, onAvancado: () -> Unit, conteudo: @Composable (Secao) -> Unit) {
+    // Celular: tudo numa tela só. Cada seção abre ali mesmo (sanfona), sem ir para outra tela;
+    // só "Ajustes avançados" leva para a tela completa de rede e reprodução.
     var aberta by remember { mutableStateOf<Secao?>(null) }
-    androidx.activity.compose.BackHandler(enabled = aberta != null) { aberta = null }
     val voltar = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
-    val fundo = Color(0xFF141416)
-    Column(Modifier.fillMaxSize().background(fundo).statusBarsPadding()) {
+    val t1 = Color(0xFFEDEDED); val t3 = Color(0xFF85858B)
+    Column(Modifier.fillMaxSize().background(Color(0xFF141416)).statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(48.dp).clip(RoundedCornerShape(24.dp)).clickable { if (aberta != null) aberta = null else voltar?.onBackPressed() }, contentAlignment = Alignment.Center) {
-                AppIcon(AppIcons.Voltar, tint = Color(0xFFEDEDED), size = 22.dp)
+            Box(Modifier.size(48.dp).clip(RoundedCornerShape(24.dp)).clickable { voltar?.onBackPressed() }, contentAlignment = Alignment.Center) {
+                AppIcon(AppIcons.Voltar, tint = t1, size = 22.dp)
             }
-            Text(aberta?.titulo ?: "Configurações", color = Color(0xFFEDEDED), fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Text("Configurações", color = t1, fontSize = 18.sp, fontWeight = FontWeight.Medium)
         }
-        val s = aberta
-        if (s == null) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
-                Secao.entries.forEach { item ->
-                    val desc = when (item) {
-                        Secao.REPRODUCAO -> "Áudio dublado ou original e legendas"
-                        Secao.PROPORCAO -> "Como o vídeo ocupa a tela"
-                        Secao.PARENTAL -> "Senha para o conteúdo adulto"
-                        Secao.CACHE -> "Libera espaço apagando capas guardadas"
-                        Secao.VERSAO -> "Ver se há versão nova"
-                        Secao.DIAGNOSTICO -> "Como os canais estão abrindo"
-                        Secao.SOBRE -> "Versão e suporte"
-                        Secao.AVANCADO -> "Rede, VPN e reprodução"
-                    }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Secao.entries.filter { it != Secao.AVANCADO }.forEach { item ->
+                val desc = when (item) {
+                    Secao.REPRODUCAO -> "Áudio dublado ou original e legendas"
+                    Secao.PROPORCAO -> "Como o vídeo ocupa a tela"
+                    Secao.PARENTAL -> "Senha para o conteúdo adulto e bloqueios"
+                    Secao.CACHE -> "Libera espaço apagando capas guardadas"
+                    Secao.VERSAO -> "Ver se há versão nova"
+                    Secao.DIAGNOSTICO -> "Como os canais estão abrindo"
+                    Secao.SOBRE -> "Versão e suporte"
+                    Secao.AVANCADO -> ""
+                }
+                val aqui = aberta == item
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFF1C1C1F))) {
                     Row(
-                        Modifier.fillMaxWidth().padding(bottom = 6.dp).heightIn(min = 64.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1C1C1F)).clickable {
-                            when (item) { Secao.PARENTAL -> onParental(); Secao.AVANCADO -> onAvancado(); else -> aberta = item }
-                        }.padding(horizontal = 12.dp, vertical = 10.dp),
+                        Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable { aberta = if (aqui) null else item }.padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text(item.titulo, color = Color(0xFFEDEDED), fontSize = 16.sp)
-                            Text(desc, color = Color(0xFF85858B), fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+                            Text(item.titulo, color = t1, fontSize = 16.sp, fontWeight = if (aqui) FontWeight.Medium else FontWeight.Normal)
+                            if (!aqui) Text(desc, color = t3, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
                         }
-                        Text("›", color = Color(0xFF85858B), fontSize = 22.sp)
+                        Text(if (aqui) "–" else "+", color = t3, fontSize = 20.sp)
+                    }
+                    androidx.compose.animation.AnimatedVisibility(aqui) {
+                        Column(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 14.dp)) { conteudo(item) }
                     }
                 }
             }
-        } else {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 32.dp)) {
-                conteudo(s)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1C1C1F)).clickable(onClick = onAvancado).padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Ajustes avançados", color = t1, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                Text("›", color = t3, fontSize = 22.sp)
             }
+            Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+/** Controle parental do celular: mesmas linhas e botões das outras seções. */
+@Composable
+private fun ParentalCel(vm: TvViewModel) {
+    val settings by vm.settings.collectAsState()
+    val locked by vm.lockedItems.collectAsState()
+    val temPin = settings?.pinHash != null
+    val t1 = Color(0xFFEDEDED); val t3 = Color(0xFF85858B)
+    @Composable
+    fun linha(titulo: String, sub: String?, acao: String, perigo: Boolean = false, onClick: () -> Unit) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(titulo, color = t1, fontSize = 15.sp)
+                if (sub != null) Text(sub, color = t3, fontSize = 12.sp)
+            }
+            Text(acao, color = if (perigo) Color(0xFFFF6B6B) else Color(0xFFE50914), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        }
+    }
+    Text("Com uma senha (PIN) você bloqueia o conteúdo adulto e, segurando o dedo num canal ou categoria, bloqueia ou esconde.", color = t3, fontSize = 13.sp)
+    Spacer(Modifier.height(8.dp))
+    linha(if (temPin) "Trocar a senha" else "Criar a senha", null, if (temPin) "Trocar" else "Criar") { vm.changePin() }
+    if (temPin) {
+        linha("Esqueci a senha", "Confirma com o usuário e a senha da conta", "Recuperar") { vm.esqueciPin.value = true }
+        linha("Pedir senha para abrir as Configurações", null, if (settings?.pinForSettings == true) "Ligado" else "Desligado") { vm.setPinForSettings(settings?.pinForSettings != true) }
+        linha("Bloquear de novo agora", "Depois da senha tudo fica aberto por 2 horas", "Bloquear") { vm.lockNow() }
+        linha("Remover a senha", "Desliga todos os bloqueios", "Remover", perigo = true) { vm.removePin() }
+    }
+    if (locked.isNotEmpty()) {
+        Spacer(Modifier.height(8.dp))
+        Text("Bloqueados", color = t1, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+        locked.forEach { item -> linha(item.label, null, "Desbloquear") { vm.unlockItem(item) } }
     }
 }
 

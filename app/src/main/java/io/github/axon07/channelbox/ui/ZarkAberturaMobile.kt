@@ -74,6 +74,8 @@ object ZarkAnimacao {
     var frase = "Seu entretenimento começa aqui."
     /** Para depois: true = a TV/TV Box também abre com esta animação (hoje só o celular). */
     var aberturaNaTv = false
+    /** A abertura já foi mostrada neste uso do app: girar a tela (tela cheia) não mostra de novo. */
+    @Volatile var jaMostrou = false
     /** Força o modo de baixo desempenho (menos efeitos) em qualquer aparelho. */
     var modoLeveForcado = false
 

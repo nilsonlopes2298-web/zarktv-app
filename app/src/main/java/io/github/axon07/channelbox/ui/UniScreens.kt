@@ -962,8 +962,8 @@ private fun JogoAberto(
         }
     }
     var aba by remember { mutableIntStateOf(0) }
-    // Até 1 hora antes mostra a contagem; depois disso o canal já fica liberado (pré-jogo).
-    val naoComecou = j.estado == "pre" && j.inicio - agora > 60 * 60_000L
+    // Até 30 minutos antes mostra a arte do jogo com a contagem; depois o canal já fica liberado (pré-jogo).
+    val naoComecou = j.estado == "pre" && j.inicio - agora > 30 * 60_000L
     val falta = (j.inicio - agora).coerceAtLeast(0) / 60_000
     val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
     val data = java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale("pt", "BR")).format(java.util.Date(j.inicio))
@@ -988,17 +988,20 @@ private fun JogoAberto(
                     val relogio = "%02d:%02d:%02d".format(rest / 3600, (rest % 3600) / 60, rest % 60)
                     val esperando = j.inicio - agoraSeg > 60_000L
                     Box(Modifier.fillMaxSize().background(if (esperando) Brush.verticalGradient(listOf(Color(0xFF14161C), Color(0xFF0A0A0A))) else Brush.verticalGradient(listOf(Color(0x99000000), Color(0x99000000))))) {
+                        // Arte do jogo montada sozinha: brilho vermelho, escudos, campeonato, horário e contagem.
+                        Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color(0x40E50914), Color.Transparent), radius = 700f)))
                         Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("O jogo começa às $hora", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                            Text(relogio, color = Color(0xFFFFD54F), fontSize = if (compacto) 30.sp else 40.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
-                            Text("O canal abre sozinho na hora do jogo", color = Color(0x99FFFFFF), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
-                            Spacer(Modifier.height(10.dp))
-                            BolinhasCarregando(Modifier.size(36.dp))
-                            Spacer(Modifier.height(6.dp))
+                            Text(j.liga, color = Color(0xB3FFFFFF), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Spacer(Modifier.height(8.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                MarcaPequena(12)
-                                Text("  · o melhor conteúdo", color = Color(0x99FFFFFF), fontSize = 11.sp)
+                                EscudoArte(j.casa, if (compacto) 52.dp else 72.dp)
+                                Text("x", color = Color.White, fontSize = if (compacto) 20.sp else 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp))
+                                EscudoArte(j.fora, if (compacto) 52.dp else 72.dp)
                             }
+                            Spacer(Modifier.height(8.dp))
+                            Text("Hoje às $hora", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text(relogio, color = Color(0xFFFFD54F), fontSize = if (compacto) 24.sp else 34.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 2.dp))
+                            Text("O canal abre 30 minutos antes do jogo", color = Color(0x99FFFFFF), fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
                         }
                     }
                 } else if (canal == null) {
@@ -1029,7 +1032,16 @@ private fun JogoAberto(
                     TimeJogo(j.fora, Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(16.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                if (compacto) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Celular: botões pequenos e iguais (só o principal em vermelho).
+                    PilulaJogo(AppIcons.Grid, "Tela cheia", true, Modifier.weight(1f)) { if (canal != null) onFull() }
+                    PilulaJogo(AppIcons.Refresh, "Canal", false, Modifier.weight(1f), onMudar)
+                    if (j.estado == "pre") PilulaJogo(AppIcons.Bell, if (lembrete) "Avisando" else "Lembrar", lembrete, Modifier.weight(1f)) {
+                        lembrete = io.github.axon07.channelbox.data.ZarkLembretes.alternar(ctx, j.id, j.inicio, "${j.casa.nome} x ${j.fora.nome}")
+                        vm.showToast(if (lembrete) "Vamos te avisar quando o jogo começar" else "Lembrete removido")
+                    }
+                    PilulaJogo(AppIcons.Close, "Voltar", false, Modifier.weight(1f), onVoltar)
+                } else Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                     BotaoQuadrado(AppIcons.Grid, "Tela cheia", Color(0xFFD32F2F), Modifier.focusRequester(foco)) { if (canal != null) onFull() }
                     BotaoQuadrado(AppIcons.Refresh, "Mudar de canal", Color(0x55FFFFFF), Modifier, onMudar)
                     if (j.estado == "pre") BotaoQuadrado(AppIcons.History, if (lembrete) "Lembrete ligado" else "Lembrete", if (lembrete) Color(0xFFF9A825) else Color(0x55FFFFFF), Modifier) {
@@ -1237,6 +1249,29 @@ private fun TimeJogo(t: io.github.axon07.channelbox.data.ZarkJogos.Time, modifie
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         if (t.logo != null) AsyncImage(t.logo, null, modifier = Modifier.size(56.dp))
         Text(t.nome, color = Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+@Composable
+private fun EscudoArte(t: io.github.axon07.channelbox.data.ZarkJogos.Time, tam: androidx.compose.ui.unit.Dp) {
+    Box(Modifier.size(tam).clip(CircleShape).background(Color(0xFF1C1C1F)).border(1.dp, Color(0x33FFFFFF), CircleShape), contentAlignment = Alignment.Center) {
+        if (t.logo != null) AsyncImage(t.logo, t.nome, contentScale = ContentScale.Fit, modifier = Modifier.size(tam * 0.66f))
+        else Text(t.nome.split(' ').filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1).uppercase() }, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+/** Botão pequeno do jogo no celular: ícone + texto numa pílula de 40 dp. */
+@Composable
+private fun PilulaJogo(icone: ImageVector, label: String, destaque: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Row(
+        modifier.height(40.dp).clip(RoundedCornerShape(20.dp))
+            .background(if (destaque) Color(0xFFE50914) else Color(0x1FFFFFFF))
+            .tap(onClick = onClick).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
+    ) {
+        AppIcon(icone, tint = Color.White, size = 16.dp)
+        Spacer(Modifier.width(6.dp))
+        Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
     }
 }
 

@@ -151,13 +151,16 @@ fun TvApp(vm: TvViewModel) {
                 // que já está carregando (login ou tela inicial), sem segurar o carregamento.
                 val ctxAbertura = androidx.compose.ui.platform.LocalContext.current
                 val celular = remember { ZarkAnimacao.aberturaAtiva && (!ehTv(ctxAbertura) || ZarkAnimacao.aberturaNaTv) }
-                var abertura by remember { mutableStateOf(true) }
-                if (!celular) LaunchedEffect(Unit) {
+                // Só uma vez por uso do app: ao girar para a tela cheia o Android recria a tela,
+                // e a abertura não pode voltar por cima do vídeo.
+                var abertura by remember { mutableStateOf(!ZarkAnimacao.jaMostrou) }
+                if (!celular && abertura) LaunchedEffect(Unit) {
                     delay(1600)
                     abertura = false
+                    ZarkAnimacao.jaMostrou = true
                 }
                 if (abertura) {
-                    if (celular) ZarkAberturaAnimada(onFim = { abertura = false })
+                    if (celular) ZarkAberturaAnimada(onFim = { abertura = false; ZarkAnimacao.jaMostrou = true })
                     else ZarkAbertura(vm.appVersion)
                 }
             }
@@ -256,7 +259,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var candidatosJogo by remember { mutableStateOf<List<ChannelEntity>>(emptyList()) }
     var jogoCanalIdx by remember { mutableIntStateOf(0) }
     fun jogoEsperando(j: io.github.axon07.channelbox.data.ZarkJogos.Jogo) =
-        j.estado == "pre" && j.inicio - System.currentTimeMillis() > 60 * 60_000L // libera o canal 1 hora antes do jogo
+        j.estado == "pre" && j.inicio - System.currentTimeMillis() > 30 * 60_000L // libera o canal 30 minutos antes do jogo
     // Jogo aberto: uns 20 min depois do fim (≈ 2h10 depois do início) fecha sozinho e para o canal.
     LaunchedEffect(jogoAberto) {
         val j = jogoAberto ?: return@LaunchedEffect

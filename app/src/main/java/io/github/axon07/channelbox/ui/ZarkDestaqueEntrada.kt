@@ -138,13 +138,13 @@ fun DestaqueEntrada(vm: TvViewModel, tv: Boolean, modifier: Modifier = Modifier,
     val parado = remember { ZarkAnimacao.leve || ZarkAnimacao.semMovimento(ctx) }
     var atual by remember { mutableIntStateOf(0) }
     if (!parado && slides.size > 1) LaunchedEffect(slides.size) {
-        while (true) { delay(8_000); atual = (atual + 1) % slides.size }
+        while (true) { delay(9_000); atual = (atual + 1) % slides.size }
     }
     val zoomAnim = rememberInfiniteTransition(label = "kenburns")
-    val zoom by zoomAnim.animateFloat(1.02f, 1.12f, infiniteRepeatable(tween(9_600, easing = LinearEasing), RepeatMode.Reverse), label = "z")
+    val zoom by zoomAnim.animateFloat(1.0f, 1.08f, infiniteRepeatable(tween(16_000, easing = LinearEasing), RepeatMode.Reverse), label = "z")
 
     Box(modifier.background(ZarkAnimacao.fundo)) {
-        Crossfade(slides[atual.coerceIn(0, slides.lastIndex)], animationSpec = tween(1_400), label = "destaque") { s ->
+        Crossfade(slides[atual.coerceIn(0, slides.lastIndex)], animationSpec = tween(2_200, easing = androidx.compose.animation.core.FastOutSlowInEasing), label = "destaque") { s ->
             Box(Modifier.fillMaxSize()) {
                 if (s.jogo == null) {
                     AsyncImage(

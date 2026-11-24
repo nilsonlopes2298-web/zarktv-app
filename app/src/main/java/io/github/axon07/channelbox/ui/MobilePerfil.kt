@@ -1,5 +1,9 @@
 package io.github.axon07.channelbox.ui
 
+import androidx.compose.foundation.layout.heightIn
+
+import androidx.compose.foundation.verticalScroll
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -79,9 +83,15 @@ fun PerfilCel(
     if (verBaixados) { BaixadosCel(onAbrir) { verBaixados = false }; return }
     val dias = conta?.expira?.let { ZarkConfig.diasRestantes(it) }
     val vence = conta?.expira?.let { ZarkConfig.dataBr(it) }
-    LazyColumn(Modifier.fillMaxSize().background(PFundo), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp)) {
+    // Tela toda: conteúdo em cima e "Sair da conta" sempre no rodapé (rola se não couber).
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(PFundo)) {
+    val alturaPerfil = maxHeight
+    Column(
+        Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState())
+            .heightIn(min = alturaPerfil).padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
+    ) {
         // ---- Conta ----
-        item {
+        run {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(56.dp).clip(CircleShape).background(PVermelho), contentAlignment = Alignment.Center) {
                     Text(usuario.take(1).uppercase().ifBlank { "Z" }, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Medium)
@@ -99,15 +109,30 @@ fun PerfilCel(
             Spacer(Modifier.height(16.dp))
         }
         // ---- Renovar · Convidar ----
-        item {
+        run {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CartaoTopo("Renovar", "Pague com Pix", PVermelho, Modifier.weight(1f), onRenovar)
+                // Renovar em dourado (chama atenção sem parecer erro), com quantos dias faltam.
+                val subRenovar = when {
+                    dias == null -> "Pix na hora"
+                    dias < 0 -> "Venceu · reative agora"
+                    dias <= 5 -> "Faltam $dias dias · Pix na hora"
+                    else -> "Pix na hora · ${dias} dias restantes"
+                }
+                Column(
+                    Modifier.weight(1f).height(72.dp).clip(RoundedCornerShape(12.dp))
+                        .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFFC83D), Color(0xFFF59E0B))))
+                        .clickable(onClick = onRenovar).padding(12.dp),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text("Renovar agora", color = Color(0xFF231800), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text(subRenovar, color = Color(0xCC231800), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 CartaoTopo("Convidar amigos", "Compartilhe o app", Color(0xFF2A2A2E), Modifier.weight(1f), onConvidar)
             }
             Spacer(Modifier.height(16.dp))
         }
         // ---- Atalhos ----
-        item {
+        run {
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(PCartao).padding(vertical = 12.dp)) {
                 Atalho(AppIcons.Estrela, "Favoritos", Modifier.weight(1f), onFavoritosVod)
                 Atalho(AppIcons.Tv, "Canais favoritos", Modifier.weight(1f), onFavoritosCanais)
@@ -117,7 +142,7 @@ fun PerfilCel(
             Spacer(Modifier.height(16.dp))
         }
         // ---- Histórico ----
-        if (historico.isNotEmpty()) item {
+        if (historico.isNotEmpty()) run {
             Text("Histórico", color = PT1, fontSize = 16.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -134,7 +159,7 @@ fun PerfilCel(
             Spacer(Modifier.height(16.dp))
         }
         // ---- Opções ----
-        item {
+        run {
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(PCartao)) {
                 Linha(AppIcons.User, "Trocar de conta", null, onOutraConta)
                 Linha(AppIcons.Estrela, "Conteúdo adulto", if (adultoLiberado) "Liberado" else "Bloqueado", onAdulto)
@@ -143,7 +168,10 @@ fun PerfilCel(
                 Linha(AppIcons.Resolucao, "Configurações", null, onConfiguracoes)
                 Linha(AppIcons.Externo, "Verificar atualização", "v" + vm.appVersion, onAtualizar, ultima = true)
             }
-            Spacer(Modifier.height(16.dp))
+        }
+        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(16.dp))
+        run {
             Text(
                 "Sair da conta", color = PVermelho, fontSize = 15.sp, fontWeight = FontWeight.Medium,
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(PCartao).clickable(onClick = onSair)
@@ -151,6 +179,7 @@ fun PerfilCel(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
         }
+    }
     }
 }
 

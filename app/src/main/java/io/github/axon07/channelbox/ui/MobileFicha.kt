@@ -313,18 +313,55 @@ fun FichaSerieCel(b: VodBrowser, show: VodEntity, progress: Map<String, VodProgr
                         Text("${inSeason.size} episódios", color = T3, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(12.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        inSeason.forEach { ep ->
-                            val atual = ep.id == b.previewId || (b.previewId == null && ep.id == ultimo?.id)
-                            val visto = progress[ep.id]?.let { it.duration > 0 && it.position >= it.duration * 0.9 } == true
-                            Box(
-                                Modifier.size(52.dp).clip(RoundedCornerShape(6.dp))
-                                    .background(if (atual) Vermelho else Elevado)
-                                    .clickable { if (ep.id == b.previewId) b.acaoTelaCheia?.invoke() else tocar(ep) },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (atual) AppIcon(AppIcons.Play, tint = Color.White, size = 20.dp)
-                                else Text("${if (ep.episode > 0) ep.episode else inSeason.indexOf(ep) + 1}", color = if (visto) T3 else T1, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    // Muitos capítulos (novela): faixas de 10 em 10 (1–10, 11–20…), como na TV.
+                    // Grade de 5 por linha que ocupa a largura toda; o atual em vermelho com ▶,
+                    // os já vistos com a barrinha cheia e ✓, os começados com a barrinha parcial.
+                    val porFaixa = 10
+                    val faixas = inSeason.chunked(porFaixa)
+                    val alvoFaixa = inSeason.indexOfFirst { it.id == (b.previewId ?: ultimo?.id) }.coerceAtLeast(0) / porFaixa
+                    var faixa by remember(b.season, inSeason.size) { mutableStateOf(alvoFaixa) }
+                    if (faixas.size > 1) {
+                        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(faixas.size) { k ->
+                                val sel = k == faixa
+                                val ini = k * porFaixa + 1
+                                val fim = minOf((k + 1) * porFaixa, inSeason.size)
+                                Text(
+                                    if (ini == fim) "$ini" else "$ini–$fim",
+                                    color = if (sel) Color.White else T2, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(if (sel) Elevado else Color.Transparent)
+                                        .border(1.dp, if (sel) Color(0x33FFFFFF) else Color(0x1AFFFFFF), RoundedCornerShape(16.dp))
+                                        .clickable { faixa = k }.padding(horizontal = 14.dp, vertical = 8.dp),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                    }
+                    val colunas = 5
+                    val daFaixa = faixas.getOrNull(faixa).orEmpty()
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        daFaixa.chunked(colunas).forEach { linha ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                linha.forEach { ep ->
+                                    val atual = ep.id == b.previewId || (b.previewId == null && ep.id == ultimo?.id)
+                                    val pr = progress[ep.id]
+                                    val frac = pr?.let { if (it.duration > 0) (it.position.toFloat() / it.duration).coerceIn(0f, 1f) else 0f } ?: 0f
+                                    val visto = frac >= 0.9f
+                                    Box(
+                                        Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(8.dp))
+                                            .background(if (atual) Vermelho else Elevado)
+                                            .clickable { if (ep.id == b.previewId) b.acaoTelaCheia?.invoke() else tocar(ep) },
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        if (atual) AppIcon(AppIcons.Play, tint = Color.White, size = 20.dp)
+                                        else Text("${if (ep.episode > 0) ep.episode else inSeason.indexOf(ep) + 1}", color = if (visto) T3 else T1, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                                        if (visto && !atual) Text("✓", color = Vermelho, fontSize = 11.sp, modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 5.dp))
+                                        if (frac > 0.02f && !atual) Box(
+                                            Modifier.align(Alignment.BottomStart).fillMaxWidth(frac).height(3.dp).background(Vermelho)
+                                        )
+                                    }
+                                }
+                                repeat(colunas - linha.size) { Spacer(Modifier.weight(1f)) }
                             }
                         }
                     }

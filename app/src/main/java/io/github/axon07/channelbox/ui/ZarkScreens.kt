@@ -235,12 +235,17 @@ fun ZarkLoginScreen(
                 Text("Zark", color = t1, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text("TV", color = Palette.Accent, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
+            // Teclado aberto: o destaque some de cena e o painel fica logo acima do teclado (sem precisar arrastar).
+            val densidade = androidx.compose.ui.platform.LocalDensity.current
+            val alturaTeclado = with(densidade) { androidx.compose.foundation.layout.WindowInsets.ime.getBottom(densidade).toDp() }
+            val tecladoAberto = alturaTeclado > 80.dp
             Column(
-                Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).heightIn(min = alturaTela),
+                Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState())
+                    .heightIn(min = (alturaTela - alturaTeclado).coerceAtLeast(0.dp)),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom,
             ) {
-              Spacer(Modifier.height(alturaTela * 0.40f))
+              Spacer(Modifier.height(if (tecladoAberto) 8.dp else alturaTela * 0.40f))
               Column(
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
