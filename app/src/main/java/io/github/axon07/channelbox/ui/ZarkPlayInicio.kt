@@ -81,6 +81,10 @@ fun InicioZarkPlay(
     var hora by remember { mutableStateOf(agoraZp("HH:mm")) }
     var data by remember { mutableStateOf(agoraZp("EEE, d 'de' MMM")) }
     LaunchedEffect(Unit) { while (true) { delay(30_000); hora = agoraZp("HH:mm"); data = agoraZp("EEE, d 'de' MMM") } }
+    // Conexão do aparelho (cabo, Wi-Fi, dados ou sem rede), conferida de novo a cada 5 segundos.
+    val ctxRede = androidx.compose.ui.platform.LocalContext.current
+    var rede by remember { mutableStateOf(tipoRedeZp(ctxRede)) }
+    LaunchedEffect(Unit) { while (true) { delay(5_000); rede = tipoRedeZp(ctxRede) } }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF0B0B0D))) {
         fundoUrl?.let {
@@ -101,6 +105,18 @@ fun InicioZarkPlay(
                         Text("TV", color = Palette.Accent, fontSize = 30.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
                     }
                     Spacer(Modifier.weight(1f))
+                    // Conectado por cabo ou Wi-Fi (o mesmo símbolo do ZarkTV TV).
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = if (compacto) 0.dp else 20.dp)) {
+                        AppIcon(
+                            when (rede) { 0 -> AppIcons.SemRede; 2 -> AppIcons.Cabo; 3 -> AppIcons.Dados; else -> AppIcons.Wifi },
+                            tint = if (rede == 0) Color(0xFFFF5252) else Color.White, size = 22.dp,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(if (rede == 0) "Sem conexão" else "Conectado", color = if (rede == 0) Color(0xFFFF5252) else Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(when (rede) { 0 -> "Verifique a internet"; 2 -> "Cabo de rede"; 3 -> "Dados móveis"; else -> "Wi-Fi" }, color = Color(0x99FFFFFF), fontSize = 11.sp)
+                        }
+                    }
                     if (!compacto) {
                         Column(horizontalAlignment = Alignment.End) {
                             Text(hora, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
@@ -120,11 +136,11 @@ fun InicioZarkPlay(
 
                 if (retrato) {
                     // Celular em pé: blocos grandes empilhados e atalhos 2 por linha.
-                    BlocoZp("Canais ao vivo", "$canais canais", AppIcons.AoVivo, onAoVivo, true, Modifier.fillMaxWidth().height(130.dp).focusRequester(primeiro))
+                    BlocoZp("Canais ao vivo", "", AppIcons.AoVivo, onAoVivo, true, Modifier.fillMaxWidth().height(130.dp).focusRequester(primeiro))
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        BlocoZp("Filmes", "$filmes títulos", AppIcons.Film, onFilmes, false, Modifier.weight(1f).height(110.dp))
-                        BlocoZp("Séries", "$series títulos", AppIcons.Play, onSeries, false, Modifier.weight(1f).height(110.dp))
+                        BlocoZp("Filmes", "", AppIcons.Film, onFilmes, false, Modifier.weight(1f).height(110.dp))
+                        BlocoZp("Séries", "", AppIcons.Play, onSeries, false, Modifier.weight(1f).height(110.dp))
                     }
                     Spacer(Modifier.height(10.dp))
                     atalhos.chunked(2).forEach { par ->
@@ -135,9 +151,9 @@ fun InicioZarkPlay(
                 } else {
                     val altoBlocos: Dp = if (compacto) 190.dp else 300.dp
                     Row(horizontalArrangement = Arrangement.spacedBy(if (compacto) 10.dp else 16.dp), modifier = Modifier.fillMaxWidth().height(altoBlocos)) {
-                        BlocoZp("Canais ao vivo", "$canais canais", AppIcons.AoVivo, onAoVivo, true, Modifier.weight(1.3f).fillMaxHeight().focusRequester(primeiro))
-                        BlocoZp("Filmes", "$filmes títulos", AppIcons.Film, onFilmes, false, Modifier.weight(1f).fillMaxHeight())
-                        BlocoZp("Séries", "$series títulos", AppIcons.Play, onSeries, false, Modifier.weight(1f).fillMaxHeight())
+                        BlocoZp("Canais ao vivo", "", AppIcons.AoVivo, onAoVivo, true, Modifier.weight(1.3f).fillMaxHeight().focusRequester(primeiro))
+                        BlocoZp("Filmes", "", AppIcons.Film, onFilmes, false, Modifier.weight(1f).fillMaxHeight())
+                        BlocoZp("Séries", "", AppIcons.Play, onSeries, false, Modifier.weight(1f).fillMaxHeight())
                     }
                     Spacer(Modifier.height(if (compacto) 10.dp else 16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(if (compacto) 8.dp else 12.dp), modifier = Modifier.fillMaxWidth()) {
@@ -187,7 +203,7 @@ private fun BlocoZp(nome: String, info: String, icone: ImageVector, onClick: () 
         AppIcon(icone, tint = Color.White, size = if (destaque) 56.dp else 44.dp)
         Spacer(Modifier.height(12.dp))
         Text(nome.uppercase(), color = Color.White, fontSize = if (destaque) 24.sp else 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-        Text(info, color = Color(0xB3FFFFFF), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+        if (info.isNotBlank()) Text(info, color = Color(0xB3FFFFFF), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
@@ -214,3 +230,15 @@ private fun AtalhoZp(nome: String, icone: ImageVector, onClick: () -> Unit, modi
 
 private fun agoraZp(formato: String): String =
     java.text.SimpleDateFormat(formato, java.util.Locale("pt", "BR")).format(java.util.Date())
+
+/** 0 = sem rede, 1 = Wi-Fi, 2 = cabo, 3 = dados móveis. */
+private fun tipoRedeZp(c: android.content.Context): Int = runCatching {
+    val cm = c.getSystemService(android.net.ConnectivityManager::class.java)
+    val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+    when {
+        caps == null -> 0
+        caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET) -> 2
+        caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) -> 1
+        else -> 3
+    }
+}.getOrDefault(1)
