@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ZarkTV (TV: fundo preto com tela vermelha e play branco com Z): desenho do ícone (zona segura de 66 dp). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:scaleX="0.88" android:scaleY="0.88" android:pivotX="54" android:pivotY="54">
+    <path android:strokeColor="#FFE50914" android:strokeWidth="3.5" android:pathData="M30,32 L78,32 Q82,32 82,36 L82,70 Q82,74 78,74 L30,74 Q26,74 26,70 L26,36 Q26,32 30,32 Z" />
+    <path android:strokeColor="#FFE50914" android:strokeWidth="3.5" android:strokeLineCap="round" android:pathData="M44,80 L64,80" />
+    <path android:fillColor="#FFFFFFFF" android:strokeColor="#FFFFFFFF" android:strokeWidth="5" android:strokeLineJoin="round" android:pathData="M46,42 L46,64 L66,53 Z" />
+    <path android:strokeColor="#FFE50914" android:strokeWidth="3.2" android:strokeLineCap="round" android:pathData="M49.5,48.5 L56.5,48.5 L49.5,57.5 L56.5,57.5" />
+    </group>
+</vector>
