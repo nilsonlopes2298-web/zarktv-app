@@ -384,6 +384,8 @@ class TvPlayer(
         // ZarkTV: cada vídeo novo começa de novo no decodificador normal (hardware).
         trocarDecodificador = false
         travadasImagem = 0
+        contaVerificada = false
+        bloqueioConta = null
         confirmed = false
         retries = 0
         refusals = 0
@@ -600,6 +602,29 @@ class TvPlayer(
             handler.postDelayed({ if (spec === current && current != null) start() }, 1_200L * refusals)
             return
         }
+        // ZarkTV: recusou de novo depois das tentativas → antes de tentar outros formatos e endereços
+        // (cada um abre mais uma conexão), pergunta ao servidor se a conta está em uso em outro aparelho
+        // ou vencida. Se estiver, mostra o aviso e para de tentar.
+        if (code != null && code in REFUSED && !contaVerificada) {
+            contaVerificada = true
+            val atual = spec
+            _status.value = PlayerStatus.Buffering
+            handler.removeCallbacksAndMessages(null)
+            verificarConta { aviso ->
+                handler.post {
+                    if (atual == null || spec !== atual) return@post
+                    if (aviso != null) {
+                        bloqueioConta = aviso
+                        handler.removeCallbacksAndMessages(null)
+                        runCatching { exo.stop() }
+                        _status.value = PlayerStatus.Error(aviso)
+                    } else {
+                        failed(describe(error))
+                    }
+                }
+            }
+            return
+        }
         if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
             exo.seekToDefaultPosition()
             exo.prepare()
@@ -704,6 +729,16 @@ class TvPlayer(
 
     // ---- ZarkTV: imagem congelada com o som tocando (decodificador de vídeo travado, ex.: Fire Stick) ----
     /** Depois de travar uma vez, o vídeo passa a usar o outro decodificador (software ↔ hardware) nesta sessão. */
+    /**
+     * ZarkTV: quando o servidor recusa o vídeo (401/403), consulta a conta. Chama o retorno com o aviso
+     * para o cliente (conta em uso em outro aparelho, vencida…) ou null se a conta está normal.
+     */
+    var verificarConta: ((String?) -> Unit) -> Unit = { it(null) }
+    @Volatile private var contaVerificada = false
+    /** Aviso da conta mostrado agora (em uso em outro aparelho, vencida). Null quando está tudo certo. */
+    @Volatile var bloqueioConta: String? = null
+        private set
+
     @Volatile private var trocarDecodificador = false
     /** Quantas vezes a imagem congelou neste vídeo. */
     private var travadasImagem = 0

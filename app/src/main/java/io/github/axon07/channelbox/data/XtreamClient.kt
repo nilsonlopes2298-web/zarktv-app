@@ -285,6 +285,20 @@ class XtreamClient(private val http: OkHttpClient) {
         }
     }
 
+    /** ZarkTV: situação da conta no servidor (telas em uso, limite, vencimento). Null se não deu para ler. */
+    data class Situacao(val status: String?, val expira: Long?, val ativas: Int?, val maximo: Int?)
+
+    suspend fun situacao(login: Login): Situacao? = runCatching {
+        val auth = getJson(login.api()) as? JsonObject ?: return null
+        val u = auth["user_info"] as? JsonObject ?: return null
+        Situacao(
+            status = u.str("status"),
+            expira = u.str("exp_date")?.toLongOrNull()?.takeIf { it > 0 }?.let { it * 1000 },
+            ativas = u.str("active_cons")?.toIntOrNull(),
+            maximo = u.str("max_connections")?.toIntOrNull(),
+        )
+    }.getOrNull()
+
     @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
     private suspend fun getJson(url: String): JsonElement =
         http.download(url) { Json.decodeFromStream(JsonElement.serializer(), it) }

@@ -322,6 +322,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         when (playerStatus) {
             is PlayerStatus.Playing -> MemoriaCanais.funcionou(zarkCtxJogo, ch.id)
             is PlayerStatus.Error -> {
+                if (vm.player.bloqueioConta != null) return@LaunchedEffect
                 MemoriaCanais.deuErro(zarkCtxJogo, ch.id)
                 if (jogoEsperando(j) || candidatosJogo.size < 2 || trocasAuto >= minOf(5, candidatosJogo.size - 1)) return@LaunchedEffect
                 delay(1_500)
@@ -339,7 +340,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     val qualidadesTentadas = remember { androidx.compose.runtime.mutableStateListOf<String>() }
     var baseTentada by remember { mutableStateOf("") }
     LaunchedEffect(playerStatus, current?.id) {
-        if (jogoAberto != null || vm.tocandoFilme) return@LaunchedEffect
+        if (jogoAberto != null || vm.tocandoFilme || vm.player.bloqueioConta != null) return@LaunchedEffect
         if (mode == Mode.PLAYBACK || mode == Mode.VOD || mode == Mode.RECORDINGS || mode == Mode.MULTIVIEW) return@LaunchedEffect
         val ch = current ?: return@LaunchedEffect
         val base = Qualidades.base(ch.name)

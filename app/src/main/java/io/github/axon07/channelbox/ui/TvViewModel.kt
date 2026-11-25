@@ -1147,6 +1147,26 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * ZarkTV: o servidor recusou o vídeo. Lê a conta (player_api) e devolve um aviso claro:
+     * em uso em outro aparelho, vencida ou bloqueada. Null quando a conta está normal.
+     */
+    private suspend fun zarkAvisoConta(): String? = runCatching {
+        val pl = settings.value?.playlists?.firstOrNull { it.enabled && it.xtUser.isNotBlank() } ?: return null
+        val s = XtreamClient(c.http).situacao(XtreamClient.Login(pl.xtServer, pl.xtUser, pl.xtPass)) ?: return null
+        val agora = System.currentTimeMillis()
+        when {
+            s.status != null && !s.status.equals("Active", ignoreCase = true) ->
+                "Sua conta está bloqueada no servidor (${s.status}). Fale com seu revendedor."
+            s.expira != null && s.expira < agora ->
+                "Seu acesso venceu. Renove para continuar assistindo."
+            s.maximo != null && s.maximo > 0 && s.ativas != null && s.ativas >= s.maximo ->
+                if (s.maximo == 1) "Sua conta já está assistindo em outro aparelho. Feche lá e tente de novo — este plano libera 1 tela por vez."
+                else "Sua conta já está usando todas as ${s.maximo} telas. Feche em outro aparelho e tente de novo."
+            else -> null
+        }
+    }.getOrNull()
+
     /** O que está tocando agora (filme/episódio ou canal), para o painel. */
     private fun assistindoAgora(): String {
         if (!player.exo.isPlaying) return ""
@@ -1359,6 +1379,9 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             val proxies = (mesmo.ifEmpty { listOfNotNull(servidores.firstOrNull { sv -> sid(sv.name) == sid(settings.value?.playlists?.firstOrNull { it.enabled }?.name.orEmpty()) }) })
                 .map { "http://tv.zarktvqx.cfd/v/" + sid(it.name) }
             (diretos + proxies).distinct()
+        }
+        player.verificarConta = { responder ->
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { responder(zarkAvisoConta()) }
         }
         player.aoDesistir = {
             val ch = _current.value
