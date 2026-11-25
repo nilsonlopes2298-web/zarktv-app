@@ -29,6 +29,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -87,7 +88,8 @@ fun InicioZarkPlay(
     var rede by remember { mutableStateOf(tipoRedeZp(ctxRede)) }
     LaunchedEffect(Unit) { while (true) { delay(5_000); rede = tipoRedeZp(ctxRede) } }
 
-    Box(Modifier.fillMaxSize().background(Color(0xFF0B0B0D))) {
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF0B0B0D), Color(0xFF141418))))) {
+        Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color(0x55E50914), Color.Transparent), center = androidx.compose.ui.geometry.Offset(260f, 0f), radius = 1100f)))
         fundoUrl?.let {
             coil.compose.AsyncImage(it, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Color(0xC00A0A0A)))
@@ -102,15 +104,15 @@ fun InicioZarkPlay(
                     if (logoUrl != null) {
                         coil.compose.AsyncImage(logoUrl, "ZarkTV", contentScale = ContentScale.Fit, modifier = Modifier.height(46.dp).width(180.dp))
                     } else {
-                        Text("Zark", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
-                        Text("TV", color = Palette.Accent, fontSize = 30.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
+                        Text("Zark", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
+                        Text("TV", color = Color(0xFFE50914), fontSize = 34.sp, fontWeight = FontWeight.Black)
                     }
                     Spacer(Modifier.weight(1f))
                     // Conectado por cabo ou Wi-Fi (o mesmo símbolo do ZarkTV TV).
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = if (compacto) 0.dp else 20.dp)) {
                         AppIcon(
                             when (rede) { 0 -> AppIcons.SemRede; 2 -> AppIcons.Cabo; 3 -> AppIcons.Dados; else -> AppIcons.Wifi },
-                            tint = if (rede == 0) Color(0xFFFF5252) else Color.White, size = 22.dp,
+                            tint = if (rede == 0) Color(0xFFFF5252) else Color(0xFFFFD60A), size = 26.dp,
                         )
                         Spacer(Modifier.width(8.dp))
                         Column {
@@ -120,8 +122,8 @@ fun InicioZarkPlay(
                     }
                     if (!compacto) {
                         Column(horizontalAlignment = Alignment.End) {
-                            Text(hora, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                            Text(data, color = Color(0x99FFFFFF), fontSize = 12.sp)
+                            Text(hora, color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.Bold, lineHeight = 40.sp)
+                            Text(data, color = Color(0x99FFFFFF), fontSize = 13.sp)
                         }
                     }
                 }
@@ -137,14 +139,14 @@ fun InicioZarkPlay(
 
                 if (retrato) {
                     // Celular em pé: blocos grandes empilhados e atalhos 2 por linha.
-                    BlocoZp("Canais ao vivo", "", AppIcons.AoVivo, onAoVivo, true, Modifier.fillMaxWidth().height(130.dp).focusRequester(primeiro))
+                    BlocoZp("Canais ao vivo", "Assista agora", AppIcons.AoVivo, onAoVivo, true, Modifier.fillMaxWidth().height(150.dp).focusRequester(primeiro))
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        BlocoZp("Filmes", "", AppIcons.Film, onFilmes, false, Modifier.weight(1f).height(110.dp))
-                        BlocoZp("Séries", "", AppIcons.Play, onSeries, false, Modifier.weight(1f).height(110.dp))
+                        BlocoZp("Filmes", "Catálogo completo", AppIcons.Film, onFilmes, false, Modifier.weight(1f).height(120.dp))
+                        BlocoZp("Séries", "Temporadas e episódios", AppIcons.Play, onSeries, false, Modifier.weight(1f).height(120.dp))
                     }
                     Spacer(Modifier.height(10.dp))
-                    BlocoZp("Jogos do dia", "", AppIcons.Trofeu, onJogos, false, Modifier.fillMaxWidth().height(90.dp))
+                    BlocoZp("Jogos do dia", "Futebol e mais", AppIcons.Trofeu, onJogos, false, Modifier.fillMaxWidth().height(110.dp))
                     Spacer(Modifier.height(10.dp))
                     atalhos.chunked(2).forEach { par ->
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 10.dp)) {
@@ -152,23 +154,27 @@ fun InicioZarkPlay(
                         }
                     }
                 } else {
-                    val altoBlocos: Dp = if (compacto) 190.dp else 300.dp
-                    Row(horizontalArrangement = Arrangement.spacedBy(if (compacto) 10.dp else 16.dp), modifier = Modifier.fillMaxWidth().height(altoBlocos)) {
-                        BlocoZp("Canais ao vivo", "", AppIcons.AoVivo, onAoVivo, true, Modifier.weight(1.3f).fillMaxHeight().focusRequester(primeiro))
-                        BlocoZp("Filmes", "", AppIcons.Film, onFilmes, false, Modifier.weight(1f).fillMaxHeight())
-                        BlocoZp("Séries", "", AppIcons.Play, onSeries, false, Modifier.weight(1f).fillMaxHeight())
-                        BlocoZp("Jogos do dia", "", AppIcons.Trofeu, onJogos, false, Modifier.weight(1f).fillMaxHeight())
+                    val esp = if (compacto) 10.dp else 18.dp
+                    Row(horizontalArrangement = Arrangement.spacedBy(esp), modifier = Modifier.fillMaxWidth().weight(1f)) {
+                        BlocoZp("Canais ao vivo", "Assista agora", AppIcons.AoVivo, onAoVivo, true, Modifier.weight(1.6f).fillMaxHeight().focusRequester(primeiro))
+                        Column(verticalArrangement = Arrangement.spacedBy(esp), modifier = Modifier.weight(2f).fillMaxHeight()) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(esp), modifier = Modifier.fillMaxWidth().weight(1f)) {
+                                BlocoZp("Filmes", "Catálogo completo", AppIcons.Film, onFilmes, false, Modifier.weight(1f).fillMaxHeight())
+                                BlocoZp("Séries", "Temporadas e episódios", AppIcons.Play, onSeries, false, Modifier.weight(1f).fillMaxHeight())
+                            }
+                            BlocoZp("Jogos do dia", "Futebol e mais", AppIcons.Trofeu, onJogos, false, Modifier.fillMaxWidth().weight(1f))
+                        }
                     }
                     Spacer(Modifier.height(if (compacto) 10.dp else 16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(if (compacto) 8.dp else 12.dp), modifier = Modifier.fillMaxWidth()) {
-                        atalhos.forEach { (nome, icone, acao) -> AtalhoZp(nome, icone, acao, Modifier.weight(1f).height(if (compacto) 70.dp else 92.dp)) }
+                        atalhos.forEach { (nome, icone, acao) -> AtalhoZp(nome, icone, acao, Modifier.weight(1f).height(if (compacto) 52.dp else 66.dp)) }
                     }
                 }
                 if (atualizando) {
                     Spacer(Modifier.height(12.dp))
                     BarrinhaCarregando(Modifier.fillMaxWidth())
                 }
-                Spacer(Modifier.weight(1f))
+                if (retrato) Spacer(Modifier.weight(1f)) else Spacer(Modifier.height(12.dp))
                 // Rodapé: conta, vencimento e versão (como no XCIPTV).
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Text(
@@ -183,52 +189,59 @@ fun InicioZarkPlay(
     }
 }
 
-/** Bloco grande (TV ao vivo, Filmes, Séries): ícone, nome e quantidade. Vermelho no foco. */
+/**
+ * Bloco grande no estilo "vidro" (desenho aprovado no Lovable): ícone em cima, nome grande embaixo.
+ * Canais ao vivo em vermelho; os outros em vidro escuro com brilho no canto. No foco cresce e ganha
+ * borda branca com brilho amarelo.
+ */
 @Composable
 private fun BlocoZp(nome: String, info: String, icone: ImageVector, onClick: () -> Unit, destaque: Boolean, modifier: Modifier) {
     var foco by remember { mutableStateOf(false) }
-    Column(
+    val escala by androidx.compose.animation.core.animateFloatAsState(if (foco) 1.045f else 1f, label = "escala")
+    val forma = RoundedCornerShape(26.dp)
+    Box(
         modifier
-            .clip(RoundedCornerShape(14.dp))
+            .graphicsLayer { scaleX = escala; scaleY = escala }
+            .border(if (foco) 4.dp else 1.dp, if (foco) Color.White else Color(0x24FFFFFF), forma)
+            .clip(forma)
             .background(
-                when {
-                    foco -> Brush.verticalGradient(listOf(Color(0xFFD32F2F), Color(0xFF6A0F0F)))
-                    destaque -> Brush.verticalGradient(listOf(Color(0xFF3A1416), Color(0xFF1A0B0C)))
-                    else -> Brush.verticalGradient(listOf(Color(0xFF26262B), Color(0xFF151518)))
-                }
+                if (destaque) Brush.linearGradient(listOf(Color(0xFFFF4D5A), Color(0xFFC70818)))
+                else Brush.linearGradient(listOf(Color(0x1FFFFFFF), Color(0x08FFFFFF)))
             )
-            .border(if (foco) 3.dp else 1.dp, if (foco) Color.White else Color(0x33FFFFFF), RoundedCornerShape(14.dp))
             .onFocusChanged { foco = it.isFocused }
-            .clickable(onClickLabel = nome, onClick = onClick)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+            .clickable(onClickLabel = nome, onClick = onClick),
     ) {
-        AppIcon(icone, tint = Color.White, size = if (destaque) 56.dp else 44.dp)
-        Spacer(Modifier.height(12.dp))
-        Text(nome.uppercase(), color = Color.White, fontSize = if (destaque) 24.sp else 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-        if (info.isNotBlank()) Text(info, color = Color(0xB3FFFFFF), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+        // brilho de vidro no canto de cima
+        Box(Modifier.fillMaxSize().background(Brush.linearGradient(0f to Color(0x00FFFFFF), 0.55f to Color(0x00FFFFFF), 0.8f to Color(0x24FFFFFF), 1f to Color(0x00FFFFFF), start = androidx.compose.ui.geometry.Offset(0f, 600f), end = androidx.compose.ui.geometry.Offset(900f, 0f))))
+        if (foco) Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x26FFD60A)))))
+        AppIcon(icone, tint = Color.White, size = if (destaque) 64.dp else 44.dp, modifier = Modifier.align(Alignment.TopStart).padding(22.dp))
+        Column(Modifier.align(Alignment.BottomStart).padding(22.dp)) {
+            Text(nome, color = Color.White, fontSize = if (destaque) 34.sp else 24.sp, fontWeight = FontWeight.ExtraBold, lineHeight = if (destaque) 38.sp else 28.sp)
+            if (info.isNotBlank()) Text(info, color = Color(0xB3FFFFFF), fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+        }
     }
 }
 
-/** Atalho pequeno da fileira de baixo. */
+/** Atalho em pílula: ícone e nome lado a lado. No foco, borda branca e fundo um pouco mais claro. */
 @Composable
 private fun AtalhoZp(nome: String, icone: ImageVector, onClick: () -> Unit, modifier: Modifier) {
     var foco by remember { mutableStateOf(false) }
-    Column(
+    val escala by androidx.compose.animation.core.animateFloatAsState(if (foco) 1.04f else 1f, label = "escala")
+    val forma = RoundedCornerShape(18.dp)
+    Row(
         modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (foco) Color(0xFFC62828) else Color(0xFF1C1C20))
-            .border(if (foco) 2.dp else 1.dp, if (foco) Color.White else Color(0x26FFFFFF), RoundedCornerShape(10.dp))
+            .graphicsLayer { scaleX = escala; scaleY = escala }
+            .clip(forma)
+            .background(if (foco) Color(0x29FFFFFF) else Color(0x10FFFFFF))
+            .border(if (foco) 3.dp else 1.dp, if (foco) Color.White else Color(0x1AFFFFFF), forma)
             .onFocusChanged { foco = it.isFocused }
             .clickable(onClickLabel = nome, onClick = onClick)
-            .padding(6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppIcon(icone, tint = Color.White, size = 24.dp)
-        Spacer(Modifier.height(4.dp))
-        Text(nome, color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+        AppIcon(icone, tint = if (foco) Color(0xFFFFD60A) else Color.White, size = 22.dp)
+        Spacer(Modifier.width(10.dp))
+        Text(nome, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
