@@ -1354,6 +1354,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             Mode.LIVE, Mode.GUIDE -> if (ZarkPlay.ativo) vm.liberarAoVivo() else vm.leaveLibrary()
             // Audio & subtitles opened from a movie, episode or recording is still part of playback.
             Mode.OPTIONS -> if (optionsReturn != Mode.PLAYBACK) vm.leaveLibrary()
+            // ZarkPlay: telas da TV ao vivo nunca mostram o filme/série que estava aberto (imagem congelada).
+            Mode.PLAYER, Mode.CHANNEL_LIST, Mode.GROUPS, Mode.PROGRAM_MENU -> { if (ZarkPlay.ativo) vm.limparVod(); vm.leaveLibrary() }
             else -> vm.leaveLibrary()
         }
     }
