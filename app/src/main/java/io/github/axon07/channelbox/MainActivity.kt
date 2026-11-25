@@ -96,6 +96,8 @@ class MainActivity : ComponentActivity() {
         onScreen = false
         runCatching { vm.player.exo.playWhenReady = false; vm.player.exo.pause() }
         vm.onBackground()
+        // Ícone das datas comemorativas (Natal, Ano Novo, São João, Carnaval): troca só fora da tela.
+        io.github.axon07.channelbox.system.IconeSazonal.aplicar(applicationContext)
         super.onStop()
     }
 

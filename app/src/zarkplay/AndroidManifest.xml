@@ -3,11 +3,82 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
         <activity android:name=".MainActivity">
+            <!-- O ícone de abrir fica nos apelidos abaixo (um por data comemorativa; o app liga só um). -->
+        </activity>
+
+        <activity-alias
+            android:name="io.github.axon07.channelbox.IconePadrao"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:banner="@drawable/banner"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <activity-alias
+            android:name="io.github.axon07.channelbox.IconeNatal"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_natal"
+            android:banner="@drawable/banner_natal"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name="io.github.axon07.channelbox.IconeAnoNovo"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_anonovo"
+            android:banner="@drawable/banner_anonovo"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name="io.github.axon07.channelbox.IconeJunina"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_junina"
+            android:banner="@drawable/banner_junina"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name="io.github.axon07.channelbox.IconeCarnaval"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_carnaval"
+            android:banner="@drawable/banner_carnaval"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
     </application>
 </manifest>

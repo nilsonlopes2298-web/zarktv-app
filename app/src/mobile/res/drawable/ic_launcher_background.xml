@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- ZarkTV (celular: fundo branco, play vermelho com Z branco): fundo do ícone. -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#FFFFFFFF" />
-</shape>

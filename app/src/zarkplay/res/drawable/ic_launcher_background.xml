@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- ZarkTV (ZarkPlay (XCIPTV): fundo grafite com menu de blocos e play vermelho): fundo do ícone. -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#FF1C1C21" />
-</shape>
