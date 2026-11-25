@@ -55,12 +55,12 @@ jobs:
         # main: só o app dos clientes (unico). beta: o app dos clientes + ZarkTV TV + ZarkTV Mobile.
         run: |
           if [ "$TAG" = "mobile" ]; then
-            ./gradlew --no-daemon assembleMobileRelease assembleTvRelease -PappVersionName="$VERSAO"
+            ./gradlew --no-daemon assembleMobileRelease assembleTvRelease assembleZarkplayRelease -PappVersionName="$VERSAO"
           elif [ "$TAG" = "beta" ]; then
-            ./gradlew --no-daemon assembleUnicoRelease assembleTvRelease assembleMobileRelease -PappVersionName="$VERSAO"
+            ./gradlew --no-daemon assembleUnicoRelease assembleTvRelease assembleMobileRelease assembleZarkplayRelease -PappVersionName="$VERSAO"
           else
             # Produção: os três apps (atual, ZarkTV TV e ZarkTV Mobile) pedem atualização pela versão "latest".
-            ./gradlew --no-daemon assembleUnicoRelease assembleTvRelease assembleMobileRelease -PappVersionName="$VERSAO"
+            ./gradlew --no-daemon assembleUnicoRelease assembleTvRelease assembleMobileRelease assembleZarkplayRelease -PappVersionName="$VERSAO"
           fi
 
       - name: Renomear e gerar version.json
@@ -85,6 +85,7 @@ jobs:
           publicar unico zarktv.apk version.json
           publicar tv zarktv-tv.apk version-tv.json
           publicar mobile zarktv-mobile.apk version-mobile.json
+          publicar zarkplay zarkplay.apk version-zarkplay.json
 
       - name: Publicar (latest ou beta)
         uses: softprops/action-gh-release@v2
@@ -95,10 +96,12 @@ jobs:
           prerelease: true
           files: |
             zarktv*.apk
+            zarkplay.apk
             version*.json
           body: |
             APK do ZarkTV (base Channelbox, GPLv3).
             zarktv.apk = app atual (celular + TV). Na versão de teste também saem:
             zarktv-tv.apk (ZarkTV TV: TV Box, Android TV, Fire Stick) e zarktv-mobile.apk (ZarkTV Mobile: celular e tablet).
+            zarkplay.apk = ZarkPlay (estilo XCIPTV, celular e TV, mesmo painel).
             Link fixo sempre atualizado:
             https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/latest/zarktv.apk

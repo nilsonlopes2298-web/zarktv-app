@@ -42,6 +42,7 @@ android {
     productFlavors {
         create("unico") {
             dimension = "aparelho"
+            buildConfigField("String", "PRODUTO", "\"zarktv\"")
             // applicationId continua io.github.axon07.channelbox (atualiza por cima do app dos clientes)
             buildConfigField("String", "APARELHO", "\"auto\"")
             buildConfigField("String", "APK_NOME", "\"zarktv.apk\"")
@@ -49,13 +50,25 @@ android {
         }
         create("tv") {
             dimension = "aparelho"
+            buildConfigField("String", "PRODUTO", "\"zarktv\"")
             applicationId = "cfd.zarktvqx.tv"
             buildConfigField("String", "APARELHO", "\"tv\"")
             buildConfigField("String", "APK_NOME", "\"zarktv-tv.apk\"")
             buildConfigField("String", "VERSAO_JSON", "\"version-tv.json\"")
         }
+        create("zarkplay") {
+            // ZarkPlay: app no estilo XCIPTV (menu de blocos, guia, catch up, multitela, gravações),
+            // mesma base e mesmo painel ZarkTV Cloud. Pacote próprio: instala ao lado do ZarkTV.
+            dimension = "aparelho"
+            buildConfigField("String", "PRODUTO", "\"zarkplay\"")
+            applicationId = "cfd.zarktvqx.zarkplay"
+            buildConfigField("String", "APARELHO", "\"auto\"")
+            buildConfigField("String", "APK_NOME", "\"zarkplay.apk\"")
+            buildConfigField("String", "VERSAO_JSON", "\"version-zarkplay.json\"")
+        }
         create("mobile") {
             dimension = "aparelho"
+            buildConfigField("String", "PRODUTO", "\"zarktv\"")
             applicationId = "cfd.zarktvqx.mobile"
             buildConfigField("String", "APARELHO", "\"mobile\"")
             buildConfigField("String", "APK_NOME", "\"zarktv-mobile.apk\"")

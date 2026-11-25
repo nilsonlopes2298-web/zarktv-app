@@ -1345,7 +1345,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             // Tela de entrada (sem conta / saiu da conta): nada toca.
             Mode.SETUP -> { vm.enterLibrary(); vm.player.esquecer() }
             // Tutorial da primeira vez na tela: nada toca até ele terminar.
-            Mode.HOME -> if (tutorialVisto && !ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else vm.enterLibrary()
+            Mode.HOME -> if (tutorialVisto && !ZarkLayout.leve.value && !ZarkPlay.ativo && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
             // Audio & subtitles opened from a movie, episode or recording is still part of playback.
             Mode.OPTIONS -> if (optionsReturn != Mode.PLAYBACK) vm.leaveLibrary()
@@ -1472,13 +1472,13 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 else -> if (ZarkLayout.leve.value) mode = Mode.LIVE else { if (jogoAberto == null) { homeTab = Aba.TV; voltouDoCanal.value = true }; mode = Mode.HOME } // ZarkTV: volta para a lista de canais (ou para o jogo)
             }
             Mode.CHANNEL_LIST -> if (gruposAbertos) gruposAbertos = false else mode = Mode.PLAYER
-            Mode.GUIDE -> openGroups()
+            Mode.GUIDE -> if (ZarkPlay.ativo) mode = Mode.HOME else openGroups()
             Mode.GROUPS -> groupsBack()
             Mode.EXIT_CONFIRM -> mode = exitReturn
             Mode.UPDATE -> vm.dismissUpdate(skipThisVersion = false)
             Mode.OPTIONS -> mode = optionsReturn
             Mode.PROGRAM_MENU -> mode = Mode.GUIDE
-            Mode.RECORDINGS -> openGroups(tile = 1)
+            Mode.RECORDINGS -> if (ZarkPlay.ativo) mode = Mode.HOME else openGroups(tile = 1)
             Mode.RECORDING_MENU -> mode = Mode.RECORDINGS
             // First Back hides the controls, the next one leaves.
             Mode.PLAYBACK -> when {
@@ -1496,7 +1496,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             Mode.PROFILE -> mode = Mode.HOME
             Mode.AJUSTES -> mode = ajustesVolta
             Mode.LIVE -> mode = Mode.HOME
-            Mode.SEARCH -> openGroups(tile = 5)
+            Mode.SEARCH -> if (ZarkPlay.ativo) mode = Mode.HOME else openGroups(tile = 5)
             Mode.ORGANISE -> mode = organiseReturn
             Mode.VOD -> when {
                 previewPergunta != null -> {
@@ -2030,6 +2030,49 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 LaunchedEffect(Unit) { ZarkLayout.atualizar(zarkCtx) }
                 val extrasPainel = remember(conta) { io.github.axon07.channelbox.data.ZarkPainel.extras(zarkCtx) }
                 if (mode == Mode.HOME && allChannels.isEmpty() && refreshState is RefreshState.Running) ZarkCarregando(refreshState)
+                else if (mode == Mode.HOME && ZarkPlay.ativo) InicioZarkPlay(
+                    usuario = pl?.xtUser.orEmpty(),
+                    vencimento = conta?.expira?.let { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(it)) },
+                    versao = io.github.axon07.channelbox.BuildConfig.VERSION_NAME,
+                    logoUrl = extrasPainel.logo,
+                    fundoUrl = extrasPainel.fundo,
+                    canais = allChannels.size,
+                    filmes = movieCount,
+                    series = showCount,
+                    atualizando = refreshState is RefreshState.Running,
+                    avisoVencimento = textoVencimento(conta?.expira?.let { io.github.axon07.channelbox.data.ZarkConfig.diasRestantes(it) }),
+                    onAoVivo = aoVivo,
+                    onFilmes = {
+                        vodBrowser.open(VodKind.MOVIE)
+                        vodDeInicio = false
+                        vodDaBusca = false
+                        vodBrowser.voltarInicio = null
+                        mode = Mode.VOD
+                    },
+                    onSeries = {
+                        vodBrowser.open(VodKind.SERIES)
+                        vodDeInicio = false
+                        vodDaBusca = false
+                        vodBrowser.voltarInicio = null
+                        mode = Mode.VOD
+                    },
+                    onGuia = { openGuide() },
+                    onCatchup = {
+                        openGuide()
+                        vm.showToast("No guia, volte no horário (◀) para assistir o que já passou.")
+                    },
+                    onMultitela = { openMultiView() },
+                    onGravacoes = { recIndex = 0; mode = Mode.RECORDINGS },
+                    onBuscar = { openSearch() },
+                    onConta = { mode = Mode.PROFILE },
+                    onAjustes = { ajustesVolta = Mode.HOME; mode = Mode.AJUSTES },
+                    onAtualizar = {
+                        if (refreshState !is RefreshState.Running) {
+                            vm.refreshNow()
+                            vm.showToast("Atualizando canais, filmes e séries…")
+                        }
+                    },
+                )
                 else if (mode == Mode.HOME && ZarkLayout.leve.value) InicioLeve(
                     usuario = pl?.xtUser.orEmpty(),
                     vencimento = conta?.expira?.let { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(it)) },
