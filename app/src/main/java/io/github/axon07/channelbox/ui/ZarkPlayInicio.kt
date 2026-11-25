@@ -255,7 +255,7 @@ fun textoVencimentoZp(expira: Long?, agora: Long = System.currentTimeMillis()): 
     if (expira == null || expira <= 0) return null
     val falta = expira - agora
     val hora = 60L * 60 * 1000
-    val dias = io.github.axon07.channelbox.data.ZarkConfig.diasRestantes(expira)
+    val dias = falta.floorDiv(24 * hora).toInt()
     val venceHoje = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale("pt", "BR")).let { it.format(java.util.Date(expira)) == it.format(java.util.Date(agora)) }
     return when {
         falta <= 0 -> "Seu acesso venceu. Renove para continuar assistindo."
