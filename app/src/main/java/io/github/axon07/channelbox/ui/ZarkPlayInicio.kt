@@ -278,7 +278,7 @@ private fun AvisoVencimentoZp(texto: String) {
         delay(3_000); escuro = false
         delay(5_000); avisoZpMostrado.value = true
     }
-    val fundo by androidx.compose.animation.core.animateColorAsState(if (escuro) Color(0x99000000) else Color(0x00000000), label = "escuro")
+    val fundo by androidx.compose.animation.animateColorAsState(if (escuro) Color(0x99000000) else Color(0x00000000), label = "escuro")
     Box(Modifier.fillMaxSize().background(fundo)) {
         Row(
             Modifier.align(Alignment.BottomEnd).padding(end = 28.dp, bottom = 44.dp).width(360.dp)
