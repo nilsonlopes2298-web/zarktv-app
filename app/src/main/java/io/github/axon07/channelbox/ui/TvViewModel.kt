@@ -1308,7 +1308,19 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     /** ZarkPlay: entrou na lista de canais ou no guia. Libera tocar, mas só toca quando escolher o canal. */
     fun liberarAoVivo() {
         endShift()
+        limparVod()
         libraryOpen = false
+    }
+
+    /**
+     * ZarkPlay: saiu do filme/série. Guarda onde parou, fecha o vídeo e limpa a tela
+     * (nada de imagem congelada do episódio aparecendo na TV ao vivo ou no Início).
+     */
+    fun limparVod() {
+        if (playingVod == null && player.isLive) return
+        saveVodProgress()
+        playingVod = null
+        player.esquecer()
     }
 
     fun enterLibrary() {

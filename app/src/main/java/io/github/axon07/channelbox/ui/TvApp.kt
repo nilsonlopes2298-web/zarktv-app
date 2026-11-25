@@ -1347,7 +1347,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             // Tela de entrada (sem conta / saiu da conta): nada toca.
             Mode.SETUP -> { vm.enterLibrary(); vm.player.esquecer() }
             // Tutorial da primeira vez na tela: nada toca até ele terminar.
-            Mode.HOME -> if (tutorialVisto && !ZarkLayout.leve.value && (!ZarkPlay.ativo || zpJogos) && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else vm.enterLibrary()
+            Mode.HOME -> if (tutorialVisto && !ZarkLayout.leve.value && (!ZarkPlay.ativo || zpJogos) && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else { vm.enterLibrary(); if (ZarkPlay.ativo) vm.limparVod() }
             Mode.PLAYBACK, Mode.UPDATE -> Unit
             // ZarkPlay (XCIPTV): busca não toca nada; lista de canais e guia só tocam quando escolher o canal.
             Mode.SEARCH -> if (ZarkPlay.ativo) vm.enterLibrary() else vm.leaveLibrary()
