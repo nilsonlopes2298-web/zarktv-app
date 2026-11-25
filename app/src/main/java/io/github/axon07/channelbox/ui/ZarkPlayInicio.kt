@@ -48,7 +48,8 @@ object ZarkPlay {
 
 /**
  * Tela inicial do ZarkPlay, no jeito do XCIPTV: TV ao vivo em destaque à esquerda, Filmes e Séries
- * grandes à direita e uma fileira de atalhos (guia, catch up, multitela, gravações, busca, conta…).
+ * grandes à direita e uma fileira de atalhos (guia, busca, conta, configurações e atualizar).
+ * Catch up, multitela e gravações saíram da tela inicial a pedido (tela mais simples).
  * Funciona no controle remoto (foco com borda branca) e no toque.
  */
 @Composable
@@ -67,9 +68,6 @@ fun InicioZarkPlay(
     onFilmes: () -> Unit,
     onSeries: () -> Unit,
     onGuia: () -> Unit,
-    onCatchup: () -> Unit,
-    onMultitela: () -> Unit,
-    onGravacoes: () -> Unit,
     onBuscar: () -> Unit,
     onConta: () -> Unit,
     onAjustes: () -> Unit,
@@ -97,10 +95,10 @@ fun InicioZarkPlay(
                 // Topo: marca, data/hora, conta.
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     if (logoUrl != null) {
-                        coil.compose.AsyncImage(logoUrl, "ZarkPlay", contentScale = ContentScale.Fit, modifier = Modifier.height(46.dp).width(180.dp))
+                        coil.compose.AsyncImage(logoUrl, "ZarkTV", contentScale = ContentScale.Fit, modifier = Modifier.height(46.dp).width(180.dp))
                     } else {
                         Text("Zark", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
-                        Text("Play", color = Palette.Accent, fontSize = 30.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
+                        Text("TV", color = Palette.Accent, fontSize = 30.sp, fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
                     }
                     Spacer(Modifier.weight(1f))
                     if (!compacto) {
@@ -113,10 +111,7 @@ fun InicioZarkPlay(
                 Spacer(Modifier.height(if (compacto) 12.dp else 18.dp))
 
                 val atalhos: List<Triple<String, ImageVector, () -> Unit>> = listOf(
-                    Triple("Guia da TV", AppIcons.Guide, onGuia),
-                    Triple("Catch up", AppIcons.History, onCatchup),
-                    Triple("Multitela", AppIcons.Grid, onMultitela),
-                    Triple("Gravações", AppIcons.Record, onGravacoes),
+                    Triple("Guia de programação", AppIcons.Guide, onGuia),
                     Triple("Buscar", AppIcons.Search, onBuscar),
                     Triple("Conta", AppIcons.User, onConta),
                     Triple("Configurações", AppIcons.Settings, onAjustes),
@@ -125,7 +120,7 @@ fun InicioZarkPlay(
 
                 if (retrato) {
                     // Celular em pé: blocos grandes empilhados e atalhos 2 por linha.
-                    BlocoZp("TV ao vivo", "$canais canais", AppIcons.AoVivo, onAoVivo, true, Modifier.fillMaxWidth().height(130.dp).focusRequester(primeiro))
+                    BlocoZp("Canais ao vivo", "$canais canais", AppIcons.AoVivo, onAoVivo, true, Modifier.fillMaxWidth().height(130.dp).focusRequester(primeiro))
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         BlocoZp("Filmes", "$filmes títulos", AppIcons.Film, onFilmes, false, Modifier.weight(1f).height(110.dp))
@@ -140,7 +135,7 @@ fun InicioZarkPlay(
                 } else {
                     val altoBlocos: Dp = if (compacto) 190.dp else 300.dp
                     Row(horizontalArrangement = Arrangement.spacedBy(if (compacto) 10.dp else 16.dp), modifier = Modifier.fillMaxWidth().height(altoBlocos)) {
-                        BlocoZp("TV ao vivo", "$canais canais", AppIcons.AoVivo, onAoVivo, true, Modifier.weight(1.3f).fillMaxHeight().focusRequester(primeiro))
+                        BlocoZp("Canais ao vivo", "$canais canais", AppIcons.AoVivo, onAoVivo, true, Modifier.weight(1.3f).fillMaxHeight().focusRequester(primeiro))
                         BlocoZp("Filmes", "$filmes títulos", AppIcons.Film, onFilmes, false, Modifier.weight(1f).fillMaxHeight())
                         BlocoZp("Séries", "$series títulos", AppIcons.Play, onSeries, false, Modifier.weight(1f).fillMaxHeight())
                     }
@@ -160,7 +155,7 @@ fun InicioZarkPlay(
                         listOfNotNull(usuario.takeIf { it.isNotBlank() }?.let { "Usuário: $it" }, vencimento?.let { "Vence em: $it" }).joinToString("   ·   "),
                         color = Color(0x99FFFFFF), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                     )
-                    Text("ZarkPlay $versao", color = Color(0x66FFFFFF), fontSize = 12.sp)
+                    Text("ZarkTV $versao", color = Color(0x66FFFFFF), fontSize = 12.sp)
                 }
             }
             avisoVencimento?.let { AvisoQueSome(it, Modifier.align(Alignment.BottomEnd).padding(16.dp)) }

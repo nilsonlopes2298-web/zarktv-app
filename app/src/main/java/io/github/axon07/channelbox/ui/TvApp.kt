@@ -2058,12 +2058,6 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         mode = Mode.VOD
                     },
                     onGuia = { openGuide() },
-                    onCatchup = {
-                        openGuide()
-                        vm.showToast("No guia, volte no horário (◀) para assistir o que já passou.")
-                    },
-                    onMultitela = { openMultiView() },
-                    onGravacoes = { recIndex = 0; mode = Mode.RECORDINGS },
                     onBuscar = { openSearch() },
                     onConta = { mode = Mode.PROFILE },
                     onAjustes = { ajustesVolta = Mode.HOME; mode = Mode.AJUSTES },
