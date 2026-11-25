@@ -1234,6 +1234,9 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
 
     private var playingVod: Pair<VodEntity, String?>? = null
 
+    /** ZarkTV: true enquanto um filme/episódio está tocando (a troca automática de qualidade só vale para canais). */
+    val tocandoFilme: Boolean get() = playingVod != null
+
     /** Plays a movie or episode; [showId] links an episode to its show for "Continuar assistindo". */
     fun playVod(item: VodEntity, startAt: Long, showId: String? = null) {
         endShift()

@@ -334,6 +334,32 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             else -> Unit
         }
     }
+    // ZarkTV: canal comum (fora dos jogos) que deu erro passa sozinho para outra qualidade
+    // do mesmo canal (FHD → HD → SD…). Tenta cada uma no máximo uma vez; o que já funcionou vem primeiro.
+    val qualidadesTentadas = remember { androidx.compose.runtime.mutableStateListOf<String>() }
+    var baseTentada by remember { mutableStateOf("") }
+    LaunchedEffect(playerStatus, current?.id) {
+        if (jogoAberto != null || vm.tocandoFilme) return@LaunchedEffect
+        if (mode == Mode.PLAYBACK || mode == Mode.VOD || mode == Mode.RECORDINGS || mode == Mode.MULTIVIEW) return@LaunchedEffect
+        val ch = current ?: return@LaunchedEffect
+        val base = Qualidades.base(ch.name)
+        if (base != baseTentada) { baseTentada = base; qualidadesTentadas.clear() }
+        when (playerStatus) {
+            is PlayerStatus.Playing -> MemoriaCanais.funcionou(zarkCtxJogo, ch.id)
+            is PlayerStatus.Error -> {
+                MemoriaCanais.deuErro(zarkCtxJogo, ch.id)
+                if (ch.id !in qualidadesTentadas) qualidadesTentadas.add(ch.id)
+                val opcoes = Qualidades.variantes(ch, allChannels, { it.name }, { it.id })
+                val prox = MemoriaCanais.ordenar(zarkCtxJogo, opcoes) { it.id }
+                    .firstOrNull { it.id !in qualidadesTentadas } ?: return@LaunchedEffect
+                delay(1_500)
+                qualidadesTentadas.add(prox.id)
+                vm.showToast("Não abriu em ${Qualidades.rotulo(ch.name)}. Tentando ${Qualidades.rotulo(prox.name)}…")
+                vm.withChannelAccess(prox) { vm.tune(prox) }
+            }
+            else -> Unit
+        }
+    }
     var homePreview by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     /** Filme/série aberto direto da tela principal: Voltar retorna para ela. */
     var vodDeInicio by remember { mutableStateOf(false) }
