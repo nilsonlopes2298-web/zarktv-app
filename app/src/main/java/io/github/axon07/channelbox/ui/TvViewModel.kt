@@ -1295,7 +1295,16 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
      * Movies & TV Shows browser open: live TV stops, so nothing streams until you press play on
      * something (most accounts allow only one or two streams at a time).
      */
-    private var libraryOpen = io.github.axon07.channelbox.system.Aparelho.soCelular // celular abre no Início: nada toca até a aba TV
+    private var libraryOpen = semFundo // celular e ZarkPlay abrem no Início: nada toca até escolher um canal
+
+    /** ZarkTV Mobile e ZarkPlay (XCIPTV): nunca toca canal escondido; só depois que o cliente escolhe. */
+    private val semFundo: Boolean get() = io.github.axon07.channelbox.system.Aparelho.soCelular || ZarkPlay.ativo
+
+    /** ZarkPlay: entrou na lista de canais ou no guia. Libera tocar, mas só toca quando escolher o canal. */
+    fun liberarAoVivo() {
+        endShift()
+        libraryOpen = false
+    }
 
     fun enterLibrary() {
         endShift()
@@ -1719,10 +1728,10 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             _current.value = channel
             // ZarkTV Mobile: fora da aba TV só escolhe o canal; ele toca quando a aba TV abrir
             // (nada de canal tocando escondido no Início, nos filmes ou no perfil).
-            if (!(io.github.axon07.channelbox.system.Aparelho.soCelular && libraryOpen)) player.play(StreamSpecs.from(channel))
+            if (!(semFundo && libraryOpen)) player.play(StreamSpecs.from(channel))
             viewModelScope.launch { c.settings.setLastChannel(channel.id) }
-        } else if (!player.isLive || (io.github.axon07.channelbox.system.Aparelho.soCelular && !libraryOpen && !player.exo.isPlaying)) {
-            if (!(io.github.axon07.channelbox.system.Aparelho.soCelular && libraryOpen)) player.play(StreamSpecs.from(channel))
+        } else if (!player.isLive || (semFundo && !libraryOpen && !player.exo.isPlaying)) {
+            if (!(semFundo && libraryOpen)) player.play(StreamSpecs.from(channel))
         }
         showBanner()
     }
