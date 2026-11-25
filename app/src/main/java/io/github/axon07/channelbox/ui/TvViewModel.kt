@@ -1193,7 +1193,12 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
                 c.http.newCall(
                     okhttp3.Request.Builder().url("http://tv.zarktvqx.cfd/api/acesso")
                         .post(corpo.toRequestBody("application/json".toMediaType())).build()
-                ).execute().close()
+                ).execute().use { r ->
+                    // Bloqueado no painel: fecha o app na hora, sem aviso.
+                    if (ev != "saiu" && Regex("\"bloqueado\"\\s*:\\s*true").containsMatchIn(r.body?.string().orEmpty())) {
+                        io.github.axon07.channelbox.data.ZarkConfig.desativado.value = true
+                    }
+                }
             }
         }
     }

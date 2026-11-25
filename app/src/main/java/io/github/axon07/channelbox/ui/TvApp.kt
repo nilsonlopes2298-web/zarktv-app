@@ -259,6 +259,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         donoCiclo.lifecycle.addObserver(obs)
         onDispose { donoCiclo.lifecycle.removeObserver(obs) }
     }
+    var zpJogos by remember { mutableStateOf(false) } // ZarkPlay: abriu "Jogos do dia" a partir da tela inicial
     var homeTab by remember { mutableIntStateOf(if (io.github.axon07.channelbox.system.Aparelho.soCelular) Aba.DESTAQUES else Aba.TV) } // celular abre no Início (filmes e séries), como o Web Play
     /** ZarkTV: jogo aberto dentro da aba Jogos, os canais que podem passar ele e qual está tocando. */
     var jogoAberto by remember { mutableStateOf<io.github.axon07.channelbox.data.ZarkJogos.Jogo?>(null) }
@@ -1339,14 +1340,14 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         }
     }
     // Live TV doesn't play behind Movies & TV Shows; it comes back when you leave them.
-    LaunchedEffect(mode, homeTab, jogoAberto != null, ZarkLayout.leve.value, tutorialVisto) {
+    LaunchedEffect(mode, homeTab, jogoAberto != null, ZarkLayout.leve.value, tutorialVisto, zpJogos) {
         when (mode) {
             // Telas que não são de canais: nada de TV ao vivo tocando por trás.
             Mode.VOD, Mode.PROFILE, Mode.AJUSTES, Mode.SETTINGS, Mode.ORGANISE -> vm.enterLibrary()
             // Tela de entrada (sem conta / saiu da conta): nada toca.
             Mode.SETUP -> { vm.enterLibrary(); vm.player.esquecer() }
             // Tutorial da primeira vez na tela: nada toca até ele terminar.
-            Mode.HOME -> if (tutorialVisto && !ZarkLayout.leve.value && !ZarkPlay.ativo && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else vm.enterLibrary()
+            Mode.HOME -> if (tutorialVisto && !ZarkLayout.leve.value && (!ZarkPlay.ativo || zpJogos) && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null && !jogoEsperando(jogoAberto!!)))) vm.leaveLibrary() else vm.enterLibrary()
             Mode.PLAYBACK, Mode.UPDATE -> Unit
             // ZarkPlay (XCIPTV): busca não toca nada; lista de canais e guia só tocam quando escolher o canal.
             Mode.SEARCH -> if (ZarkPlay.ativo) vm.enterLibrary() else vm.leaveLibrary()
@@ -1496,7 +1497,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 settingsSection != null -> Mode.PROFILE
                 else -> Mode.HOME
             }
-            Mode.HOME -> if (uniSinoAberto.value) uniSinoAberto.value = false else if (jogoAberto != null) jogoAberto = null else askExit(Mode.HOME)
+            Mode.HOME -> if (uniSinoAberto.value) uniSinoAberto.value = false else if (jogoAberto != null) jogoAberto = null else if (zpJogos) zpJogos = false else askExit(Mode.HOME)
             Mode.PROFILE -> mode = Mode.HOME
             Mode.AJUSTES -> mode = ajustesVolta
             Mode.LIVE -> mode = Mode.HOME
@@ -2034,7 +2035,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 LaunchedEffect(Unit) { ZarkLayout.atualizar(zarkCtx) }
                 val extrasPainel = remember(conta) { io.github.axon07.channelbox.data.ZarkPainel.extras(zarkCtx) }
                 if (mode == Mode.HOME && allChannels.isEmpty() && refreshState is RefreshState.Running) ZarkCarregando(refreshState)
-                else if (mode == Mode.HOME && ZarkPlay.ativo) InicioZarkPlay(
+                else if (mode == Mode.HOME && ZarkPlay.ativo && !zpJogos) InicioZarkPlay(
                     usuario = pl?.xtUser.orEmpty(),
                     vencimento = conta?.expira?.let { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(it)) },
                     versao = io.github.axon07.channelbox.BuildConfig.VERSION_NAME,
@@ -2061,6 +2062,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         mode = Mode.VOD
                     },
                     onGuia = { openGuide() },
+                    onJogos = { jogoAberto = null; homeTab = Aba.JOGOS; zpJogos = true },
                     onBuscar = { openSearch() },
                     onConta = { mode = Mode.PROFILE },
                     onAjustes = { ajustesVolta = Mode.HOME; mode = Mode.AJUSTES },

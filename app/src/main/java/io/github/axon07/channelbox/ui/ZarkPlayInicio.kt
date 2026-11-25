@@ -48,7 +48,7 @@ object ZarkPlay {
 
 /**
  * Tela inicial do ZarkPlay, no jeito do XCIPTV: TV ao vivo em destaque à esquerda, Filmes e Séries
- * grandes à direita e uma fileira de atalhos (guia, busca, conta, configurações e atualizar).
+ * e Jogos do dia grandes à direita e uma fileira de atalhos (guia, busca, conta, configurações e atualizar).
  * Catch up, multitela e gravações saíram da tela inicial a pedido (tela mais simples).
  * Funciona no controle remoto (foco com borda branca) e no toque.
  */
@@ -68,6 +68,7 @@ fun InicioZarkPlay(
     onFilmes: () -> Unit,
     onSeries: () -> Unit,
     onGuia: () -> Unit,
+    onJogos: () -> Unit,
     onBuscar: () -> Unit,
     onConta: () -> Unit,
     onAjustes: () -> Unit,
@@ -143,6 +144,8 @@ fun InicioZarkPlay(
                         BlocoZp("Séries", "", AppIcons.Play, onSeries, false, Modifier.weight(1f).height(110.dp))
                     }
                     Spacer(Modifier.height(10.dp))
+                    BlocoZp("Jogos do dia", "", AppIcons.Trofeu, onJogos, false, Modifier.fillMaxWidth().height(90.dp))
+                    Spacer(Modifier.height(10.dp))
                     atalhos.chunked(2).forEach { par ->
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 10.dp)) {
                             par.forEach { (nome, icone, acao) -> AtalhoZp(nome, icone, acao, Modifier.weight(1f).height(56.dp)) }
@@ -154,6 +157,7 @@ fun InicioZarkPlay(
                         BlocoZp("Canais ao vivo", "", AppIcons.AoVivo, onAoVivo, true, Modifier.weight(1.3f).fillMaxHeight().focusRequester(primeiro))
                         BlocoZp("Filmes", "", AppIcons.Film, onFilmes, false, Modifier.weight(1f).fillMaxHeight())
                         BlocoZp("Séries", "", AppIcons.Play, onSeries, false, Modifier.weight(1f).fillMaxHeight())
+                        BlocoZp("Jogos do dia", "", AppIcons.Trofeu, onJogos, false, Modifier.weight(1f).fillMaxHeight())
                     }
                     Spacer(Modifier.height(if (compacto) 10.dp else 16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(if (compacto) 8.dp else 12.dp), modifier = Modifier.fillMaxWidth()) {

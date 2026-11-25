@@ -27,11 +27,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // Segurança: no celular e no tablet ninguém tira print nem grava a tela (sai tudo preto).
+        if (!io.github.axon07.channelbox.system.Aparelho.ehTv(resources.configuration)) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         telaCheia()
         setContent {
             ChannelboxTheme {
                 TamanhoProporcional { TvApp(vm) }
             }
+        }
+        // Usuário desativado (no servidor ou bloqueado no painel): o app fecha na hora, sem aviso.
+        lifecycleScope.launch {
+            io.github.axon07.channelbox.data.ZarkConfig.desativado.collect { if (it) finishAndRemoveTask() }
         }
         // Auto frame rate: follow the playing video's frame rate when switched on (waits a moment
         // so flicking through channels doesn't make the TV switch modes for every one).

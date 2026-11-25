@@ -167,6 +167,9 @@ object ZarkConfig {
         else -> emptyList()
     }.map { it.trimEnd('/') }
 
+    /** Ligado quando o usuário está desativado (servidor ou painel): o app fecha sem aviso. */
+    val desativado = kotlinx.coroutines.flow.MutableStateFlow(false)
+
     sealed interface Login {
         /** Entrou: [dns] é o que respondeu; [expira] em milissegundos (null = sem vencimento). */
         data class Ok(val dns: String, val expira: Long?, val status: String) : Login
@@ -204,6 +207,11 @@ object ZarkConfig {
             val exp = (info?.get("exp_date") as? JsonPrimitive)?.content?.toLongOrNull()?.takeIf { it > 0 }?.times(1000)
             val status = (info?.get("status") as? JsonPrimitive)?.content.orEmpty()
             if (info != null && status.equals("Expired", ignoreCase = true)) return@withContext Login.Vencida(exp)
+            // Usuário desativado no servidor: não entra e o app fecha sozinho, sem aviso.
+            if (info != null && (status.equals("Disabled", ignoreCase = true) || status.equals("Banned", ignoreCase = true))) {
+                desativado.value = true
+                return@withContext Login.SenhaErrada
+            }
             if (info == null || auth == "0") {
                 wrong = true
                 continue
