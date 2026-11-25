@@ -886,6 +886,40 @@ fun PosterTile(item: VodEntity, w: Dp, h: Dp, mostrarTitulo: Boolean = true, onC
 
 // ---- Jogos: guia de jogos do dia ----------------------------------------------------------------
 
+/**
+ * ZarkPlay (XCIPTV): só a aba de Jogos do dia, sem as outras abas do app de TV.
+ * Voltar fecha o jogo aberto e depois volta para a tela inicial.
+ */
+@Composable
+internal fun SoJogosZp(
+    vm: TvViewModel,
+    jogoAberto: io.github.axon07.channelbox.data.ZarkJogos.Jogo?,
+    canalJogo: ChannelEntity?,
+    canalJogoInfo: String,
+    onAbrirJogo: (io.github.axon07.channelbox.data.ZarkJogos.Jogo) -> Unit,
+    onFecharJogo: () -> Unit,
+    onMudarCanalJogo: () -> Unit,
+    onPreviewRect: (Rect?) -> Unit,
+    onFull: () -> Unit,
+) {
+    val compacto = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 700
+    if (jogoAberto == null) LaunchedEffect(Unit) { onPreviewRect(null) }
+    Column(Modifier.fillMaxSize().background(Color(0xFF0B0B0D)).padding(horizontal = if (compacto) 12.dp else 28.dp, vertical = if (compacto) 10.dp else 18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
+            Text("Zark", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Black)
+            Text("TV", color = Color(0xFFE50914), fontSize = 26.sp, fontWeight = FontWeight.Black)
+            Spacer(Modifier.width(16.dp))
+            AppIcon(AppIcons.Trofeu, tint = Color(0xFFFFD60A), size = 22.dp)
+            Spacer(Modifier.width(8.dp))
+            Text("Jogos do dia", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            if (jogoAberto != null) SemPivo { JogoAberto(vm, jogoAberto, canalJogo, canalJogoInfo, compacto, onPreviewRect, onFull, onMudarCanalJogo, onFecharJogo) }
+            else AbaJogos(vm, compacto, onAbrirJogo)
+        }
+    }
+}
+
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun AbaJogos(vm: TvViewModel, compacto: Boolean, onAssistir: (io.github.axon07.channelbox.data.ZarkJogos.Jogo) -> Unit) {

@@ -2112,6 +2112,28 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onPerfil = { mode = Mode.PROFILE },
                     onAjustes = { ajustesVolta = Mode.HOME; mode = Mode.AJUSTES },
                 )
+                else if (mode == Mode.HOME && ZarkPlay.ativo && zpJogos) SoJogosZp(
+                    vm = vm,
+                    jogoAberto = jogoAberto,
+                    canalJogo = current.takeIf { jogoAberto != null && candidatosJogo.isNotEmpty() },
+                    canalJogoInfo = if (candidatosJogo.isEmpty()) "" else "Canal ${jogoCanalIdx + 1} de ${candidatosJogo.size}",
+                    onAbrirJogo = { j ->
+                        jogoAberto = j
+                        candidatosJogo = canaisDoJogo(j)
+                        jogoCanalIdx = 0
+                        if (!jogoEsperando(j)) candidatosJogo.firstOrNull()?.let { ch -> vm.withChannelAccess(ch) { vm.tune(ch) } }
+                    },
+                    onFecharJogo = { jogoAberto = null },
+                    onMudarCanalJogo = {
+                        if (candidatosJogo.isNotEmpty()) {
+                            jogoCanalIdx = (jogoCanalIdx + 1) % candidatosJogo.size
+                            val ch = candidatosJogo[jogoCanalIdx]
+                            vm.withChannelAccess(ch) { vm.tune(ch) }
+                        }
+                    },
+                    onPreviewRect = { homePreview = it },
+                    onFull = { mode = Mode.PLAYER },
+                )
                 else if (mode == Mode.HOME) UniShell(
                     vm = vm,
                     tab = homeTab,
