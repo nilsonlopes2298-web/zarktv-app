@@ -17,11 +17,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,7 +60,23 @@ fun GuideSearchScreen(
     recordingKeys: Set<String>,
     timeFormat: (Long) -> String,
     onPick: (TvViewModel.GuideHit) -> Unit,
+    /** ZarkTV: abre um filme ou série encontrado (null = não mostra filmes/séries). */
+    onOpenVod: ((io.github.axon07.channelbox.data.VodEntity) -> Unit)? = null,
+    /** ZarkTV: abre um canal encontrado pelo nome (null = não mostra canais). */
+    onCanal: ((io.github.axon07.channelbox.data.ChannelEntity) -> Unit)? = null,
 ) {
+    // ZarkTV: busca única — canais, filmes e séries junto com a programação.
+    val q2 = state.query.trim()
+    val filmes by remember(q2) {
+        if (q2.length < 2 || onOpenVod == null) kotlinx.coroutines.flow.flowOf(emptyList()) else vm.vodItems(io.github.axon07.channelbox.data.VodKind.MOVIE, null, q2)
+    }.collectAsState(initial = emptyList())
+    val series by remember(q2) {
+        if (q2.length < 2 || onOpenVod == null) kotlinx.coroutines.flow.flowOf(emptyList()) else vm.vodItems(io.github.axon07.channelbox.data.VodKind.SERIES, null, q2)
+    }.collectAsState(initial = emptyList())
+    val todosCanais by vm.allChannels.collectAsState()
+    val canais = remember(q2, todosCanais) {
+        if (q2.length < 2 || onCanal == null) emptyList() else todosCanais.filter { it.name.contains(q2, ignoreCase = true) }.take(40)
+    }
     LaunchedEffect(state.query) {
         val q = state.query.trim()
         if (q.length < 2) {
@@ -84,7 +102,7 @@ fun GuideSearchScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             AppIcon(AppIcons.Search, tint = Palette.Text, size = 26.dp)
             Spacer(Modifier.width(12.dp))
-            Text("Buscar na programação", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Palette.Text)
+            Text("Buscar", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Palette.Text)
         }
         Spacer(Modifier.height(16.dp))
         // Busca por voz: o botão do microfone usa o reconhecimento de voz do aparelho (Android TV, Fire Stick, celular).
@@ -93,7 +111,7 @@ fun GuideSearchScreen(
             android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                 .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
-                .putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Fale o nome do programa ou do canal")
+                .putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Fale o nome do filme, série, canal ou programa")
         }
         val temVoz = remember { runCatching { ctxVoz.packageManager.queryIntentActivities(intentVoz, 0).isNotEmpty() }.getOrDefault(false) }
         val ouvir = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { r ->
@@ -101,7 +119,7 @@ fun GuideSearchScreen(
         }
         Row(Modifier.widthIn(max = 820.dp), verticalAlignment = Alignment.Bottom) {
             Box(Modifier.weight(1f)) {
-                TvTextField("Nome do programa ou do canal", state.query, { state.query = it }, fieldModifier = Modifier.focusRequester(field))
+                TvTextField("Filme, série, canal ou programa", state.query, { state.query = it }, fieldModifier = Modifier.focusRequester(field))
             }
             if (temVoz) {
                 Spacer(Modifier.width(12.dp))
@@ -110,34 +128,92 @@ fun GuideSearchScreen(
         }
         Spacer(Modifier.height(16.dp))
         val results = state.results
-        when {
-            state.query.trim().length < 2 -> Hint("Digite pelo menos 2 letras. Mostra o que passa agora, mais tarde e antes.")
-            results == null -> Hint("Buscando…")
-            results.isEmpty() -> Hint("Nada na programação com “${state.query.trim()}”")
-            else -> {
-                Text("${results.size} encontrado(s)", fontSize = 13.sp, color = Palette.TextDim)
-                Spacer(Modifier.height(8.dp))
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    contentPadding = PaddingValues(bottom = 32.dp),
-                ) {
-                    items(results.size) { i ->
-                        val hit = results[i]
-                        ResultRow(
-                            hit = hit,
-                            now = now,
-                            recording = TvViewModel.recordingKey(hit.channel.id, hit.program.start) in recordingKeys,
-                            canCatchUp = vm.canCatchUp(hit.channel, hit.program),
-                            timeFormat = timeFormat,
-                            modifier = if (i == 0) Modifier.focusRequester(firstResult) else Modifier,
-                            onClick = {
-                                state.focusIndex = i
-                                onPick(hit)
-                            },
-                        )
+        val temOutros = canais.isNotEmpty() || filmes.isNotEmpty() || series.isNotEmpty()
+        if (state.query.trim().length < 2) {
+            Hint("Digite pelo menos 2 letras. Procura canais, filmes, séries e a programação.")
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                contentPadding = PaddingValues(bottom = 32.dp),
+            ) {
+                if (canais.isNotEmpty()) {
+                    item { Secao("Canais (${canais.size})") }
+                    item {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
+                            items(canais.size) { i -> CanalAchado(canais[i]) { onCanal?.invoke(canais[i]) } }
+                        }
+                    }
+                }
+                if (filmes.isNotEmpty()) {
+                    item { Secao("Filmes (${filmes.size})") }
+                    item {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
+                            items(minOf(filmes.size, 40)) { i -> PosterTile(filmes[i], 110.dp, 160.dp) { onOpenVod?.invoke(filmes[i]) } }
+                        }
+                    }
+                }
+                if (series.isNotEmpty()) {
+                    item { Secao("Séries (${series.size})") }
+                    item {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
+                            items(minOf(series.size, 40)) { i -> PosterTile(series[i], 110.dp, 160.dp) { onOpenVod?.invoke(series[i]) } }
+                        }
+                    }
+                }
+                when {
+                    results == null -> item { Hint("Buscando na programação…") }
+                    results.isEmpty() -> item { Hint(if (temOutros) "Nada na programação com “${state.query.trim()}”." else "Nada encontrado com “${state.query.trim()}”.") }
+                    else -> {
+                        item { Secao("Na programação (${results.size})") }
+                        items(results.size) { i ->
+                            val hit = results[i]
+                            ResultRow(
+                                hit = hit,
+                                now = now,
+                                recording = TvViewModel.recordingKey(hit.channel.id, hit.program.start) in recordingKeys,
+                                canCatchUp = vm.canCatchUp(hit.channel, hit.program),
+                                timeFormat = timeFormat,
+                                modifier = if (i == 0) Modifier.focusRequester(firstResult) else Modifier,
+                                onClick = {
+                                    state.focusIndex = i
+                                    onPick(hit)
+                                },
+                            )
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun Secao(text: String) {
+    Text(text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text, modifier = Modifier.padding(top = 10.dp))
+}
+
+/** Canal encontrado pelo nome: logo + nome, OK abre o canal. */
+@Composable
+private fun CanalAchado(ch: io.github.axon07.channelbox.data.ChannelEntity, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.width(170.dp).tap(onClick = onClick),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color(0x0FFFFFFF),
+            contentColor = Palette.Text,
+            focusedContainerColor = Color(0x29FFFFFF),
+            focusedContentColor = Color.White,
+        ),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Palette.Accent), shape = RoundedCornerShape(8.dp)),
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+    ) {
+        Column(Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            ChannelLogo(ch.logoUrl, ch.name, Modifier.size(width = 96.dp, height = 56.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(ch.name, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -190,11 +266,11 @@ private fun ResultRow(
             }
             Spacer(Modifier.width(12.dp))
             val (label, color) = when {
-                onNow -> "On now" to Palette.Accent
-                past && canCatchUp -> "Catch-up" to Color(0x33FFFFFF)
-                past -> "Finished" to Color(0x1AFFFFFF)
-                recording -> "● Recording" to Palette.Recording.copy(alpha = 0.8f)
-                else -> "Later" to Color(0x33FFFFFF)
+                onNow -> "Agora" to Palette.Accent
+                past && canCatchUp -> "Já passou" to Color(0x33FFFFFF)
+                past -> "Terminou" to Color(0x1AFFFFFF)
+                recording -> "● Gravando" to Palette.Recording.copy(alpha = 0.8f)
+                else -> "Mais tarde" to Color(0x33FFFFFF)
             }
             Text(
                 label, fontSize = 12.sp, color = Color.White,
@@ -208,9 +284,9 @@ private fun ResultRow(
 private fun dayLabel(time: Long, now: Long): String {
     fun dayOf(t: Long) = (t + java.util.TimeZone.getDefault().getOffset(t)) / 86_400_000L
     return when ((dayOf(time) - dayOf(now)).toInt()) {
-        0 -> "Today"
-        1 -> "Tomorrow"
-        -1 -> "Yesterday"
-        else -> java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault()).format(java.util.Date(time))
+        0 -> "Hoje"
+        1 -> "Amanhã"
+        -1 -> "Ontem"
+        else -> java.text.SimpleDateFormat("EEE d MMM", java.util.Locale("pt", "BR")).format(java.util.Date(time))
     }
 }

@@ -363,6 +363,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     var homePreview by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     /** Filme/série aberto direto da tela principal: Voltar retorna para ela. */
     var vodDeInicio by remember { mutableStateOf(false) }
+    /** ZarkTV: filme/série aberto pela busca: Voltar retorna para a busca. */
+    var vodDaBusca by remember { mutableStateOf(false) }
     /** Link do filme/episódio tocando agora (para abrir no player externo). */
     var vodUrlAtual by remember { mutableStateOf<String?>(null) }
     var vodPreviewItem by remember { mutableStateOf<VodEntity?>(null) }
@@ -1508,11 +1510,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 vodBrowser.movie != null -> {
                     vodBrowser.movie = null
                     vodBrowser.focusToken++
-                    if (vodDeInicio) { vodDeInicio = false; mode = Mode.HOME }
+                    if (vodDaBusca) { vodDaBusca = false; mode = Mode.SEARCH } else if (vodDeInicio) { vodDeInicio = false; mode = Mode.HOME }
                 }
                 vodBrowser.show != null -> {
                     vodBrowser.closeShow()
-                    if (vodDeInicio) { vodDeInicio = false; mode = Mode.HOME }
+                    if (vodDaBusca) { vodDaBusca = false; mode = Mode.SEARCH } else if (vodDeInicio) { vodDeInicio = false; mode = Mode.HOME }
                 }
                 vodBrowser.query.isNotEmpty() -> vodBrowser.query = ""
                 else -> mode = Mode.HOME
@@ -1899,6 +1901,15 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             Mode.SEARCH -> GuideSearchScreen(
                 state = guideSearch,
                 vm = vm,
+                onOpenVod = { item ->
+                    vodBrowser.open(item.kind)
+                    vodDeInicio = false
+                    vodDaBusca = true
+                    vodBrowser.voltarInicio = { vodDaBusca = false; mode = Mode.SEARCH }
+                    if (item.kind == VodKind.SERIES) vodBrowser.openShow(item) else vodBrowser.movie = item
+                    mode = Mode.VOD
+                },
+                onCanal = { ch -> vm.withChannelAccess(ch) { vm.tune(ch); mode = Mode.PLAYER } },
                 now = now,
                 recordingKeys = recordingKeys,
                 timeFormat = timeFormat,
@@ -2031,12 +2042,14 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onFilmes = {
                         vodBrowser.open(VodKind.MOVIE)
                         vodDeInicio = false
+                        vodDaBusca = false
                         vodBrowser.voltarInicio = null
                         mode = Mode.VOD
                     },
                     onSeries = {
                         vodBrowser.open(VodKind.SERIES)
                         vodDeInicio = false
+                        vodDaBusca = false
                         vodBrowser.voltarInicio = null
                         mode = Mode.VOD
                     },
@@ -2049,6 +2062,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onBuscar = {
                         vodBrowser.open(VodKind.MOVIE)
                         vodDeInicio = false
+                        vodDaBusca = false
                         vodBrowser.voltarInicio = null
                         mode = Mode.VOD
                     },
@@ -2099,6 +2113,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onOpenItem = { item ->
                         vodBrowser.open(item.kind)
                         vodDeInicio = true
+                        vodDaBusca = false
                         vodBrowser.voltarInicio = { vodDeInicio = false; mode = Mode.HOME }
                         if (item.kind == VodKind.SERIES) vodBrowser.openShow(item) else vodBrowser.movie = item
                         mode = Mode.VOD
@@ -2108,6 +2123,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         vodBrowser.filtroCat = rx
                         vodBrowser.category = null
                         vodDeInicio = false
+                        vodDaBusca = false
                         vodBrowser.voltarInicio = null
                         mode = Mode.VOD
                     },
@@ -2117,12 +2133,14 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         vodBrowser.open(kind)
                         vodBrowser.category = cat
                         vodDeInicio = false
+                        vodDaBusca = false
                         vodBrowser.voltarInicio = null
                         mode = Mode.VOD
                     },
                     onSearch = {
                         vodBrowser.open(VodKind.MOVIE)
                         vodDeInicio = false
+                        vodDaBusca = false
                         vodBrowser.voltarInicio = null
                         mode = Mode.VOD
                     },
@@ -2130,6 +2148,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         vodBrowser.open(VodKind.MOVIE)
                         vodBrowser.category = VOD_CONTINUE
                         vodDeInicio = false
+                        vodDaBusca = false
                         vodBrowser.voltarInicio = null
                         mode = Mode.VOD
                     },
@@ -2174,12 +2193,14 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         vodBrowser.open(VodKind.MOVIE)
                         vodBrowser.category = VOD_FAVORITOS
                         vodDeInicio = false
+                        vodDaBusca = false
                         vodBrowser.voltarInicio = null
                         mode = Mode.VOD
                     },
                     onAbrir = { item ->
                         vodBrowser.open(item.kind)
                         vodDeInicio = true
+                        vodDaBusca = false
                         vodBrowser.voltarInicio = { vodDeInicio = false; mode = Mode.HOME }
                         if (item.kind == VodKind.SERIES) vodBrowser.openShow(item) else vodBrowser.movie = item
                         mode = Mode.VOD
