@@ -1029,6 +1029,12 @@ private fun loadControl(size: String): androidx.media3.exoplayer.LoadControl {
  */
 private val LEVE get() = io.github.axon07.channelbox.ui.ZarkLeve.ativo
 
+/**
+ * Fire Stick (Amazon): começar com só ~1 s guardado fazia a imagem sair e travar logo em seguida,
+ * com o áudio seguindo por trás. Lá o vídeo só começa com pelo menos 2,5 s guardados (5 s depois de travar).
+ */
+private val AMAZON = android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true)
+
 private class BufferAutomatico(
     private val velocidade: () -> Double,
 ) : androidx.media3.exoplayer.DefaultLoadControl(
@@ -1043,7 +1049,7 @@ private class BufferAutomatico(
             mbs < 0.7 -> 5_000L  // internet fraca: estável
             mbs < 2.0 -> 2_500L  // equilibrado
             else -> 1_200L       // internet boa: rápido
-        } * (if (parameters.rebuffering) 2 else 1)
+        }.let { if (AMAZON) maxOf(it, 2_500L) else it } * (if (parameters.rebuffering) 2 else 1)
         val guardadoMs = parameters.bufferedDurationUs / 1000 / parameters.playbackSpeed.coerceAtLeast(0.1f).toDouble()
         // Buffer cheio (o controle padrão parou de baixar) também libera, para não travar esperando.
         return guardadoMs >= alvoMs || (super.shouldStartPlayback(parameters) && guardadoMs >= alvoMs / 2)
