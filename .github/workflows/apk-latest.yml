@@ -59,16 +59,14 @@ jobs:
           APK=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
           echo "APK encontrado: $APK"
           cp "$APK" zarktv.apk
-          NOTAS=$(git log -1 --pretty=%s | sed 's/"/\\"/g')
-          cat > version.json <<JSON
-          {
-            "version": "$VERSAO",
-            "url": "https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/$TAG/zarktv.apk",
-            "obrigatoria": false,
-            "tamanho": $(stat -c %s zarktv.apk),
-            "notas": "$NOTAS"
-          }
-          JSON
+          NOTAS=$(git log -1 --pretty=%s)
+          # jq escapa aspas, barras e caracteres de controle da mensagem do commit: o JSON sai sempre válido.
+          jq -n \
+            --arg version "$VERSAO" \
+            --arg url "https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/$TAG/zarktv.apk" \
+            --argjson tamanho "$(stat -c %s zarktv.apk)" \
+            --arg notas "$NOTAS" \
+            '{version: $version, url: $url, obrigatoria: false, tamanho: $tamanho, notas: $notas}' > version.json
           cat version.json
 
       - name: Publicar (latest ou beta)
