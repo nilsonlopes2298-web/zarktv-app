@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -49,7 +50,7 @@ object ZarkPlay {
 
 /**
  * Tela inicial do ZarkPlay, no jeito do XCIPTV: TV ao vivo em destaque à esquerda, Filmes e Séries
- * e Jogos do dia grandes à direita e uma fileira de atalhos (guia, busca, conta, configurações e atualizar).
+ * e Jogos do dia grandes à direita; Atualizar, Configurações e Conta como ícones no canto de cima.
  * Catch up, multitela e gravações saíram da tela inicial a pedido (tela mais simples).
  * Funciona no controle remoto (foco com borda branca) e no toque.
  */
@@ -120,6 +121,12 @@ fun InicioZarkPlay(
                             Text(when (rede) { 0 -> "Verifique a internet"; 2 -> "Cabo de rede"; 3 -> "Dados móveis"; else -> "Wi-Fi" }, color = Color(0x99FFFFFF), fontSize = 11.sp)
                         }
                     }
+                    BotaoIconeZp(AppIcons.Refresh, if (atualizando) "Atualizando" else "Atualizar", onAtualizar)
+                    Spacer(Modifier.width(10.dp))
+                    BotaoIconeZp(AppIcons.Settings, "Configurações", onAjustes)
+                    Spacer(Modifier.width(10.dp))
+                    BotaoIconeZp(AppIcons.User, "Conta", onConta)
+                    Spacer(Modifier.width(if (compacto) 0.dp else 20.dp))
                     if (!compacto) {
                         Column(horizontalAlignment = Alignment.End) {
                             Text(hora, color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.Bold, lineHeight = 40.sp)
@@ -128,14 +135,6 @@ fun InicioZarkPlay(
                     }
                 }
                 Spacer(Modifier.height(if (compacto) 12.dp else 18.dp))
-
-                val atalhos: List<Triple<String, ImageVector, () -> Unit>> = listOf(
-                    Triple("Guia de programação", AppIcons.Guide, onGuia),
-                    Triple("Buscar", AppIcons.Search, onBuscar),
-                    Triple("Conta", AppIcons.User, onConta),
-                    Triple("Configurações", AppIcons.Settings, onAjustes),
-                    Triple(if (atualizando) "Atualizando…" else "Atualizar", AppIcons.Refresh, onAtualizar),
-                )
 
                 if (retrato) {
                     // Celular em pé: blocos grandes empilhados e atalhos 2 por linha.
@@ -147,12 +146,6 @@ fun InicioZarkPlay(
                     }
                     Spacer(Modifier.height(10.dp))
                     BlocoZp("Jogos do dia", "Futebol e mais", AppIcons.Trofeu, onJogos, false, Modifier.fillMaxWidth().height(110.dp))
-                    Spacer(Modifier.height(10.dp))
-                    atalhos.chunked(2).forEach { par ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 10.dp)) {
-                            par.forEach { (nome, icone, acao) -> AtalhoZp(nome, icone, acao, Modifier.weight(1f).height(56.dp)) }
-                        }
-                    }
                 } else {
                     val esp = if (compacto) 10.dp else 18.dp
                     Row(horizontalArrangement = Arrangement.spacedBy(esp), modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -164,10 +157,6 @@ fun InicioZarkPlay(
                             }
                             BlocoZp("Jogos do dia", "Futebol e mais", AppIcons.Trofeu, onJogos, false, Modifier.fillMaxWidth().weight(1f))
                         }
-                    }
-                    Spacer(Modifier.height(if (compacto) 10.dp else 16.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(if (compacto) 8.dp else 12.dp), modifier = Modifier.fillMaxWidth()) {
-                        atalhos.forEach { (nome, icone, acao) -> AtalhoZp(nome, icone, acao, Modifier.weight(1f).height(if (compacto) 52.dp else 66.dp)) }
                     }
                 }
                 if (atualizando) {
@@ -313,4 +302,21 @@ private fun AvisoVencimentoZp(texto: String) {
             }
         }
     }
+}
+
+/** Botão redondo só com o ícone (Configurações e Conta, no canto de cima). */
+@Composable
+private fun BotaoIconeZp(icone: ImageVector, nome: String, onClick: () -> Unit) {
+    var foco by remember { mutableStateOf(false) }
+    val escala by androidx.compose.animation.core.animateFloatAsState(if (foco) 1.12f else 1f, label = "escala")
+    Box(
+        Modifier.size(48.dp)
+            .graphicsLayer { scaleX = escala; scaleY = escala }
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(if (foco) Color(0x33FFFFFF) else Color(0x14FFFFFF))
+            .border(if (foco) 3.dp else 1.dp, if (foco) Color.White else Color(0x1AFFFFFF), androidx.compose.foundation.shape.CircleShape)
+            .onFocusChanged { foco = it.isFocused }
+            .clickable(onClickLabel = nome, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { AppIcon(icone, tint = if (foco) Color(0xFFFFD60A) else Color.White, size = 24.dp) }
 }
