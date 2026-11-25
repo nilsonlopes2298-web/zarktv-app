@@ -2062,7 +2062,17 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         mode = Mode.VOD
                     },
                     onGuia = { openGuide() },
-                    onJogos = { jogoAberto = null; homeTab = Aba.JOGOS; zpJogos = true },
+                    onJogos = {
+                        // Abre a TV ao vivo já no grupo de jogos da lista (ex.: "Jogos do Dia", "Brasileirão").
+                        // Sem grupo de jogos na lista, mostra o guia de jogos do dia.
+                        fun titulo(f: ChannelFilter) = vm.filterTitle(f, menuSections)
+                        val grupo = filtrosLista.firstOrNull { Regex("jogos?\\s*d[oe]s?\\s*(dia|hoje)", RegexOption.IGNORE_CASE).containsMatchIn(titulo(it)) }
+                            ?: filtrosLista.firstOrNull { Regex("jogos|futebol|brasileir|campeonato|libertadores|champions|copa|premiere|sportv|esporte", RegexOption.IGNORE_CASE).containsMatchIn(titulo(it)) }
+                        if (grupo != null) {
+                            vm.setFilter(grupo)
+                            mode = Mode.LIVE
+                        } else { jogoAberto = null; homeTab = Aba.JOGOS; zpJogos = true }
+                    },
                     onBuscar = { openSearch() },
                     onConta = { mode = Mode.PROFILE },
                     onAjustes = { ajustesVolta = Mode.HOME; mode = Mode.AJUSTES },
