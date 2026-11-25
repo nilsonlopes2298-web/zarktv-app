@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.focus.focusRequester
@@ -623,6 +624,7 @@ private fun ShowScreen(
                                 BotaoNumero(
                                     if (ep.id == b.previewId || (b.previewId == null && ep.id == ultimo?.id)) "▶" else "$n",
                                     visto = p != null && p.duration > 0 && p.position > p.duration * 0.9,
+                                    progresso = if (p != null && p.duration > 0) (p.position.toFloat() / p.duration).coerceIn(0f, 1f) else 0f,
                                 ) {
                                     b.focusId = ep.id
                                     // Toca na miniatura (para escolher com calma); no celular em pé abre direto.
@@ -874,7 +876,7 @@ private fun BotaoLista(label: String, marcado: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun BotaoNumero(label: String, visto: Boolean, onClick: () -> Unit) {
+private fun BotaoNumero(label: String, visto: Boolean, progresso: Float = 0f, onClick: () -> Unit) {
     var f by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
@@ -887,7 +889,24 @@ private fun BotaoNumero(label: String, visto: Boolean, onClick: () -> Unit) {
         scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.06f)),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+            Text(label, color = if (visto && !f) Color(0xB3FFFFFF) else Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+            // Já assistido: selinho verde com ✓ que "salta" ao aparecer.
+            if (visto) {
+                val escala = remember { androidx.compose.animation.core.Animatable(0f) }
+                LaunchedEffect(Unit) {
+                    escala.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 380f))
+                }
+                Box(
+                    Modifier.align(Alignment.TopEnd).padding(3.dp).size(15.dp)
+                        .graphicsLayer { scaleX = escala.value; scaleY = escala.value }
+                        .clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xFF22C55E)),
+                    contentAlignment = Alignment.Center,
+                ) { Text("✓", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+            } else if (progresso > 0.03f) {
+                // Começou e parou no meio: barrinha vermelha mostra até onde viu.
+                Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(3.dp).background(Color(0x33FFFFFF)))
+                Box(Modifier.align(Alignment.BottomStart).fillMaxWidth(progresso).height(3.dp).background(Color(0xFFE53935)))
+            }
         }
     }
 }
