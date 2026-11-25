@@ -174,7 +174,7 @@ fun InicioZarkPlay(
                     Text("ZarkTV $versao", color = Color(0x66FFFFFF), fontSize = 12.sp)
                 }
             }
-            avisoVencimento?.let { AvisoQueSome(it, Modifier.align(Alignment.BottomEnd).padding(16.dp)) }
+            avisoVencimento?.let { AvisoVencimentoZp(it) }
         }
     }
 }
@@ -242,3 +242,58 @@ private fun tipoRedeZp(c: android.content.Context): Int = runCatching {
         else -> 3
     }
 }.getOrDefault(1)
+
+/**
+ * ZarkPlay: texto do aviso de vencimento só nos marcos combinados — faltando 5 dias, 3 dias,
+ * no dia, faltando 1 hora e depois de vencido. Fora disso, nada.
+ */
+fun textoVencimentoZp(expira: Long?, agora: Long = System.currentTimeMillis()): String? {
+    if (expira == null || expira <= 0) return null
+    val falta = expira - agora
+    val hora = 60L * 60 * 1000
+    val dias = io.github.axon07.channelbox.data.ZarkConfig.diasRestantes(expira)
+    val venceHoje = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale("pt", "BR")).let { it.format(java.util.Date(expira)) == it.format(java.util.Date(agora)) }
+    return when {
+        falta <= 0 -> "Seu acesso venceu. Renove para continuar assistindo."
+        falta <= hora -> "Falta menos de 1 hora para o seu acesso vencer."
+        venceHoje -> "Seu acesso vence hoje."
+        dias == 3 -> "Faltam 3 dias para o seu acesso vencer."
+        dias == 5 -> "Faltam 5 dias para o seu acesso vencer."
+        else -> null
+    }
+}
+
+/** Já mostrou o aviso nesta abertura do app (não repete a cada volta ao Início). */
+private val avisoZpMostrado = androidx.compose.runtime.mutableStateOf(false)
+
+/**
+ * Aviso discreto no canto de baixo à direita: a tela escurece por uns 3 segundos para chamar
+ * a atenção e o recadinho fica mais um pouco no canto, depois some sozinho.
+ */
+@Composable
+private fun AvisoVencimentoZp(texto: String) {
+    if (avisoZpMostrado.value) return
+    var escuro by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        delay(3_000); escuro = false
+        delay(5_000); avisoZpMostrado.value = true
+    }
+    val fundo by androidx.compose.animation.core.animateColorAsState(if (escuro) Color(0x99000000) else Color(0x00000000), label = "escuro")
+    Box(Modifier.fillMaxSize().background(fundo)) {
+        Row(
+            Modifier.align(Alignment.BottomEnd).padding(end = 28.dp, bottom = 44.dp).width(360.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color(0xF0141418))
+                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(14.dp))
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.width(4.dp).height(38.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFFFFC300)))
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(texto, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp)
+                Text("Renove pelo menu Conta ou fale com seu revendedor.", color = Color(0xB3FFFFFF), fontSize = 12.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+    }
+}

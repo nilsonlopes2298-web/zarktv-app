@@ -2044,7 +2044,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     filmes = movieCount,
                     series = showCount,
                     atualizando = refreshState is RefreshState.Running,
-                    avisoVencimento = textoVencimento(conta?.expira?.let { io.github.axon07.channelbox.data.ZarkConfig.diasRestantes(it) }),
+                    avisoVencimento = textoVencimentoZp(conta?.expira),
                     onAoVivo = aoVivo,
                     onFilmes = {
                         vodBrowser.open(VodKind.MOVIE)
