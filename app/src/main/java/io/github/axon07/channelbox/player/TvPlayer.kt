@@ -237,7 +237,8 @@ class TvPlayer(
         .build()
         .apply {
             // ZarkTV: registro do que o player recebe (formato, codec, erros) para diagnosticar canais que não abrem.
-            addAnalyticsListener(androidx.media3.exoplayer.util.EventLogger("ZarkPlayer"))
+            // Só na versão de desenvolvimento: em aparelho fraco (Fire Stick) esse registro a cada evento pesa.
+            if (io.github.axon07.channelbox.BuildConfig.DEBUG) addAnalyticsListener(androidx.media3.exoplayer.util.EventLogger("ZarkPlayer"))
             setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -380,6 +381,9 @@ class TvPlayer(
         tentativaHost = 0
         erroConexaoVod = false
         avisouDesistencia = false
+        // ZarkTV: cada vídeo novo começa de novo no decodificador normal (hardware).
+        trocarDecodificador = false
+        travadasImagem = 0
         confirmed = false
         retries = 0
         refusals = 0
@@ -701,6 +705,8 @@ class TvPlayer(
     // ---- ZarkTV: imagem congelada com o som tocando (decodificador de vídeo travado, ex.: Fire Stick) ----
     /** Depois de travar uma vez, o vídeo passa a usar o outro decodificador (software ↔ hardware) nesta sessão. */
     @Volatile private var trocarDecodificador = false
+    /** Quantas vezes a imagem congelou neste vídeo. */
+    private var travadasImagem = 0
     private var ultimoQuadro = -1
     private var quadroParado = 0
     private val vigia = object : Runnable {
@@ -711,10 +717,15 @@ class TvPlayer(
             val n = c.renderedOutputBufferCount
             if (n == ultimoQuadro) quadroParado++ else quadroParado = 0
             ultimoQuadro = n
-            if (quadroParado >= 3 && !trocarDecodificador) {
-                // Som andando e nenhum quadro novo há ~4,5 s: troca o decodificador e recomeça do mesmo ponto.
-                android.util.Log.w("ZarkPlayer", "imagem parada com som – trocando o decodificador de vídeo")
-                trocarDecodificador = true
+            if (quadroParado >= 3) {
+                // Som andando e nenhum quadro novo há ~4,5 s. 1ª vez: só recarrega do mesmo ponto.
+                // 2ª vez: troca para o decodificador por software, mas só até 720p — acima disso o
+                // Fire Stick não dá conta e o filme/série passa a travar o tempo todo.
+                travadasImagem++
+                val altura = exo.videoFormat?.height ?: 0
+                val trocar = travadasImagem >= 2 && !trocarDecodificador && altura in 1..720
+                android.util.Log.w("ZarkPlayer", "imagem parada com som (${altura}p, vez $travadasImagem) – " + if (trocar) "trocando o decodificador" else "recarregando")
+                if (trocar) trocarDecodificador = true
                 quadroParado = 0
                 val pos = exo.currentPosition
                 exo.stop()
