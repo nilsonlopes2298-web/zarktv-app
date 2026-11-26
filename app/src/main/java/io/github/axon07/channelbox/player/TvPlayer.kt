@@ -384,6 +384,12 @@ class TvPlayer(
         // ZarkTV: cada vídeo novo começa de novo no decodificador normal (hardware).
         trocarDecodificador = false
         travadasImagem = 0
+        ultimosDescartados = 0
+        if (limitou720) {
+            limitou720 = false
+            // volta ao limite que estava antes (o da qualidade escolhida pelo cliente, se houver)
+            limiteAntes?.let { (w, h) -> exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon().setMaxVideoSize(w, h).build() }
+        }
         contaVerificada = false
         bloqueioConta = null
         confirmed = false
@@ -744,24 +750,43 @@ class TvPlayer(
     private var travadasImagem = 0
     private var ultimoQuadro = -1
     private var quadroParado = 0
+    private var ultimosDescartados = 0
+    /** Já limitou este vídeo a 720p (o aparelho não dava conta de decodificar a tempo). */
+    private var limitou720 = false
+    private var limiteAntes: Pair<Int, Int>? = null
     private val vigia = object : Runnable {
         override fun run() {
             if (!exo.isPlaying || exo.videoFormat == null) { ultimoQuadro = -1; quadroParado = 0; return }
             val c = exo.videoDecoderCounters ?: run { handler.postDelayed(this, 1_500); return }
             c.ensureUpdated()
             val n = c.renderedOutputBufferCount
+            val descartados = c.droppedBufferCount
+            val atrasado = descartados > ultimosDescartados
+            ultimosDescartados = descartados
             if (n == ultimoQuadro) quadroParado++ else quadroParado = 0
             ultimoQuadro = n
             if (quadroParado >= 3) {
-                // Som andando e nenhum quadro novo há ~4,5 s. 1ª vez: só recarrega do mesmo ponto.
-                // 2ª vez: troca para o decodificador por software, mas só até 720p — acima disso o
-                // Fire Stick não dá conta e o filme/série passa a travar o tempo todo.
+                // Som andando e nenhum quadro novo há ~4,5 s.
                 travadasImagem++
                 val altura = exo.videoFormat?.height ?: 0
-                val trocar = travadasImagem >= 2 && !trocarDecodificador && altura in 1..720
-                android.util.Log.w("ZarkPlayer", "imagem parada com som (${altura}p, vez $travadasImagem) – " + if (trocar) "trocando o decodificador" else "recarregando")
-                if (trocar) trocarDecodificador = true
+                val usandoSoftware = options.softwareVideo != trocarDecodificador
+                when {
+                    // Decodificando por software (lento no Fire Stick): volta para o do aparelho na hora, em qualquer resolução.
+                    usandoSoftware -> { trocarDecodificador = !trocarDecodificador; android.util.Log.w("ZarkPlayer", "imagem parada (${altura}p): software → aparelho") }
+                    // O aparelho está descartando quadros atrasados: pede a versão em até 720p (quando o canal oferece).
+                    atrasado && !limitou720 && altura > 720 -> {
+                        limitou720 = true
+                        limiteAntes = exo.trackSelectionParameters.maxVideoWidth to exo.trackSelectionParameters.maxVideoHeight
+                        exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon().setMaxVideoSize(1280, 720).build()
+                        android.util.Log.w("ZarkPlayer", "imagem parada (${altura}p, quadros atrasados): limitando a 720p")
+                    }
+                    // 2ª vez em vídeo leve: tenta o decodificador por software.
+                    travadasImagem >= 2 && !trocarDecodificador && altura in 1..720 -> { trocarDecodificador = true; android.util.Log.w("ZarkPlayer", "imagem parada (${altura}p): aparelho → software") }
+                    else -> android.util.Log.w("ZarkPlayer", "imagem parada (${altura}p, vez $travadasImagem): recarregando")
+                }
                 quadroParado = 0
+                // Depois de 4 tentativas no mesmo vídeo, para de recarregar (era o "fica recarregando" sem fim).
+                if (travadasImagem > 4) { android.util.Log.w("ZarkPlayer", "imagem parada: desisti de recarregar este vídeo"); return }
                 val pos = exo.currentPosition
                 exo.stop()
                 exo.prepare()
@@ -778,6 +803,7 @@ class TvPlayer(
         handler.removeCallbacks(vigia)
         ultimoQuadro = -1
         quadroParado = 0
+        ultimosDescartados = exo.videoDecoderCounters?.droppedBufferCount ?: 0
         handler.postDelayed(vigia, 1_500)
     }
 
