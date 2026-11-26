@@ -1654,7 +1654,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             factory = { ctx ->
                 // Fire Stick / Fire TV: TextureView (com SurfaceView a imagem congelava e só tocava o som).
                 val fire = (android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true) ||
-                    ctx.packageManager.hasSystemFeature("amazon.hardware.fire_tv"))
+                    ctx.packageManager.hasSystemFeature("amazon.hardware.fire_tv")) &&
+                    !(io.github.axon07.channelbox.player.TvPlayer.FIRE_MEDIATEK && io.github.axon07.channelbox.player.TvPlayer.modoFire(ctx) == 2)
                 (if (fire) android.view.LayoutInflater.from(ctx).inflate(io.github.axon07.channelbox.R.layout.zark_player_textura, null) as PlayerView
                  else PlayerView(ctx)).apply {
                     useController = false

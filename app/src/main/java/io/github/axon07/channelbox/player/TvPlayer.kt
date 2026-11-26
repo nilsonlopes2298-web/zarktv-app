@@ -200,7 +200,8 @@ class TvPlayer(
                 context, codecAdapterFactory, mediaCodecSelector, allowedVideoJoiningTimeMs,
                 enableDecoderFallback, eventHandler, eventListener, MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY,
             ) {
-                override fun codecNeedsSetOutputSurfaceWorkaround(name: String) = true
+                // Teste no Fire Stick 4K: nos modos "Aparelho" a correção fica desligada (padrão do ExoPlayer).
+                override fun codecNeedsSetOutputSurfaceWorkaround(name: String) = !FIRE_MEDIATEK || modoFire(context) == 0
             }
         }
 
@@ -776,7 +777,7 @@ class TvPlayer(
      * andando (visto no registro do aparelho); o de software toca liso. Lá o H.264 já começa no software.
      * Se mesmo assim travar, o vigia troca para o do aparelho.
      */
-    private fun softwarePrimeiro(mime: String) = options.softwareVideo || (FIRE_MEDIATEK && mime == MimeTypes.VIDEO_H264)
+    private fun softwarePrimeiro(mime: String) = options.softwareVideo || (FIRE_MEDIATEK && mime == MimeTypes.VIDEO_H264 && modoFire(context) == 0)
 
     private var ultimoQuadro = -1
     private var quadroParado = 0
@@ -834,9 +835,16 @@ class TvPlayer(
                 if (!isLive) exo.seekTo(pos)
                 return
             }
+            // Diagnóstico (só Amazon): a cada ~3 s, números do vídeo no registro do aparelho.
+            if (++diag % 3 == 0) android.util.Log.i("ZarkDiag",
+                "modo=${modoFire(context)} fmt=${exo.videoFormat?.let { "${it.sampleMimeType} ${it.width}x${it.height} ${it.frameRate}fps" }} " +
+                "dec=${c.decoderInitCount} entrada=${c.queuedInputBufferCount} mostrados=$n descartados=$descartados pulados=${c.skippedOutputBufferCount} " +
+                "seguidos=${c.maxConsecutiveDroppedBufferCount} atraso=${c.totalVideoFrameProcessingOffsetUs / maxOf(1, c.videoFrameProcessingOffsetCount)}us " +
+                "pos=${exo.currentPosition} buf=${exo.totalBufferedDuration}")
             handler.postDelayed(this, 1_000)
         }
     }
+    private var diag = 0
 
     /** Imagem parada escondida (carregando + sem som)? */
     private var escondido = false
@@ -1027,6 +1035,10 @@ class TvPlayer(
     }
 
     companion object {
+        /** Fire Stick 4K: 0 = software (padrão), 1 = aparelho, 2 = aparelho com SurfaceView (como a UniTV). */
+        fun modoFire(ctx: Context): Int = ctx.getSharedPreferences("zark_fire", Context.MODE_PRIVATE).getInt("modo", 0)
+        fun salvarModoFire(ctx: Context, m: Int) = ctx.getSharedPreferences("zark_fire", Context.MODE_PRIVATE).edit().putInt("modo", m).apply()
+
         /** Fire TV Stick 4K 1ª geração e parentes MediaTek (mantis = AFTMM, sheldon = AFTSS…). */
         val FIRE_MEDIATEK: Boolean = android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true) &&
             (android.os.Build.HARDWARE.startsWith("mt", ignoreCase = true) || android.os.Build.MODEL in setOf("AFTMM", "AFTSS", "AFTSSS", "AFTKA"))
