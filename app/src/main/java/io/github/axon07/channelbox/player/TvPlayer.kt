@@ -201,6 +201,11 @@ class TvPlayer(
                 enableDecoderFallback, eventHandler, eventListener, MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY,
             ) {
                 // Teste no Fire Stick 4K: nos modos "Aparelho" a correção fica desligada (padrão do ExoPlayer).
+                // Fire Stick 4K: o player novo pula quadros "dispensáveis" antes do ponto de início (o antigo, do XCIPTV,
+                // não pula). O decodificador MediaTek fica esperando esses quadros e trava. Aqui nada é pulado.
+                override fun shouldSkipDecoderInputBuffer(buffer: androidx.media3.decoder.DecoderInputBuffer): Boolean =
+                    if (FIRE_MEDIATEK) false else super.shouldSkipDecoderInputBuffer(buffer)
+
                 override fun codecNeedsSetOutputSurfaceWorkaround(name: String) = !FIRE_MEDIATEK || modoFire(context) == 0 || modoFire(context) == 4
 
                 // Teste Fire Stick 4K, modo 3: entrega ao decodificador só o básico (como players simples),
