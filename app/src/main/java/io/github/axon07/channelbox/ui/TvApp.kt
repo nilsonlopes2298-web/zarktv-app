@@ -1374,6 +1374,13 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     }
     LaunchedEffect(mode) { if (mode != Mode.SETTINGS) settingsFromSetup = false }
     LaunchedEffect(mode) { if (mode != Mode.CHANNEL_LIST) gruposAbertos = false }
+    // Como na UniTV: passando pelos grupos (▲▼), a lista ao lado já mostra os canais daquele grupo,
+    // sem precisar apertar OK; ▶ entra na lista.
+    LaunchedEffect(grupoIndex, gruposAbertos) {
+        if (!gruposAbertos) return@LaunchedEffect
+        delay(250)
+        filtrosLista.getOrNull(grupoIndex)?.let { f -> if (f != filter) { vm.setFilter(f); listIndex = 0 } }
+    }
     // ZarkTV: saiu dos filmes/séries (por qualquer caminho) = o filme/miniatura para de tocar.
     LaunchedEffect(mode) {
         if (mode != Mode.VOD) previewPergunta = null
