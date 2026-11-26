@@ -1086,7 +1086,7 @@ class TvPlayer(
             }
 
         /** Fire Stick 4K: 0 = software (padrão: o H.264 do aparelho trava, visto no registro), 1 = aparelho, 2 = aparelho com SurfaceView (como a UniTV). */
-        fun modoFire(ctx: Context): Int = ctx.getSharedPreferences("zark_fire", Context.MODE_PRIVATE).getInt("modo", 4)
+        fun modoFire(ctx: Context): Int = ctx.getSharedPreferences("zark_fire", Context.MODE_PRIVATE).getInt("modo", 0)
         fun salvarModoFire(ctx: Context, m: Int) = ctx.getSharedPreferences("zark_fire", Context.MODE_PRIVATE).edit().putInt("modo", m).apply()
 
         /** Fire TV Stick 4K 1ª geração e parentes MediaTek (mantis = AFTMM, sheldon = AFTSS…). */

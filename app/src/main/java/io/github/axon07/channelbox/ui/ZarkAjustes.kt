@@ -269,7 +269,7 @@ private fun ConteudoAjuste(secao: Secao, vm: TvViewModel, escala: Int, versao: S
                 // Teste do Fire Stick 4K: qual decodificador usar (feche e abra o app depois de trocar).
                 var modo by remember { mutableStateOf(io.github.axon07.channelbox.player.TvPlayer.modoFire(ctx)) }
                 Grupo("Decodificador do Fire Stick (teste)")
-                Opcoes(listOf(4 to "Automático", 0 to "Software", 1 to "Aparelho", 2 to "Aparelho 2"), modo) {
+                Opcoes(listOf(0 to "Automático", 4 to "Aparelho", 2 to "Aparelho 2"), modo) {
                     modo = it; io.github.axon07.channelbox.player.TvPlayer.salvarModoFire(ctx, it)
                 }
             }
