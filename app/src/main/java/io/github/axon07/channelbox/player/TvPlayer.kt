@@ -203,10 +203,25 @@ class TvPlayer(
                 // Teste no Fire Stick 4K: nos modos "Aparelho" a correção fica desligada (padrão do ExoPlayer).
                 override fun codecNeedsSetOutputSurfaceWorkaround(name: String) = !FIRE_MEDIATEK || modoFire(context) == 0
 
+                // Teste Fire Stick 4K, modo 3: entrega ao decodificador só o básico (como players simples),
+                // sem o "max-width/max-height" que o decodificador MediaTek recusa (prepareForAdaptivePlayback falha).
+                override fun getMediaFormat(
+                    format: androidx.media3.common.Format, codecMimeType: String,
+                    codecMaxValues: androidx.media3.exoplayer.video.MediaCodecVideoRenderer.CodecMaxValues,
+                    codecOperatingRate: Float, deviceNeedsNoPostProcessWorkaround: Boolean, tunnelingAudioSessionId: Int,
+                ): android.media.MediaFormat {
+                    val mf = super.getMediaFormat(format, codecMimeType, codecMaxValues, codecOperatingRate, deviceNeedsNoPostProcessWorkaround, tunnelingAudioSessionId)
+                    if (!(FIRE_MEDIATEK && modoFire(context) == 3)) return mf
+                    val n = android.media.MediaFormat.createVideoFormat(codecMimeType, format.width, format.height)
+                    for (k in listOf("csd-0", "csd-1", "csd-2")) if (mf.containsKey(k)) n.setByteBuffer(k, mf.getByteBuffer(k))
+                    if (mf.containsKey(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)) n.setInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE, mf.getInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE))
+                    return n
+                }
+
                 // Teste Fire Stick 4K, modo "Aparelho 2": entrega o quadro à tela sem horário marcado (como a UniTV faz);
                 // o compositor desse aparelho segurava os quadros com horário e o decodificador parava de receber vídeo.
                 override fun renderOutputBufferV21(codec: androidx.media3.exoplayer.mediacodec.MediaCodecAdapter, index: Int, presentationTimeUs: Long, releaseTimeNs: Long) {
-                    if (FIRE_MEDIATEK && modoFire(context) == 2) renderOutputBuffer(codec, index, presentationTimeUs)
+                    if (FIRE_MEDIATEK && modoFire(context) >= 2) renderOutputBuffer(codec, index, presentationTimeUs)
                     else super.renderOutputBufferV21(codec, index, presentationTimeUs, releaseTimeNs)
                 }
             }
