@@ -37,6 +37,8 @@ class MainActivity : ComponentActivity() {
                 TamanhoProporcional { TvApp(vm) }
             }
         }
+        // Teste pelo PC: escolher o modo do decodificador do Fire Stick antes de abrir o canal.
+        intent?.takeIf { it.hasExtra("zark_modo") }?.let { io.github.axon07.channelbox.player.TvPlayer.salvarModoFire(this, it.getIntExtra("zark_modo", 0)) }
         intent?.getStringExtra("zark_canal")?.let { vm.canalPedido.value = it }
         // O logo da janela (zark_janela) só serve para o instante do toque no ícone; depois o fundo volta a ser preto.
         window.decorView.postDelayed({ window.setBackgroundDrawableResource(android.R.color.black) }, 1500)

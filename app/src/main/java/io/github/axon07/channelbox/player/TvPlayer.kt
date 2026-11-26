@@ -202,6 +202,13 @@ class TvPlayer(
             ) {
                 // Teste no Fire Stick 4K: nos modos "Aparelho" a correção fica desligada (padrão do ExoPlayer).
                 override fun codecNeedsSetOutputSurfaceWorkaround(name: String) = !FIRE_MEDIATEK || modoFire(context) == 0
+
+                // Teste Fire Stick 4K, modo "Aparelho 2": entrega o quadro à tela sem horário marcado (como a UniTV faz);
+                // o compositor desse aparelho segurava os quadros com horário e o decodificador parava de receber vídeo.
+                override fun renderOutputBufferV21(codec: androidx.media3.exoplayer.mediacodec.MediaCodecAdapter, index: Int, presentationTimeUs: Long, releaseTimeNs: Long) {
+                    if (FIRE_MEDIATEK && modoFire(context) == 2) renderOutputBuffer(codec, index, presentationTimeUs)
+                    else super.renderOutputBufferV21(codec, index, presentationTimeUs, releaseTimeNs)
+                }
             }
         }
 
