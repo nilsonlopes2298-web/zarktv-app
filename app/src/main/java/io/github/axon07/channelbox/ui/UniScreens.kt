@@ -591,14 +591,19 @@ fun ListaDeCanais(
                 ) {
                     val prog = (ch.epgId?.let { upcoming[it] } ?: porNome[chaveEpg(ch.name)])?.firstOrNull { it.start <= now && it.stop > now }
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        // Número na frente, numa coluna fixa (todos alinhados), como na UniTV.
+                        Text(
+                            "${ch.number}", color = if (tocando) Color.White else Color(0xDDFFFFFF), fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center, modifier = Modifier.width(60.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
                         Box(Modifier.size(width = 56.dp, height = 40.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x22FFFFFF)), contentAlignment = Alignment.Center) {
                             ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize().padding(3.dp))
                         }
-                        Spacer(Modifier.width(12.dp))
-                        Text("${ch.number}", color = Color(0xCCFFFFFF), fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(38.dp))
+                        Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                ch.name.uppercase(), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                                ch.name.uppercase(), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
                             if (prog != null) {
@@ -611,7 +616,7 @@ fun ListaDeCanais(
                                 Box(Modifier.padding(top = 4.dp).fillMaxWidth(0.9f).height(2.dp).background(Color(0x33FFFFFF))) {
                                     Box(Modifier.fillMaxWidth(frac).height(2.dp).background(Color(0xFFE53935)))
                                 }
-                            } else Text("Sem programação", color = Color(0x88FFFFFF), fontSize = 12.sp)
+                            }
                         }
                         if (ch.id in favorites) Text("★", color = Palette.Favorite, fontSize = 15.sp)
                         if (tocando) Text("  ▶", color = Color.White, fontSize = 14.sp)
