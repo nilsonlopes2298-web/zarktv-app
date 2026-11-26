@@ -593,8 +593,8 @@ fun ListaDeCanais(
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         // Número na frente, numa coluna fixa (todos alinhados), como na UniTV.
                         Text(
-                            "${ch.number}", color = if (tocando) Color.White else Color(0xDDFFFFFF), fontSize = 19.sp,
-                            fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center, modifier = Modifier.width(60.dp),
+                            "${ch.number}", color = Color.White, fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Start, modifier = Modifier.width(66.dp),
                         )
                         Spacer(Modifier.width(8.dp))
                         Box(Modifier.size(width = 56.dp, height = 40.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x22FFFFFF)), contentAlignment = Alignment.Center) {
@@ -603,7 +603,7 @@ fun ListaDeCanais(
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                ch.name.uppercase(), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold,
+                                ch.name.uppercase(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
                             if (prog != null) {
