@@ -392,7 +392,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         }
     }
     var sairAberto by remember { mutableStateOf(false) }
-    var tutorialVisto by remember { mutableStateOf(zarkCtx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getBoolean("tutorial_visto", false) || io.github.axon07.channelbox.system.Aparelho.soCelular) } // o tutorial é do controle remoto
+    var tutorialVisto by remember { mutableStateOf(zarkCtx.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getBoolean("tutorial_visto", false) || io.github.axon07.channelbox.system.Aparelho.soCelular || true) } // tutorial desligado (na Google TV o foco não andava) // o tutorial é do controle remoto
     var playerExterno by remember { mutableStateOf(io.github.axon07.channelbox.data.ZarkConfig.playerExterno(zarkCtx)) }
     /** When the groups menu was opened (for [groupsBack]). */
     var groupsOpenedAt by remember { mutableLongStateOf(0L) }
