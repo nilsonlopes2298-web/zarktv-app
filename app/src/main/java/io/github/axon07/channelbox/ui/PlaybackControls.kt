@@ -27,6 +27,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,6 +54,8 @@ data class PlaybackUi(
     val skipped: Long = 0,
     /** ZarkTV: capa do filme/série mostrada na barra. */
     val poster: String? = null,
+    /** ZarkTV: ponto escolhido com ◀ ▶ que ainda vai ser aplicado (mostra a prévia da cena). */
+    val alvo: Long? = null,
 )
 
 /**
@@ -84,7 +90,13 @@ fun BoxScope.PlaybackControls(
     captionsOn: Boolean = false,
     /** Button highlighted for the remote (▼ moves into the buttons), or null. */
     focused: PlaybackSlot? = null,
+    /** ZarkTV: prévia da cena ao avançar (null = sem prévia, ex.: canal ao vivo). */
+    previa: PreviaAvanco? = null,
+    fonte: io.github.axon07.channelbox.data.StreamSpec? = null,
 ) {
+    var barra by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    var raiz by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    Box(Modifier.matchParentSize().onGloballyPositioned { raiz = it.positionInRoot() })
     // Big centre button while paused, finished or loading.
     if (visible || !ui.playing || ui.buffering) {
         Box(Modifier.align(Alignment.Center)) {
@@ -139,7 +151,7 @@ fun BoxScope.PlaybackControls(
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(formatClock(ui.position), fontSize = 13.sp, color = Color.White, modifier = Modifier.width(70.dp))
-                        Box(Modifier.weight(1f)) { Scrubber(ui, onSeekTo) }
+                        Box(Modifier.weight(1f).onGloballyPositioned { barra = it.boundsInRoot() }) { Scrubber(ui, onSeekTo) }
                         Text(
                             if (ui.duration > 0) formatClock(ui.duration) else "",
                             fontSize = 13.sp, color = Color.White, textAlign = androidx.compose.ui.text.style.TextAlign.End,
@@ -180,6 +192,21 @@ fun BoxScope.PlaybackControls(
                 }
             }
         }
+    }
+    // Prévia da cena acima da barra, no ponto escolhido (como na UniTV).
+    val alvo = ui.alvo
+    val b = barra
+    if (previa != null && alvo != null && b != null && ui.duration > 0) {
+        val dens = androidx.compose.ui.platform.LocalDensity.current
+        val frac = (alvo.toFloat() / ui.duration).coerceIn(0f, 1f)
+        val larg = with(dens) { 240.dp.toPx() }
+        val alt = with(dens) { 175.dp.toPx() }
+        val x = (b.left + b.width * frac - larg / 2 - raiz.x).coerceAtLeast(0f)
+        val y = b.top - alt - raiz.y
+        PreviaQuadro(
+            previa, fonte, alvo,
+            Modifier.align(Alignment.TopStart).offset { androidx.compose.ui.unit.IntOffset(x.toInt(), y.toInt()) },
+        )
     }
 }
 

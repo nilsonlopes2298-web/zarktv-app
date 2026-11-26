@@ -451,6 +451,10 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     /** Total of quick ◀ ▶ presses, shown as "−20 s" for a moment. */
     var pbSkipped by remember { mutableLongStateOf(0L) }
     var pbSkipToken by remember { mutableIntStateOf(0) }
+    // ZarkTV: avanço com prévia (como na UniTV) – ◀ ▶ movem o ponto e mostram a cena; aplica ao parar de apertar.
+    var pbAlvo by remember { mutableStateOf<Long?>(null) }
+    var pbAlvoJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val previaAvanco = rememberPreviaAvanco()
     /** Bumped when captions are switched, to refresh the CC icon. */
     var captionsTick by remember { mutableIntStateOf(0) }
     val listState = rememberLazyListState()
@@ -897,6 +901,21 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     fun seekBy(delta: Long) {
         val exo = vm.player.exo
         val duration = exo.duration.takeIf { it != C.TIME_UNSET } ?: Long.MAX_VALUE
+        if (!io.github.axon07.channelbox.system.Aparelho.soCelular && !exo.isCurrentMediaItemLive && duration != Long.MAX_VALUE) {
+            val alvo = ((pbAlvo ?: exo.currentPosition) + delta).coerceIn(0L, duration)
+            pbAlvo = alvo
+            pbPosition = alvo
+            pbSkipped += delta
+            pbSkipToken++
+            playbackToken++
+            pbAlvoJob?.cancel()
+            pbAlvoJob = scope.launch {
+                delay(1_100)
+                pbAlvo?.let { exo.seekTo(it) }
+                pbAlvo = null
+            }
+            return
+        }
         exo.seekTo((exo.currentPosition + delta).coerceIn(0L, duration))
         pbPosition = exo.currentPosition
         pbSkipped += delta
@@ -915,6 +934,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
      * loading, and starts over when it has finished or retries after an error.
      */
     fun togglePause() {
+        // Escolhendo o ponto com ◀ ▶: OK pula na hora para lá.
+        pbAlvo?.let { alvo -> pbAlvoJob?.cancel(); vm.player.exo.seekTo(alvo); pbAlvo = null; playbackToken++; return }
         val exo = vm.player.exo
         when {
             exo.playbackState == androidx.media3.common.Player.STATE_ENDED -> {
@@ -1401,7 +1422,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         while (mode == Mode.PLAYBACK) {
             if (playbackReturn == Mode.VOD && ++ticks % 60 == 0) vm.saveVodProgress()
             val exo = vm.player.exo
-            pbPosition = exo.currentPosition
+            pbPosition = pbAlvo ?: exo.currentPosition
             pbDuration = exo.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: 0L
             pbBuffered = exo.bufferedPosition
             pbEnded = exo.playbackState == androidx.media3.common.Player.STATE_ENDED
@@ -1905,8 +1926,11 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                             ended = pbEnded,
                             skipped = pbSkipped,
                             poster = if (playbackReturn == Mode.VOD) vodPosterAtual else null,
+                            alvo = pbAlvo,
                         ),
                         visible = playbackOverlay,
+                        previa = previaAvanco,
+                        fonte = vm.player.fonteAtual,
                         onToggle = { togglePause() },
                         onSeek = { seekBy(it) },
                         onSeekTo = { seekTo(it) },

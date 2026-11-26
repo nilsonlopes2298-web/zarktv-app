@@ -104,6 +104,8 @@ class TvPlayer(
     val tracksVersion: StateFlow<Int> = _tracksVersion.asStateFlow()
 
     private var spec: StreamSpec? = null
+    /** ZarkTV: endereço do vídeo tocando agora (para a prévia do avanço). */
+    val fonteAtual: StreamSpec? get() = spec
     /** Quantas alternativas (formato/identificação) já tentou neste canal. */
     private var tentativaAlternativa = 0
     private var primeiroErroVod: String? = null
