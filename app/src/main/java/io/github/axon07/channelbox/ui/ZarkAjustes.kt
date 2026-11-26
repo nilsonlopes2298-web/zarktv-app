@@ -60,6 +60,7 @@ object AjustesEstado {
 }
 
 private enum class Secao(val titulo: String) {
+    TEMA("Tela inicial"),
     REPRODUCAO("Reprodução"),
     PROPORCAO("Proporção da tela"),
     PARENTAL("Controle parental"),
@@ -85,7 +86,7 @@ fun ZarkAjustes(
     onSuporte: () -> Unit,
 ) {
     val ctx = LocalContext.current
-    var secao by remember { mutableStateOf(Secao.REPRODUCAO) }
+    var secao by remember { mutableStateOf(if (ZarkPlay.ativo) Secao.TEMA else Secao.REPRODUCAO) }
     val primeiro = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(120); runCatching { primeiro.requestFocus() } }
 
@@ -105,7 +106,7 @@ fun ZarkAjustes(
             Row(Modifier.fillMaxSize()) {
                 // ---- Menu ----
                 Column(Modifier.width(260.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Secao.entries.forEachIndexed { i, s ->
+                    Secao.entries.filter { it != Secao.TEMA || ZarkPlay.ativo }.forEachIndexed { i, s ->
                         ItemMenu(
                             s.titulo, s == secao,
                             if (i == 0) Modifier.focusRequester(primeiro) else Modifier,
@@ -225,6 +226,15 @@ private fun ConteudoAjuste(secao: Secao, vm: TvViewModel, escala: Int, versao: S
     val ctx = LocalContext.current
     Column {
     when (secao) {
+        Secao.TEMA -> {
+            var tema by remember { mutableStateOf(ZarkPlayTema.atual.value) }
+            Grupo("Visual da tela inicial")
+            Opcoes(listOf("blocos" to "Blocos", "cinema" to "Cinema"), tema) { tema = it; ZarkPlayTema.salvar(ctx, it) }
+            Text(
+                "Blocos: os quatro blocos grandes. Cinema: filme ou série em cartaz passando no fundo, capas no meio e os botões embaixo. Os botões fazem a mesma coisa nos dois.",
+                color = Color(0x99FFFFFF), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp),
+            )
+        }
         Secao.REPRODUCAO -> {
             var idioma by remember { mutableStateOf(ZarkPrefs.idioma(ctx)) }
             var leg by remember { mutableStateOf(ZarkPrefs.legIdioma(ctx)) }
@@ -337,8 +347,9 @@ private fun AjustesCelular(onParental: () -> Unit, onAvancado: () -> Unit, conte
             Text("Configurações", color = t1, fontSize = 18.sp, fontWeight = FontWeight.Medium)
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Secao.entries.filter { it != Secao.AVANCADO }.forEach { item ->
+            Secao.entries.filter { it != Secao.AVANCADO && (it != Secao.TEMA || ZarkPlay.ativo) }.forEach { item ->
                 val desc = when (item) {
+                    Secao.TEMA -> "Visual da tela inicial: Blocos ou Cinema"
                     Secao.REPRODUCAO -> "Áudio dublado ou original e legendas"
                     Secao.PROPORCAO -> "Como o vídeo ocupa a tela"
                     Secao.PARENTAL -> "Senha para o conteúdo adulto e bloqueios"

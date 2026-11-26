@@ -546,6 +546,19 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         }
     }
 
+    /** ZarkPlay: Jogos do dia abre a TV ao vivo no grupo de jogos da lista (ou o guia de jogos). */
+    fun abrirJogosZp() {
+                        // Abre a TV ao vivo já no grupo de jogos da lista (ex.: "Jogos do Dia", "Brasileirão").
+                        // Sem grupo de jogos na lista, mostra o guia de jogos do dia.
+                        fun titulo(f: ChannelFilter) = vm.filterTitle(f, menuSections)
+                        val grupo = filtrosLista.firstOrNull { Regex("jogos?\\s*d[oe]s?\\s*(dia|hoje)", RegexOption.IGNORE_CASE).containsMatchIn(titulo(it)) }
+                            ?: filtrosLista.firstOrNull { Regex("jogos|futebol|brasileir|campeonato|libertadores|champions|copa|premiere|sportv|esporte", RegexOption.IGNORE_CASE).containsMatchIn(titulo(it)) }
+                        if (grupo != null) {
+                            vm.setFilter(grupo)
+                            mode = Mode.LIVE
+                        } else { jogoAberto = null; homeTab = Aba.JOGOS; zpJogos = true }
+                    }
+
     fun openMultiView() {
         multi.start(vm, current)
         // Start with the current channel and straight away pick a second one: 2 side by side.
@@ -2034,9 +2047,36 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     setupPlaylistId = null
                     mode = Mode.SETUP
                 }
-                LaunchedEffect(Unit) { ZarkLayout.atualizar(zarkCtx) }
+                LaunchedEffect(Unit) { ZarkLayout.atualizar(zarkCtx); ZarkPlayTema.carregar(zarkCtx) }
                 val extrasPainel = remember(conta) { io.github.axon07.channelbox.data.ZarkPainel.extras(zarkCtx) }
                 if (mode == Mode.HOME && allChannels.isEmpty() && refreshState is RefreshState.Running) ZarkCarregando(refreshState)
+                else if (mode == Mode.HOME && ZarkPlay.ativo && !zpJogos && ZarkPlayTema.atual.value == "cinema" && androidx.compose.ui.platform.LocalConfiguration.current.let { it.screenWidthDp > it.screenHeightDp }) InicioCinemaZp(
+                    vm = vm,
+                    usuario = pl?.xtUser.orEmpty(),
+                    vencimento = conta?.expira?.let { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(it)) },
+                    avisoVencimento = textoVencimentoZp(conta?.expira),
+                    atualizando = refreshState is RefreshState.Running,
+                    onAoVivo = aoVivo,
+                    onFilmes = { vodBrowser.open(VodKind.MOVIE); vodDeInicio = false; vodDaBusca = false; vodBrowser.voltarInicio = null; mode = Mode.VOD },
+                    onSeries = { vodBrowser.open(VodKind.SERIES); vodDeInicio = false; vodDaBusca = false; vodBrowser.voltarInicio = null; mode = Mode.VOD },
+                    onJogos = { abrirJogosZp() },
+                    onConta = { mode = Mode.PROFILE },
+                    onAjustes = { ajustesVolta = Mode.HOME; mode = Mode.AJUSTES },
+                    onAtualizar = {
+                        if (refreshState !is RefreshState.Running) {
+                            vm.refreshNow()
+                            vm.showToast("Atualizando canais, filmes e séries…")
+                        }
+                    },
+                    onAbrirItem = { item ->
+                        vodBrowser.open(item.kind)
+                        vodDeInicio = true
+                        vodDaBusca = false
+                        vodBrowser.voltarInicio = { vodDeInicio = false; mode = Mode.HOME }
+                        if (item.kind == VodKind.SERIES) vodBrowser.openShow(item) else vodBrowser.movie = item
+                        mode = Mode.VOD
+                    },
+                )
                 else if (mode == Mode.HOME && ZarkPlay.ativo && !zpJogos) InicioZarkPlay(
                     usuario = pl?.xtUser.orEmpty(),
                     vencimento = conta?.expira?.let { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(it)) },
@@ -2064,17 +2104,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         mode = Mode.VOD
                     },
                     onGuia = { openGuide() },
-                    onJogos = {
-                        // Abre a TV ao vivo já no grupo de jogos da lista (ex.: "Jogos do Dia", "Brasileirão").
-                        // Sem grupo de jogos na lista, mostra o guia de jogos do dia.
-                        fun titulo(f: ChannelFilter) = vm.filterTitle(f, menuSections)
-                        val grupo = filtrosLista.firstOrNull { Regex("jogos?\\s*d[oe]s?\\s*(dia|hoje)", RegexOption.IGNORE_CASE).containsMatchIn(titulo(it)) }
-                            ?: filtrosLista.firstOrNull { Regex("jogos|futebol|brasileir|campeonato|libertadores|champions|copa|premiere|sportv|esporte", RegexOption.IGNORE_CASE).containsMatchIn(titulo(it)) }
-                        if (grupo != null) {
-                            vm.setFilter(grupo)
-                            mode = Mode.LIVE
-                        } else { jogoAberto = null; homeTab = Aba.JOGOS; zpJogos = true }
-                    },
+                    onJogos = { abrirJogosZp() },
                     onBuscar = { openSearch() },
                     onConta = { mode = Mode.PROFILE },
                     onAjustes = { ajustesVolta = Mode.HOME; mode = Mode.AJUSTES },
