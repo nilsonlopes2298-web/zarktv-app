@@ -339,6 +339,40 @@ class TvPlayer(
     /** Frame rate of the video playing (0 = unknown / nothing), for auto frame rate. */
     val frameRate: StateFlow<Float> = _frameRate.asStateFlow()
 
+    // ---- Motor clássico (ExoPlayer 2.13, o mesmo do XCIPTV) para os canais ao vivo ----
+    /** True enquanto o canal ao vivo está no motor clássico (a tela mostra a superfície dele). */
+    val usandoClassico = MutableStateFlow(false)
+    /** Canal em que o motor clássico não conseguiu tocar: esse vai para o motor novo. */
+    private var classicoFalhou: String? = null
+    val classico: MotorClassico by lazy {
+        MotorClassico(context, http,
+            aoMudar = { tocando ->
+                if (usandoClassico.value) {
+                    _status.value = if (tocando) PlayerStatus.Playing else PlayerStatus.Buffering
+                    if (tocando) confirmed = true
+                }
+            },
+            aoFalhar = { motivo ->
+                if (usandoClassico.value) {
+                    android.util.Log.w("ZarkPlayer", "motor clássico não tocou ($motivo): indo para o motor novo")
+                    classicoFalhou = spec?.url
+                    classico.parar()
+                    usandoClassico.value = false
+                    start()
+                }
+            },
+        )
+    }
+
+    /** Está tocando (em qualquer um dos motores)? */
+    val tocando: Boolean get() = if (usandoClassico.value) classico.tocando else exo.isPlaying
+    fun pausar() { if (usandoClassico.value) classico.pausar() else exo.pause() }
+    fun continuar() { if (usandoClassico.value) classico.continuar() else exo.play() }
+
+    private fun pararClassico() {
+        if (usandoClassico.value) { classico.parar(); usandoClassico.value = false }
+    }
+
     private fun updateFrameRate() {
         val fps = exo.videoFormat?.frameRate ?: 0f
         _frameRate.value = if (fps > 0f) fps else 0f
@@ -359,6 +393,7 @@ class TvPlayer(
      */
     fun playTimeshift(file: File, growing: () -> Boolean) {
         startToken++
+        pararClassico()
         handler.removeCallbacksAndMessages(null)
         applyCaptionDefault()
         onDemand = true
@@ -394,6 +429,7 @@ class TvPlayer(
         // Let go of the previous stream first: on one-connection accounts the provider refuses the
         // new channel (HTTP 401/403) while the old connection is still open.
         exo.stop()
+        pararClassico()
         applyCaptionDefault()
         this.onDemand = onDemand
         spec = stream
@@ -432,6 +468,15 @@ class TvPlayer(
         refusals = 0
         quedasServidor = 0
         widevineL3 = false
+        // Canal ao vivo: motor clássico (o do XCIPTV). Filme/série, DRM e portais continuam no motor novo.
+        if (!onDemand && MOTOR_CLASSICO && isHttp && stream.drm == null &&
+            !io.github.axon07.channelbox.data.StreamResolver.needsResolving(stream.url) && classicoFalhou != stream.url
+        ) {
+            usandoClassico.value = true
+            _status.value = PlayerStatus.Buffering
+            classico.tocar(stream)
+            return
+        }
         start()
     }
 
@@ -448,6 +493,7 @@ class TvPlayer(
 
     /** Called when the app comes back to the foreground. */
     fun resume() {
+        if (usandoClassico.value) { spec?.let { classico.tocar(it) }; return }
         if (onDemand) { exo.prepare(); exo.playWhenReady = true } // keeps the position
         else if (spec != null) start()
     }
@@ -463,6 +509,7 @@ class TvPlayer(
     fun stop() {
         startToken++
         handler.removeCallbacksAndMessages(null)
+        pararClassico()
         exo.stop()
         _status.value = PlayerStatus.Idle
     }
@@ -474,6 +521,7 @@ class TvPlayer(
     fun hold() {
         startToken++
         handler.removeCallbacksAndMessages(null)
+        pararClassico()
         exo.pause()
         exo.stop()
     }
@@ -482,6 +530,7 @@ class TvPlayer(
         startToken++
         resolver.shutdownNow()
         handler.removeCallbacksAndMessages(null)
+        runCatching { if (usandoClassico.value) classico.liberar() }
         exo.release()
     }
 
@@ -1068,6 +1117,8 @@ class TvPlayer(
     }
 
     companion object {
+        /** Canais ao vivo no motor clássico (ExoPlayer 2.13, o do XCIPTV) em todos os aparelhos. */
+        @Volatile var MOTOR_CLASSICO = true
         /**
          * Fire Stick 4K (MediaTek): o decodificador do aparelho trava com os horários enormes que o player novo usa
          * (começam em 1.000.000 s). O XCIPTV (player antigo) entrega a partir de 0 e roda liso. Aqui o horário é

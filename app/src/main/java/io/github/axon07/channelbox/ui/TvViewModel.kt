@@ -1176,7 +1176,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
 
     /** O que está tocando agora (filme/episódio ou canal), para o painel. */
     private fun assistindoAgora(): String {
-        if (!player.exo.isPlaying) return ""
+        if (!player.tocando) return ""
         playingVod?.let { (item, _) -> return item.title }
         return _current.value?.name.orEmpty()
     }
@@ -1754,7 +1754,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             // (nada de canal tocando escondido no Início, nos filmes ou no perfil).
             if (!(semFundo && libraryOpen)) player.play(StreamSpecs.from(channel))
             viewModelScope.launch { c.settings.setLastChannel(channel.id) }
-        } else if (!player.isLive || (semFundo && !libraryOpen && !player.exo.isPlaying)) {
+        } else if (!player.isLive || (semFundo && !libraryOpen && !player.tocando)) {
             if (!(semFundo && libraryOpen)) player.play(StreamSpecs.from(channel))
         }
         showBanner()
@@ -2018,7 +2018,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             .getOrNull().orEmpty().ifBlank { java.util.UUID.randomUUID().toString() }
     }
     private suspend fun conferirTela() {
-        if (!player.exo.isPlaying) return
+        if (!player.tocando) return
         val pl = settings.value?.playlists?.firstOrNull { it.enabled && it.xtUser.isNotBlank() } ?: return
         val corpo = kotlinx.serialization.json.buildJsonObject {
             put("usuario", kotlinx.serialization.json.JsonPrimitive(pl.xtUser.trim()))
@@ -2037,7 +2037,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         } ?: return // painel fora do ar: não atrapalha quem está assistindo
         val o = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(resposta) as? kotlinx.serialization.json.JsonObject }.getOrNull() ?: return
         if ((o["ok"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "false") {
-            runCatching { player.exo.pause() }
+            runCatching { player.pausar() }
             zarkOutraTela.value = (o["outro"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: "outro aparelho"
         }
     }
@@ -2045,7 +2045,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     fun zarkAssistirAqui() {
         sessaoInicio = System.currentTimeMillis()
         zarkOutraTela.value = null
-        runCatching { player.exo.play() }
+        runCatching { player.continuar() }
         viewModelScope.launch { delay(1_500); runCatching { conferirTela() } }
     }
 

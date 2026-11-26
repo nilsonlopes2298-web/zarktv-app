@@ -87,7 +87,7 @@ class MainActivity : ComponentActivity() {
         // ZarkTV: ao sair do app nada continua tocando (nem em janelinha). Ao voltar, volta a tocar.
         // Exceção: no ZarkTV Mobile, se estiver passando algo, vira janelinha (PiP) no celular.
         if (io.github.axon07.channelbox.system.Aparelho.soCelular) {
-            val tocando = runCatching { vm.player.exo.isPlaying }.getOrDefault(false)
+            val tocando = runCatching { vm.player.tocando }.getOrDefault(false)
             if (tocando) SetTopBox.enterPip(this)
         }
     }
@@ -113,7 +113,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         // Stop the stream when the user leaves (Home, screensaver) so it doesn't keep downloading.
         onScreen = false
-        runCatching { vm.player.exo.playWhenReady = false; vm.player.exo.pause() }
+        runCatching { vm.player.exo.playWhenReady = false; vm.player.pausar() }
         vm.onBackground()
         // Ícone das datas comemorativas (Natal, Ano Novo, São João, Carnaval): troca só fora da tela.
         io.github.axon07.channelbox.system.IconeSazonal.aplicar(applicationContext)

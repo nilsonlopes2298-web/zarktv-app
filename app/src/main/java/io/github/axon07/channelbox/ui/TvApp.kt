@@ -1265,8 +1265,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             }
             Mode.PLAYBACK -> when (code) {
                 AndroidKeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> togglePause()
-                AndroidKeyEvent.KEYCODE_MEDIA_PLAY -> { vm.player.exo.play(); playbackToken++ }
-                AndroidKeyEvent.KEYCODE_MEDIA_PAUSE -> { vm.player.exo.pause(); playbackToken++ }
+                AndroidKeyEvent.KEYCODE_MEDIA_PLAY -> { vm.player.continuar(); playbackToken++ }
+                AndroidKeyEvent.KEYCODE_MEDIA_PAUSE -> { vm.player.pausar(); playbackToken++ }
                 AndroidKeyEvent.KEYCODE_DPAD_LEFT, AndroidKeyEvent.KEYCODE_MEDIA_REWIND -> seekBy(-10_000L)
                 AndroidKeyEvent.KEYCODE_DPAD_RIGHT, AndroidKeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> seekBy(30_000L)
                 AndroidKeyEvent.KEYCODE_DPAD_DOWN -> {
@@ -1661,6 +1661,41 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC0A0A0A)))))
             }
         }
+        val modVideo: Modifier = if (inPip) {
+                    Modifier.fillMaxSize()
+                } else if (mode == Mode.MULTIVIEW || mode == Mode.SETTINGS || mode == Mode.AJUSTES || mode == Mode.ORGANISE) {
+                    VideoEscondido
+                } else if (mode == Mode.VOD) {
+                    val r = vodBrowser.previewRect
+                    if (r != null && vodBrowser.previewId != null && (vodBrowser.movie != null || vodBrowser.show != null)) {
+                        with(LocalDensity.current) {
+                            Modifier.align(Alignment.TopStart).offset(r.left.toDp(), r.top.toDp()).size(r.width.toDp(), r.height.toDp())
+                        }
+                    } else VideoEscondido
+                } else if (mode == Mode.HOME) {
+                    val r = homePreview
+                    if (!ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null)) && r != null) {
+                        val d = LocalDensity.current
+                        with(d) {
+                            Modifier.align(Alignment.TopStart)
+                                .offset(r.left.toDp(), r.top.toDp())
+                                .size(r.width.toDp(), r.height.toDp())
+                        }
+                    } else VideoEscondido
+                } else if (mode == Mode.LIVE) {
+                    val g = liveGeom()
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .offset(g.x, g.y)
+                        .size(g.w, g.h)
+                } else if (mode in GUIDE_MODES) {
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = gm.previewPadding, end = gm.previewPadding)
+                        .size(gm.previewWidth, gm.previewHeight)
+                } else {
+                    Modifier.fillMaxSize()
+                }
         AndroidView(
             factory = { ctx ->
                 // Fire Stick / Fire TV: TextureView (com SurfaceView a imagem congelava e só tocava o som).
@@ -1716,41 +1751,20 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                 }
             },
-            modifier = if (inPip) {
-                Modifier.fillMaxSize()
-            } else if (mode == Mode.MULTIVIEW || mode == Mode.SETTINGS || mode == Mode.AJUSTES || mode == Mode.ORGANISE) {
-                VideoEscondido
-            } else if (mode == Mode.VOD) {
-                val r = vodBrowser.previewRect
-                if (r != null && vodBrowser.previewId != null && (vodBrowser.movie != null || vodBrowser.show != null)) {
-                    with(LocalDensity.current) {
-                        Modifier.align(Alignment.TopStart).offset(r.left.toDp(), r.top.toDp()).size(r.width.toDp(), r.height.toDp())
-                    }
-                } else VideoEscondido
-            } else if (mode == Mode.HOME) {
-                val r = homePreview
-                if (!ZarkLayout.leve.value && (Aba.temPrevia(homeTab) || (homeTab == Aba.JOGOS && jogoAberto != null)) && r != null) {
-                    val d = LocalDensity.current
-                    with(d) {
-                        Modifier.align(Alignment.TopStart)
-                            .offset(r.left.toDp(), r.top.toDp())
-                            .size(r.width.toDp(), r.height.toDp())
-                    }
-                } else VideoEscondido
-            } else if (mode == Mode.LIVE) {
-                val g = liveGeom()
-                Modifier
-                    .align(Alignment.TopStart)
-                    .offset(g.x, g.y)
-                    .size(g.w, g.h)
-            } else if (mode in GUIDE_MODES) {
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = gm.previewPadding, end = gm.previewPadding)
-                    .size(gm.previewWidth, gm.previewHeight)
-            } else {
-                Modifier.fillMaxSize()
+            modifier = modVideo,
+        )
+        // Motor clássico (o mesmo do XCIPTV, ExoPlayer 2.13) para os canais ao vivo: desenha por cima, no mesmo lugar.
+        val usandoClassico by vm.player.usandoClassico.collectAsStateWithLifecycle()
+        if (usandoClassico) AndroidView(
+            factory = { ctx -> vm.player.classico.criarTela(ctx) },
+            update = { v ->
+                v.resizeMode = when (settings.videoScale) {
+                    1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                }
             },
+            modifier = modVideo,
         )
 
         // In picture-in-picture only the video is shown.
@@ -1893,7 +1907,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         actions = listOfNotNull(
                             url?.let {
                                 DialogAction("Abrir no player externo") {
-                                    vm.player.exo.pause()
+                                    vm.player.pausar()
                                     io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(zarkCtx, it, playbackTitle)
                                 }
                             },
@@ -1901,7 +1915,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                                 DialogAction("Sempre usar player externo") {
                                     playerExterno = true
                                     io.github.axon07.channelbox.data.ZarkConfig.setPlayerExterno(zarkCtx, true)
-                                    vm.player.exo.pause()
+                                    vm.player.pausar()
                                     io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(zarkCtx, it, playbackTitle)
                                 }
                             },
