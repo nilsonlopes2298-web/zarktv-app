@@ -93,11 +93,12 @@ internal fun PreviaQuadro(previa: PreviaAvanco, fonte: StreamSpec?, alvoMs: Long
         previa.quadro(fonte, alvoMs)?.let { imagem = it }
     }
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            Modifier.size(240.dp, 135.dp).clip(RoundedCornerShape(6.dp))
-                .background(Color(0xCC000000)).border(2.dp, Color.White, RoundedCornerShape(6.dp)),
-        ) {
-            imagem?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.size(240.dp, 135.dp)) }
+        // Quadro pequeno (não atrapalha o filme) e só aparece quando a cena chegou; sem cena, fica só o horário.
+        imagem?.let {
+            Box(
+                Modifier.size(168.dp, 95.dp).clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xCC000000)).border(2.dp, Color.White, RoundedCornerShape(6.dp)),
+            ) { Image(it.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.size(168.dp, 95.dp)) }
         }
         Text(
             formatClock(alvoMs), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White,

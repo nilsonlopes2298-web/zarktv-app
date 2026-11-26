@@ -199,8 +199,8 @@ fun BoxScope.PlaybackControls(
     if (previa != null && alvo != null && b != null && ui.duration > 0) {
         val dens = androidx.compose.ui.platform.LocalDensity.current
         val frac = (alvo.toFloat() / ui.duration).coerceIn(0f, 1f)
-        val larg = with(dens) { 240.dp.toPx() }
-        val alt = with(dens) { 175.dp.toPx() }
+        val larg = with(dens) { 168.dp.toPx() }
+        val alt = with(dens) { 130.dp.toPx() }
         val x = (b.left + b.width * frac - larg / 2 - raiz.x).coerceAtLeast(0f)
         val y = b.top - alt - raiz.y
         PreviaQuadro(
