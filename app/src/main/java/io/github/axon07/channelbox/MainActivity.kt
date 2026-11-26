@@ -102,6 +102,12 @@ class MainActivity : ComponentActivity() {
         vm.resumePendingUpdate()
     }
 
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra("zark_canal")?.let { vm.canalPedido.value = it }
+    }
+
     override fun onStop() {
         // Stop the stream when the user leaves (Home, screensaver) so it doesn't keep downloading.
         onScreen = false
@@ -145,10 +151,4 @@ fun TamanhoProporcional(conteudo: @androidx.compose.runtime.Composable () -> Uni
         androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(dens.density * fator, dens.fontScale),
         androidx.compose.ui.platform.LocalConfiguration provides novaCfg,
     ) { conteudo() }
-
-    override fun onNewIntent(intent: android.content.Intent) {
-        super.onNewIntent(intent)
-        intent.getStringExtra("zark_canal")?.let { vm.canalPedido.value = it }
-    }
-
 }
