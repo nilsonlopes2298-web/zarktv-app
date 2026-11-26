@@ -62,7 +62,7 @@ object AjustesEstado {
 private enum class Secao(val titulo: String) {
     TEMA("Tela inicial"),
     REPRODUCAO("Reprodução"),
-    PROPORCAO("Proporção da tela"),
+    PROPORCAO("Tela e tamanho"),
     PARENTAL("Controle parental"),
     CACHE("Limpar cache"),
     VERSAO("Atualizar versão"),
@@ -260,6 +260,11 @@ private fun ConteudoAjuste(secao: Secao, vm: TvViewModel, escala: Int, versao: S
         Secao.PROPORCAO -> {
             Grupo("Como a imagem ocupa a tela")
             Opcoes(listOf(0 to "Normal", 1 to "Tela cheia", 2 to "Esticar"), escala) { vm.setVideoScale(it) }
+            // Tamanho de tudo na tela (botões, letras, capas): para TV ou monitor onde fica grande ou pequeno demais.
+            Grupo("Tamanho da tela")
+            Opcoes(io.github.axon07.channelbox.TamanhoTela.opcoes, io.github.axon07.channelbox.TamanhoTela.escala.floatValue) {
+                io.github.axon07.channelbox.TamanhoTela.salvar(ctx, it)
+            }
             if (io.github.axon07.channelbox.player.TvPlayer.FIRE_MEDIATEK) {
                 // Teste do Fire Stick 4K: qual decodificador usar (feche e abra o app depois de trocar).
                 var modo by remember { mutableStateOf(io.github.axon07.channelbox.player.TvPlayer.modoFire(ctx)) }
@@ -359,7 +364,7 @@ private fun AjustesCelular(onParental: () -> Unit, onAvancado: () -> Unit, conte
                 val desc = when (item) {
                     Secao.TEMA -> "Visual da tela inicial: Blocos ou Cinema"
                     Secao.REPRODUCAO -> "Áudio dublado ou original e legendas"
-                    Secao.PROPORCAO -> "Como o vídeo ocupa a tela"
+                    Secao.PROPORCAO -> "Como o vídeo ocupa a tela e tamanho dos botões"
                     Secao.PARENTAL -> "Senha para o conteúdo adulto e bloqueios"
                     Secao.CACHE -> "Libera espaço apagando capas guardadas"
                     Secao.VERSAO -> "Ver se há versão nova"

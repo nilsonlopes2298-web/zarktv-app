@@ -138,7 +138,11 @@ fun TamanhoProporcional(conteudo: @androidx.compose.runtime.Composable () -> Uni
     val w = cfg.screenWidthDp.toFloat()
     val h = cfg.screenHeightDp.toFloat()
     val fatorCalc = if (w >= h) minOf(w / 960f, h / 540f).coerceIn(0.8f, 1.3f) else (w / 411f).coerceIn(0.85f, 1.2f)
-    val fator = if (kotlin.math.abs(fatorCalc - 1f) < 0.03f) 1f else fatorCalc
+    // Tamanho escolhido pelo cliente em Configurações (monitor/TV onde os botões ficam grandes ou pequenos demais).
+    val ctxTam = androidx.compose.ui.platform.LocalContext.current
+    androidx.compose.runtime.LaunchedEffect(Unit) { TamanhoTela.carregar(ctxTam) }
+    val fatorBase = if (kotlin.math.abs(fatorCalc - 1f) < 0.03f) 1f else fatorCalc
+    val fator = fatorBase * TamanhoTela.escala.floatValue
     // Sempre o MESMO formato (sempre com o CompositionLocalProvider): antes, com fator ≈ 1 o conteúdo
     // era montado sem ele, e ao girar o celular (tela cheia) o Android jogava fora toda a tela aberta —
     // voltava para o início, girava de volta e o vídeo continuava tocando por trás.
@@ -151,4 +155,18 @@ fun TamanhoProporcional(conteudo: @androidx.compose.runtime.Composable () -> Uni
         androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(dens.density * fator, dens.fontScale),
         androidx.compose.ui.platform.LocalConfiguration provides novaCfg,
     ) { conteudo() }
+}
+
+
+/** ZarkTV: tamanho da tela escolhido em Configurações (1 = automático). Muda na hora. */
+object TamanhoTela {
+    val escala = androidx.compose.runtime.mutableFloatStateOf(1f)
+    val opcoes = listOf(0.7f to "Bem menor", 0.82f to "Menor", 1f to "Automático", 1.15f to "Maior")
+    fun carregar(ctx: android.content.Context) {
+        escala.floatValue = ctx.getSharedPreferences("zark_tela", android.content.Context.MODE_PRIVATE).getFloat("escala", 1f)
+    }
+    fun salvar(ctx: android.content.Context, v: Float) {
+        escala.floatValue = v
+        ctx.getSharedPreferences("zark_tela", android.content.Context.MODE_PRIVATE).edit().putFloat("escala", v).apply()
+    }
 }
