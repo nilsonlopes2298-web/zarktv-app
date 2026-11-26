@@ -1,5 +1,6 @@
 package io.github.axon07.channelbox.ui
 
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -468,18 +469,31 @@ private fun PosterImage(
     decodeHeight: Int = 450,
 ) {
     var failed by remember(url) { mutableStateOf(url.isNullOrBlank()) }
+    var carregou by remember(url) { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val request = remember(url) {
         coil.request.ImageRequest.Builder(context)
             .data(url)
             .size(decodeWidth, decodeHeight)
-            .crossfade(false)
+            .crossfade(180)
             .build()
     }
+    // ZarkTV: enquanto a capa não chega, um quadro escuro "respirando" com o nome (no lugar do quadrado branco).
+    val pulso = if (!carregou && !failed) {
+        androidx.compose.animation.core.rememberInfiniteTransition(label = "capa").animateFloat(
+            0.55f, 1f, androidx.compose.animation.core.infiniteRepeatable(
+                androidx.compose.animation.core.tween(900), androidx.compose.animation.core.RepeatMode.Reverse,
+            ), label = "capa",
+        ).value
+    } else 1f
     Box(
-        modifier.background(Color(0xFF151C25)),
+        modifier.background(Color(0xFF151C25).copy(alpha = pulso)),
         contentAlignment = Alignment.Center,
     ) {
+        if (!carregou && !failed) Text(
+            title, fontSize = 12.sp, color = Palette.TextDim.copy(alpha = 0.7f), maxLines = 3,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(10.dp),
+        )
         if (failed) {
             Text(
                 title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Palette.TextDim, maxLines = 4,
@@ -489,6 +503,7 @@ private fun PosterImage(
             AsyncImage(
                 model = request, contentDescription = null, contentScale = contentScale,
                 onError = { failed = true },
+                onSuccess = { carregou = true },
                 modifier = Modifier.fillMaxSize(),
             )
         }

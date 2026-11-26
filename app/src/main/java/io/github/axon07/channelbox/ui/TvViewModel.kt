@@ -1023,7 +1023,11 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         list.filter { e ->
             val ov = overrides.value[vodKey(kind, e.category)]
             ov?.hidden != true && (unlocked || ov?.locked != true)
-        }.filter { !adultoBloq(it.category, it.title) }.take(n)
+        }.filter {
+            // Vitrine da tela principal (destaques, Kids, Anime…): adulto nunca aparece, nem liberado.
+            if (category == null) !ZarkPrefs.ADULTO.containsMatchIn(it.category) && !ZarkPrefs.ADULTO.containsMatchIn(it.title)
+            else !adultoBloq(it.category, it.title)
+        }.take(n)
     }
 
     /**

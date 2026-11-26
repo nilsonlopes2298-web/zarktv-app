@@ -497,6 +497,8 @@ private fun AbaTv(
                     Text("  ·  Agora: $agora", color = Color(0xCCFFFFFF), fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 }
             }
+            // Agendar programação (como na UniTV): próximos programas do canal; OK marca/desmarca o aviso.
+            if (current != null) ProgramacaoCanal(current, current.epgId?.let { upcoming[it] }.orEmpty(), now, Modifier.width(largPrev).weight(1f))
         }
         }
     }
@@ -869,7 +871,7 @@ fun PosterTile(item: VodEntity, w: Dp, h: Dp, mostrarTitulo: Boolean = true, onC
         ) {
             Box(Modifier.fillMaxSize()) {
                 Text(item.title, color = Color(0x99FFFFFF), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center).padding(8.dp))
-                if (!item.poster.isNullOrBlank()) AsyncImage(item.poster, item.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                if (!item.poster.isNullOrBlank()) CapaLeve(item.poster, item.title, Modifier.fillMaxSize())
                 item.rating?.toDoubleOrNull()?.takeIf { it > 0 }?.let { n ->
                     Box(Modifier.align(Alignment.BottomStart).background(Color(0xCC000000), RoundedCornerShape(topEnd = 6.dp)).padding(horizontal = 6.dp, vertical = 2.dp)) {
                         Text(String.format(java.util.Locale.US, "%.1f", n), color = Color(0xFFFFB74D), fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -1691,7 +1693,7 @@ private fun CapaCel(vm: TvViewModel, item: VodEntity, modifier: Modifier = Modif
     val novo = item.added > 0 && System.currentTimeMillis() / 1000 - item.added < 7 * 86400
     Column(modifier.clickable(onClick = onClick)) {
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)).background(ElevadoCel)) {
-            if (!item.poster.isNullOrBlank()) AsyncImage(item.poster, item.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            if (!item.poster.isNullOrBlank()) CapaLeve(item.poster, item.title, Modifier.fillMaxSize())
             else Text(iniciaisCel(item.title), color = Texto3, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
             Column(Modifier.align(Alignment.TopStart).padding(4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 if (novo) Text(if (item.kind == VodKind.SERIES) "Episódio novo" else "Novo", color = Texto1, fontSize = 11.sp, fontWeight = FontWeight.Medium,
@@ -2226,7 +2228,7 @@ private fun BuscaCel(vm: TvViewModel, soCanais: Boolean, onOpen: (VodEntity) -> 
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { guardar(item.title); onOpen(item) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("${i + 1}", color = if (i < 3) VermelhoCel else Texto3, fontSize = 20.sp, fontWeight = FontWeight.Medium, modifier = Modifier.width(32.dp))
                             Box(Modifier.width(44.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(6.dp)).background(ElevadoCel)) {
-                                if (!item.poster.isNullOrBlank()) AsyncImage(item.poster, item.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                if (!item.poster.isNullOrBlank()) CapaLeve(item.poster, item.title, Modifier.fillMaxSize())
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
@@ -2268,6 +2270,62 @@ private fun BuscaCel(vm: TvViewModel, soCanais: Boolean, onOpen: (VodEntity) -> 
                     if (vod.isNotEmpty()) item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) { Text("Filmes e séries", color = Texto1, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
                 }
                 items(vod.size, key = { "v" + vod[it].id }) { i -> CapaCel(vm, vod[i], Modifier.fillMaxWidth()) { guardar(q); onOpen(vod[i]) } }
+            }
+        }
+    }
+}
+
+
+/** ZarkTV: capa decodificada pequena (cabe muitas no cache e abre rápido na TV box) e aparecendo suave. */
+@Composable
+internal fun CapaLeve(url: String?, titulo: String, modifier: Modifier) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    AsyncImage(
+        remember(url) { coil.request.ImageRequest.Builder(ctx).data(url).size(300, 450).crossfade(180).build() },
+        titulo, contentScale = ContentScale.Crop, modifier = modifier,
+    )
+}
+
+
+/** Próximos programas do canal na aba TV; OK num programa que ainda vai começar liga o aviso ⏰. */
+@Composable
+private fun ProgramacaoCanal(canal: ChannelEntity, progs: List<ProgramEntity>, now: Long, modifier: Modifier) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var curto by remember(canal.id) { mutableStateOf<List<io.github.axon07.channelbox.data.ZarkEpg.Prog>>(emptyList()) }
+    LaunchedEffect(canal.id) {
+        if (progs.none { it.stop > now }) curto = io.github.axon07.channelbox.data.ZarkEpg.curto(ctx.container.http, canal.streamUrl)
+    }
+    val lista = (if (progs.any { it.stop > now }) progs.map { Triple(it.title, it.start, it.stop) } else curto.map { Triple(it.titulo, it.inicio, it.fim) })
+        .filter { it.third > now }.sortedBy { it.second }.take(12)
+    if (lista.isEmpty()) return
+    var marcados by remember(canal.id) { mutableStateOf(io.github.axon07.channelbox.data.ZarkLembretes.lista(ctx).map { it.id }.toSet()) }
+    val fmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+    androidx.compose.foundation.lazy.LazyColumn(modifier.padding(top = 6.dp)) {
+        items(lista.size) { i ->
+            val (titulo, ini, fim) = lista[i]
+            val id = "epg:${canal.id}:$ini"
+            val noAr = ini <= now
+            val marcado = id in marcados
+            var foco by remember { mutableStateOf(false) }
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 1.dp)
+                    .background(if (foco) Color(0xFFE50914) else Color(0x66000000), RoundedCornerShape(4.dp))
+                    .onFocusChanged { foco = it.isFocused }
+                    .clickable {
+                        if (noAr) return@clickable
+                        val ligou = io.github.axon07.channelbox.data.ZarkLembretes.alternar(ctx, id, ini, "${canal.name}: $titulo")
+                        marcados = if (ligou) marcados + id else marcados - id
+                        android.widget.Toast.makeText(ctx, if (ligou) "Vamos te avisar quando começar" else "Aviso removido", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(fmt.format(java.util.Date(ini)) + "–" + fmt.format(java.util.Date(fim)), color = Color(0xCCFFFFFF), fontSize = 12.sp, modifier = Modifier.width(92.dp))
+                Text(titulo, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text(
+                    when { noAr -> "NO AR"; marcado -> "⏰ Avisar"; foco -> "OK: avisar"; else -> "" },
+                    color = if (noAr) Color(0xFFFFC107) else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                )
             }
         }
     }

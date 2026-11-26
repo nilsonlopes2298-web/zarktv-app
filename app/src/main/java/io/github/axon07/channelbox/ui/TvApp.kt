@@ -2723,7 +2723,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             while (true) {
                 val agoraL = System.currentTimeMillis()
                 io.github.axon07.channelbox.data.ZarkLembretes.lista(zarkCtx)
-                    .firstOrNull { it.inicio in (agoraL - 3 * 3600_000L)..agoraL }
+                    .firstOrNull { it.inicio in (agoraL - (if (it.id.startsWith("epg:")) 10 * 60_000L else 3 * 3600_000L))..agoraL }
                     ?.let { l ->
                         io.github.axon07.channelbox.data.ZarkLembretes.remover(zarkCtx, l.id)
                         if (lembreteAviso == null) lembreteAviso = l
@@ -2731,7 +2731,22 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 delay(30_000)
             }
         }
-        lembreteAviso?.let { l ->
+        lembreteAviso?.takeIf { it.id.startsWith("epg:") }?.let { l ->
+            // Programa agendado na aba TV começou: oferece ligar o canal.
+            if (!inPip) ActionDialog(
+                title = "Seu programa começou!",
+                subtitle = l.titulo,
+                actions = listOf(
+                    DialogAction("Assistir agora") {
+                        lembreteAviso = null
+                        val chId = l.id.removePrefix("epg:").substringBeforeLast(':')
+                        vm.allChannels.value.firstOrNull { it.id == chId }?.let { ch -> vm.withChannelAccess(ch) { vm.tune(ch); mode = Mode.PLAYER } }
+                    },
+                    DialogAction("Fechar") { lembreteAviso = null },
+                ),
+            )
+        }
+        lembreteAviso?.takeIf { !it.id.startsWith("epg:") }?.let { l ->
             if (!inPip) ActionDialog(
                 title = "O jogo começou!",
                 subtitle = l.titulo.ifBlank { "Seu jogo marcado já está rolando." },
