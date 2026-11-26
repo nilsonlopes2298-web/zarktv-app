@@ -49,6 +49,9 @@ import kotlinx.coroutines.delay
  * ZarkPlay: tema da tela inicial. "blocos" = os blocos grandes de sempre; "cinema" = fundo com o
  * filme/série em cartaz, capas no meio e os botões de categoria embaixo. Escolhido em Configurações.
  */
+/** Categorias e títulos adultos: ficam fora da tela inicial em qualquer situação. */
+private val ADULTO_CINEMA = Regex("adult|adulto|xxx|\\+18|18\\+|hot|er[oó]tic|porn|sexy|playboy|brasileirinhas|sexo", RegexOption.IGNORE_CASE)
+
 object ZarkPlayTema {
     val atual = mutableStateOf("blocos")
     /** Já escolheu o visual na primeira entrada (a pergunta aparece uma vez só). */
@@ -158,10 +161,11 @@ fun InicioCinemaZp(
 ) {
     val filmes by remember { vm.vodTop(VodKind.MOVIE, null, 10) }.collectAsState(initial = emptyList())
     val series by remember { vm.vodTop(VodKind.SERIES, null, 10) }.collectAsState(initial = emptyList())
-    // Intercala filmes e séries, só com capa.
+    // Intercala filmes e séries, só com capa. Conteúdo adulto NUNCA aparece aqui, nem liberado.
     val capas = remember(filmes, series) {
-        val f = filmes.filter { !it.poster.isNullOrBlank() }.take(10)
-        val s = series.filter { !it.poster.isNullOrBlank() }.take(10)
+        fun ok(v: VodEntity) = !v.poster.isNullOrBlank() && !ADULTO_CINEMA.containsMatchIn(v.category) && !ADULTO_CINEMA.containsMatchIn(v.title)
+        val f = filmes.filter(::ok).take(10)
+        val s = series.filter(::ok).take(10)
         buildList { for (i in 0 until maxOf(f.size, s.size)) { f.getOrNull(i)?.let(::add); s.getOrNull(i)?.let(::add) } }
     }
     var destaque by remember { mutableIntStateOf(0) }
