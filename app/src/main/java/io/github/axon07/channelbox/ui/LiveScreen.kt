@@ -257,10 +257,33 @@ fun LinhaFocavel(
     selecionado: Boolean = false,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
+    barra: Boolean = false,
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
+    if (barra) {
+        // Estilo leve: fundo cinza um pouco mais claro e uma barra vermelha fina à esquerda.
+        Surface(
+            onClick = onClick,
+            onLongClick = onLongClick,
+            modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.tap(onLongClick = onLongClick, onClick = onClick),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (selecionado) Color(0x1AFFFFFF) else Color.Transparent,
+                contentColor = Color.White,
+                focusedContainerColor = Color(0x33FFFFFF),
+                focusedContentColor = Color.White,
+            ),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        ) {
+            Box {
+                content()
+                if (focused) Box(Modifier.align(Alignment.CenterStart).width(4.dp).fillMaxHeight().background(Palette.Accent))
+            }
+        }
+        return
+    }
     Surface(
         onClick = onClick,
         onLongClick = onLongClick,

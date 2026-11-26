@@ -587,23 +587,24 @@ fun ListaDeCanais(
                     selecionado = tocando,
                     modifier = if (tocando) Modifier.focusRequester(focoCanal) else Modifier,
                     onLongClick = { onFavorite(ch) },
+                    barra = true,
                     onClick = { if (tocando) onFull() else onPick(ch) },
                 ) {
                     val prog = (ch.epgId?.let { upcoming[it] } ?: porNome[chaveEpg(ch.name)])?.firstOrNull { it.start <= now && it.stop > now }
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         // Número na frente, numa coluna fixa (todos alinhados), como na UniTV.
                         Text(
-                            if (tocando) "▶" else "${ch.number}", color = Color.White, fontSize = 20.sp,
+                            if (tocando) "▶" else "${ch.number}", color = if (tocando) Palette.Accent else Color.White, fontSize = 20.sp,
                             fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Start, modifier = Modifier.width(66.dp),
                         )
                         Spacer(Modifier.width(8.dp))
-                        Box(Modifier.size(width = 56.dp, height = 40.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x22FFFFFF)), contentAlignment = Alignment.Center) {
-                            ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize().padding(3.dp))
+                        Box(Modifier.size(width = 56.dp, height = 40.dp).clip(RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+                            ChannelLogo(ch.logoUrl, ch.name, Modifier.fillMaxSize())
                         }
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                ch.name.uppercase(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                                ch.name, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
                             if (prog != null) {
@@ -671,7 +672,7 @@ fun ListaDeCanais(
             return@Column
         }
         listaCanais(Modifier.fillMaxWidth().weight(1f))
-        Text("OK no canal: assistir · OK de novo: tela cheia · Segure OK: favoritar", color = Color(0x99FFFFFF), fontSize = 11.sp, modifier = Modifier.padding(8.dp))
+        Text("OK assistir · OK de novo tela cheia · Segure OK favoritar", color = Color(0x80FFFFFF), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
     }
 }
 
