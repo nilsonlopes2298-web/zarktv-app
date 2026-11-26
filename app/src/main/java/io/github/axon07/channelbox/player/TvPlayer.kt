@@ -197,11 +197,11 @@ class TvPlayer(
             val i = out.indexOfFirst { it is androidx.media3.exoplayer.video.MediaCodecVideoRenderer }
             if (i < 0) return
             out[i] = object : androidx.media3.exoplayer.video.MediaCodecVideoRenderer(
-                context, codecAdapterFactory, mediaCodecSelector, allowedVideoJoiningTimeMs,
+                context, relogioZero(codecAdapterFactory), mediaCodecSelector, allowedVideoJoiningTimeMs,
                 enableDecoderFallback, eventHandler, eventListener, MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY,
             ) {
                 // Teste no Fire Stick 4K: nos modos "Aparelho" a correção fica desligada (padrão do ExoPlayer).
-                override fun codecNeedsSetOutputSurfaceWorkaround(name: String) = !FIRE_MEDIATEK || modoFire(context) == 0
+                override fun codecNeedsSetOutputSurfaceWorkaround(name: String) = !FIRE_MEDIATEK || modoFire(context) == 0 || modoFire(context) == 4
 
                 // Teste Fire Stick 4K, modo 3: entrega ao decodificador só o básico (como players simples),
                 // sem o "max-width/max-height" que o decodificador MediaTek recusa (prepareForAdaptivePlayback falha).
@@ -804,6 +804,7 @@ class TvPlayer(
      */
     private fun softwarePrimeiro(mime: String) = options.softwareVideo || (FIRE_MEDIATEK && mime == MimeTypes.VIDEO_H264 && modoFire(context) == 0)
 
+
     private var ultimoQuadro = -1
     private var quadroParado = 0
     private var ultimosDescartados = 0
@@ -1060,8 +1061,32 @@ class TvPlayer(
     }
 
     companion object {
+        /**
+         * Fire Stick 4K (MediaTek): o decodificador do aparelho trava com os horários enormes que o player novo usa
+         * (começam em 1.000.000 s). O XCIPTV (player antigo) entrega a partir de 0 e roda liso. Aqui o horário é
+         * descontado só na conversa com o decodificador e devolvido na saída — o resto do player nem percebe.
+         */
+        private const val DESLOCAMENTO_US = 1_000_000_000_000L
+        fun relogioZero(base: androidx.media3.exoplayer.mediacodec.MediaCodecAdapter.Factory) =
+            androidx.media3.exoplayer.mediacodec.MediaCodecAdapter.Factory { cfg ->
+                val a = base.createAdapter(cfg)
+                val video = cfg.format.sampleMimeType?.startsWith("video/") == true
+                if (!FIRE_MEDIATEK || !video || !cfg.codecInfo.hardwareAccelerated) a
+                else object : androidx.media3.exoplayer.mediacodec.MediaCodecAdapter by a {
+                    override fun queueInputBuffer(index: Int, offset: Int, size: Int, presentationTimeUs: Long, flags: Int) =
+                        a.queueInputBuffer(index, offset, size, if (presentationTimeUs >= DESLOCAMENTO_US) presentationTimeUs - DESLOCAMENTO_US else presentationTimeUs, flags)
+                    override fun queueSecureInputBuffer(index: Int, offset: Int, info: androidx.media3.decoder.CryptoInfo, presentationTimeUs: Long, flags: Int) =
+                        a.queueSecureInputBuffer(index, offset, info, if (presentationTimeUs >= DESLOCAMENTO_US) presentationTimeUs - DESLOCAMENTO_US else presentationTimeUs, flags)
+                    override fun dequeueOutputBufferIndex(bufferInfo: android.media.MediaCodec.BufferInfo): Int {
+                        val i = a.dequeueOutputBufferIndex(bufferInfo)
+                        if (i >= 0 && bufferInfo.presentationTimeUs < DESLOCAMENTO_US / 2) bufferInfo.presentationTimeUs += DESLOCAMENTO_US
+                        return i
+                    }
+                }
+            }
+
         /** Fire Stick 4K: 0 = software (padrão: o H.264 do aparelho trava, visto no registro), 1 = aparelho, 2 = aparelho com SurfaceView (como a UniTV). */
-        fun modoFire(ctx: Context): Int = ctx.getSharedPreferences("zark_fire", Context.MODE_PRIVATE).getInt("modo", 0)
+        fun modoFire(ctx: Context): Int = ctx.getSharedPreferences("zark_fire", Context.MODE_PRIVATE).getInt("modo", 4)
         fun salvarModoFire(ctx: Context, m: Int) = ctx.getSharedPreferences("zark_fire", Context.MODE_PRIVATE).edit().putInt("modo", m).apply()
 
         /** Fire TV Stick 4K 1ª geração e parentes MediaTek (mantis = AFTMM, sheldon = AFTSS…). */
