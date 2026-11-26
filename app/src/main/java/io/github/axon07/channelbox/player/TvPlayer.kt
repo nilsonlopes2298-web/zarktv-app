@@ -264,6 +264,7 @@ class TvPlayer(
                             ZarkDiag.voltou()
                             retries = 0
                             refusals = 0
+                            quedasServidor = 0
                             confirmed = true
                             _status.value = PlayerStatus.Playing
                         }
@@ -395,12 +396,15 @@ class TvPlayer(
         confirmed = false
         retries = 0
         refusals = 0
+        quedasServidor = 0
         widevineL3 = false
         start()
     }
 
     /** Times in a row the provider refused this stream (connection limit), retried quietly. */
     private var refusals = 0
+    /** ZarkTV: vezes seguidas que o servidor caiu (502/503/504) com o vídeo já tocando. */
+    private var quedasServidor = 0
 
     private fun httpCode(error: PlaybackException): Int? {
         var cause: Throwable? = error
@@ -600,6 +604,22 @@ class TvPlayer(
         // still being closed on a one-connection account. Not a format problem, so don't try other
         // formats (more connections) – wait a moment and ask again, without alarming messages.
         val code = httpCode(error)
+        // ZarkTV: servidor do provedor caiu no meio do filme/canal (502/503/504, "No server is available").
+        // Costuma voltar em segundos: espera e continua do mesmo ponto, sem mostrar erro, até 6 vezes (~1 min).
+        if (code != null && code in 502..504 && confirmed && quedasServidor < 6) {
+            quedasServidor++
+            val current = spec
+            val pos = exo.currentPosition
+            _status.value = PlayerStatus.Buffering
+            android.util.Log.w("ZarkPlayer", "servidor caiu (HTTP $code), tentando de novo – vez $quedasServidor")
+            handler.removeCallbacksAndMessages(null)
+            handler.postDelayed({
+                if (spec !== current || current == null) return@postDelayed
+                exo.prepare()
+                if (!isLive) exo.seekTo(pos)
+            }, 3_000L * quedasServidor)
+            return
+        }
         if (code != null && code in REFUSED && refusals < 4) {
             refusals++
             val current = spec
