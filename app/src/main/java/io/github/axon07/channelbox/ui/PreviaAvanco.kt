@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -40,7 +40,7 @@ import java.util.concurrent.Executors
  * ZarkTV (como na UniTV): ao avançar/voltar o filme pelo controle, mostra a cena do ponto escolhido
  * acima da barra. O quadro é tirado do próprio arquivo do filme (sem baixar tudo).
  */
-internal class PreviaAvanco {
+class PreviaAvanco {
     private val fila: ExecutorCoroutineDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private var leitor: MediaMetadataRetriever? = null
     private var urlAberta: String? = null
