@@ -843,7 +843,7 @@ class TvPlayer(
                 "modo=${modoFire(context)} fmt=${exo.videoFormat?.let { "${it.sampleMimeType} ${it.width}x${it.height} ${it.frameRate}fps" }} " +
                 "dec=${c.decoderInitCount} entrada=${c.queuedInputBufferCount} mostrados=$n descartados=$descartados pulados=${c.skippedOutputBufferCount} " +
                 "seguidos=${c.maxConsecutiveDroppedBufferCount} atraso=${c.totalVideoFrameProcessingOffsetUs / maxOf(1, c.videoFrameProcessingOffsetCount)}us " +
-                "pos=${exo.currentPosition} buf=${exo.totalBufferedDuration})
+                "pos=${exo.currentPosition} buf=${exo.totalBufferedDuration}")
             handler.postDelayed(this, 1_000)
         }
     }
