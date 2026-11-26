@@ -220,14 +220,7 @@ class TvPlayer(
                     .setAudioCapabilities(androidx.media3.exoplayer.audio.AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES)
                     .build()
             }
-            // Fire Stick: o relógio do som vem adiantado (~0,37 s no Fire Stick 4K) e o vídeo era todo descartado
-            // como "atrasado". O ajuste é medido sozinho pelo vigia e descontado aqui.
-            return if (AMAZON && base != null) object : androidx.media3.exoplayer.audio.ForwardingAudioSink(base) {
-                override fun getCurrentPositionUs(sourceEnded: Boolean): Long {
-                    val p = super.getCurrentPositionUs(sourceEnded)
-                    return if (p == androidx.media3.exoplayer.audio.AudioSink.CURRENT_POSITION_NOT_SET) p else maxOf(0L, p - ajusteSomUs)
-                }
-            } else base
+            return base
         }
     }
         .setExtensionRendererMode(
@@ -845,30 +838,16 @@ class TvPlayer(
                 if (!isLive) exo.seekTo(pos)
                 return
             }
-            // Ajuste do relógio do som (só Amazon): mede o atraso médio dos quadros na última janela e desconta.
-            val somaOff = c.totalVideoFrameProcessingOffsetUs
-            val qtdOff = c.videoFrameProcessingOffsetCount
-            val dq = qtdOff - ultQtdOff
-            if (dq >= 10 && ultQtdOff >= 0) {
-                val media = (somaOff - ultSomaOff) / dq
-                if (media < -60_000L) ajusteSomUs = (ajusteSomUs - media * 9 / 10).coerceAtMost(1_500_000L)
-                else if (media > 120_000L && ajusteSomUs > 0) ajusteSomUs = (ajusteSomUs - media / 2).coerceAtLeast(0L)
-            }
-            ultSomaOff = somaOff; ultQtdOff = qtdOff
             // Diagnóstico (só Amazon): a cada ~3 s, números do vídeo no registro do aparelho.
             if (++diag % 3 == 0) android.util.Log.i("ZarkDiag",
                 "modo=${modoFire(context)} fmt=${exo.videoFormat?.let { "${it.sampleMimeType} ${it.width}x${it.height} ${it.frameRate}fps" }} " +
                 "dec=${c.decoderInitCount} entrada=${c.queuedInputBufferCount} mostrados=$n descartados=$descartados pulados=${c.skippedOutputBufferCount} " +
                 "seguidos=${c.maxConsecutiveDroppedBufferCount} atraso=${c.totalVideoFrameProcessingOffsetUs / maxOf(1, c.videoFrameProcessingOffsetCount)}us " +
-                "pos=${exo.currentPosition} buf=${exo.totalBufferedDuration} ajusteSom=${ajusteSomUs / 1000}ms")
+                "pos=${exo.currentPosition} buf=${exo.totalBufferedDuration})
             handler.postDelayed(this, 1_000)
         }
     }
     private var diag = 0
-    private var ultSomaOff = 0L
-    private var ultQtdOff = -1
-    /** Quanto o relógio do som está adiantado neste aparelho (medido ao vivo; vale para os próximos canais). */
-    @Volatile private var ajusteSomUs = 0L
 
     /** Imagem parada escondida (carregando + sem som)? */
     private var escondido = false
@@ -885,7 +864,6 @@ class TvPlayer(
         if (!android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true)) return
         handler.removeCallbacks(vigia)
         mostrarImagemDeNovo(restaurarStatus = false)
-        ultQtdOff = -1
         ultimoQuadro = -1
         quadroParado = 0
         ultimosDescartados = exo.videoDecoderCounters?.droppedBufferCount ?: 0
@@ -1060,8 +1038,8 @@ class TvPlayer(
     }
 
     companion object {
-        /** Fire Stick 4K: 0 = software, 1 = aparelho (padrão, com o ajuste do som), 2 = aparelho com SurfaceView (como a UniTV). */
-        fun modoFire(ctx: Context): Int = ctx.getSharedPreferences("zark_fire", Context.MODE_PRIVATE).getInt("modo", 1)
+        /** Fire Stick 4K: 0 = software (padrão: o H.264 do aparelho trava, visto no registro), 1 = aparelho, 2 = aparelho com SurfaceView (como a UniTV). */
+        fun modoFire(ctx: Context): Int = ctx.getSharedPreferences("zark_fire", Context.MODE_PRIVATE).getInt("modo", 0)
         fun salvarModoFire(ctx: Context, m: Int) = ctx.getSharedPreferences("zark_fire", Context.MODE_PRIVATE).edit().putInt("modo", m).apply()
 
         /** Fire TV Stick 4K 1ª geração e parentes MediaTek (mantis = AFTMM, sheldon = AFTSS…). */
