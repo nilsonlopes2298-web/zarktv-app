@@ -89,6 +89,7 @@ class TvPlayer(
     private val handleAudioFocus: Boolean = true,
 ) {
 
+
     private val handler = Handler(Looper.getMainLooper())
     private val _status = MutableStateFlow<PlayerStatus>(PlayerStatus.Idle)
     val status: StateFlow<PlayerStatus> = _status.asStateFlow()
@@ -813,7 +814,8 @@ class TvPlayer(
                         android.util.Log.w("ZarkPlayer", "imagem parada (${altura}p, quadros atrasados): limitando a 720p")
                     }
                     // 2ª vez em vídeo leve: tenta o decodificador por software.
-                    travadasImagem >= 2 && !trocarDecodificador && altura in 1..720 -> { trocarDecodificador = true; android.util.Log.w("ZarkPlayer", "imagem parada (${altura}p): aparelho → software") }
+                    // Fire Stick: já na 1ª travada vai para o software (até 1080p), em vez de recarregar 2 vezes.
+                    (travadasImagem >= 2 || AMAZON) && !trocarDecodificador && altura in 1..1088 -> { trocarDecodificador = true; android.util.Log.w("ZarkPlayer", "imagem parada (${altura}p): aparelho → software") }
                     else -> android.util.Log.w("ZarkPlayer", "imagem parada (${altura}p, vez $travadasImagem): recarregando")
                 }
                 quadroParado = 0
@@ -1018,6 +1020,10 @@ class TvPlayer(
     }
 
     companion object {
+        /** Fire TV Stick 4K 1ª geração e parentes MediaTek (mantis = AFTMM, sheldon = AFTSS…). */
+        val FIRE_MEDIATEK: Boolean = android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true) &&
+            (android.os.Build.HARDWARE.startsWith("mt", ignoreCase = true) || android.os.Build.MODEL in setOf("AFTMM", "AFTSS", "AFTSSS", "AFTKA"))
+
         /** Erro de "nem conectou" (tempo esgotado, recusado, sem rota, nome não encontrado). */
         fun semConexao(e: Throwable?): Boolean {
             var c = e
