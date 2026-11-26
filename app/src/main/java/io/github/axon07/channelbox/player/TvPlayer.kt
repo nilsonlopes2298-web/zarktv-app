@@ -778,17 +778,27 @@ class TvPlayer(
     private var limiteAntes: Pair<Int, Int>? = null
     private val vigia = object : Runnable {
         override fun run() {
-            if (!exo.isPlaying || exo.videoFormat == null) { ultimoQuadro = -1; quadroParado = 0; return }
+            if (!exo.isPlaying || exo.videoFormat == null) { mostrarImagemDeNovo(restaurarStatus = false); ultimoQuadro = -1; quadroParado = 0; return }
             val c = exo.videoDecoderCounters ?: run { handler.postDelayed(this, 1_500); return }
             c.ensureUpdated()
             val n = c.renderedOutputBufferCount
             val descartados = c.droppedBufferCount
             val atrasado = descartados > ultimosDescartados
             ultimosDescartados = descartados
-            if (n == ultimoQuadro) quadroParado++ else quadroParado = 0
+            if (n == ultimoQuadro) quadroParado++ else { quadroParado = 0; mostrarImagemDeNovo() }
             ultimoQuadro = n
-            if (quadroParado >= 3) {
-                // Som andando e nenhum quadro novo há ~4,5 s.
+            // ~2 s sem quadro novo: em vez de imagem parada com som por trás, mostra "Carregando" e tira o som
+            // até a imagem voltar (o Fire Stick espera o próximo quadro-chave depois de trocar a janelinha).
+            if (quadroParado >= 2 && !escondido) {
+                escondido = true
+                volumeAntes = exo.volume
+                exo.volume = 0f
+                _status.value = PlayerStatus.Buffering
+                android.util.Log.w("ZarkPlayer", "imagem parada: mostrando carregando e esperando o vídeo alcançar o som")
+            }
+            if (quadroParado >= 9) {
+                // Som andando e nenhum quadro novo há ~9 s: aí sim recarrega.
+                mostrarImagemDeNovo(restaurarStatus = false)
                 travadasImagem++
                 val altura = exo.videoFormat?.height ?: 0
                 val usandoSoftware = options.softwareVideo != trocarDecodificador
@@ -815,14 +825,25 @@ class TvPlayer(
                 if (!isLive) exo.seekTo(pos)
                 return
             }
-            handler.postDelayed(this, 1_500)
+            handler.postDelayed(this, 1_000)
         }
+    }
+
+    /** Imagem parada escondida (carregando + sem som)? */
+    private var escondido = false
+    private var volumeAntes = 1f
+    private fun mostrarImagemDeNovo(restaurarStatus: Boolean = true) {
+        if (!escondido) return
+        escondido = false
+        exo.volume = volumeAntes
+        if (restaurarStatus && exo.isPlaying) _status.value = PlayerStatus.Playing
     }
 
     private fun vigiarImagem() {
         // Só nos aparelhos da Amazon (onde a imagem travava); nos outros não mexe em nada.
         if (!android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true)) return
         handler.removeCallbacks(vigia)
+        mostrarImagemDeNovo(restaurarStatus = false)
         ultimoQuadro = -1
         quadroParado = 0
         ultimosDescartados = exo.videoDecoderCounters?.droppedBufferCount ?: 0
@@ -1097,7 +1118,7 @@ private class BufferAutomatico(
             mbs < 0.7 -> 5_000L  // internet fraca: estável
             mbs < 2.0 -> 2_500L  // equilibrado
             else -> 1_200L       // internet boa: rápido
-        }.let { if (AMAZON) maxOf(it, 2_500L) else it } * (if (parameters.rebuffering) 2 else 1)
+        }.let { if (AMAZON) maxOf(it, 4_000L) else it } * (if (parameters.rebuffering) 2 else 1)
         val guardadoMs = parameters.bufferedDurationUs / 1000 / parameters.playbackSpeed.coerceAtLeast(0.1f).toDouble()
         // Buffer cheio (o controle padrão parou de baixar) também libera, para não travar esperando.
         return guardadoMs >= alvoMs || (super.shouldStartPlayback(parameters) && guardadoMs >= alvoMs / 2)
