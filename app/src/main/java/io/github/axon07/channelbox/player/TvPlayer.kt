@@ -361,6 +361,7 @@ class TvPlayer(
                     start()
                 }
             },
+            alternativos = { host -> hostsAlternativos(host) },
         )
     }
 

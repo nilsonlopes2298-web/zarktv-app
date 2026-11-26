@@ -36,7 +36,11 @@ class MotorClassico(
     private val aoMudar: (tocando: Boolean) -> Unit,
     /** Não conseguiu tocar este canal (o [TvPlayer] tenta no motor novo). */
     private val aoFalhar: (motivo: String) -> Unit,
+    /** Outros endereços (DNS) do mesmo servidor no painel + o caminho do Web Play (tv.zarktvqx.cfd/v/…). */
+    private val alternativos: (host: String) -> List<String> = { emptyList() },
 ) {
+    /** Endereços que ainda dá para tentar quando o servidor recusa este canal neste DNS. */
+    private var hostsRestantes: MutableList<String>? = null
     private val handler = Handler(Looper.getMainLooper())
     private var tela: AspectRatioFrameLayout? = null
     private var superficie: SurfaceView? = null
@@ -85,6 +89,7 @@ class MotorClassico(
         urlAtual = spec.url
         tentativas = 0
         jaTocou = false
+        hostsRestantes = null
         abrir(spec.url)
     }
 
@@ -124,6 +129,21 @@ class MotorClassico(
             tentativas++
             abrir(url.replace(Regex("""\.ts(\?|$)"""), ".m3u8$1"))
             return
+        }
+        // Servidor recusou neste endereço (403 etc.): tenta o mesmo canal nos outros DNS do painel e, por último,
+        // pelo servidor do Web Play (que funciona mesmo quando o aparelho é barrado).
+        val codigo = codigoHttp(e)
+        if (codigo != null && codigo in setOf(401, 403, 404, 451, 456, 458)) {
+            val host = Regex("""^(https?://[^/]+)""").find(url)?.value
+            if (hostsRestantes == null && host != null) {
+                hostsRestantes = alternativos(host).filter { !it.equals(host, true) }.distinct().toMutableList()
+            }
+            val prox = hostsRestantes?.removeFirstOrNull()
+            if (prox != null && host != null) {
+                android.util.Log.w("ZarkClassico", "servidor recusou ($codigo) – tentando outro endereço (${hostsRestantes?.size} restantes)")
+                abrir(url.replaceFirst(host, prox.trimEnd('/')))
+                return
+            }
         }
         tentativas++
         if (tentativas > 6) { aoFalhar("servidor (${codigoHttp(e) ?: e.type})"); return }
