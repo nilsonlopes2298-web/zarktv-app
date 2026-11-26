@@ -156,10 +156,8 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.media3.datasource.okhttp)
     // ZarkTV: motor clássico dos canais ao vivo = ExoPlayer 2.13.2 (Apache 2.0), o mesmo do XCIPTV.
-    // Sem o "exoplayer-ui" (os recursos dele têm os mesmos nomes dos do Media3).
-    implementation("com.google.android.exoplayer:exoplayer-core:2.13.2")
-    implementation("com.google.android.exoplayer:exoplayer-hls:2.13.2")
-    implementation("com.google.android.exoplayer:extension-okhttp:2.13.2")
+    // Código no módulo :exo213 (sem o "exoplayer-ui", cujos recursos têm os mesmos nomes dos do Media3).
+    implementation(project(":exo213"))
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

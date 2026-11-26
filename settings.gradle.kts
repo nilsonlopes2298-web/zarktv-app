@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Channelbox"
 include(":app")
+include(":exo213")
