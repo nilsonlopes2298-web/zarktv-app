@@ -1666,7 +1666,9 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 // Fire Stick / Fire TV: TextureView (com SurfaceView a imagem congelava e só tocava o som).
                 val fire = (android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true) ||
                     ctx.packageManager.hasSystemFeature("amazon.hardware.fire_tv")) &&
-                    !(io.github.axon07.channelbox.player.TvPlayer.FIRE_MEDIATEK && io.github.axon07.channelbox.player.TvPlayer.modoFire(ctx) == 2)
+                    // Fire Stick 4K: SurfaceView (a imagem vai direto para a tela). Com TextureView cada quadro passava
+                    // pela placa de vídeo em 4K e o Full HD ficava sem fluidez, mesmo sem perder quadros.
+                    !io.github.axon07.channelbox.player.TvPlayer.FIRE_MEDIATEK
                 (if (fire) android.view.LayoutInflater.from(ctx).inflate(io.github.axon07.channelbox.R.layout.zark_player_textura, null) as PlayerView
                  else PlayerView(ctx)).apply {
                     useController = false
