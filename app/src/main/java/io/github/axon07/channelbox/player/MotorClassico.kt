@@ -61,12 +61,17 @@ class MotorClassico(
                     }
                 }
 
+                // Garantia extra: imagem andando = está tocando (o aviso de "carregando" não pode ficar por cima do vídeo).
+                override fun onIsPlayingChanged(isPlaying: Boolean) { if (isPlaying) { jaTocou = true; aoMudar(true) } }
+
                 override fun onPlayerError(error: ExoPlaybackException) = erro(error)
             })
             p.addVideoListener(object : VideoListener {
                 override fun onVideoSizeChanged(width: Int, height: Int, unappliedRotationDegrees: Int, pixelWidthHeightRatio: Float) {
                     if (height > 0) tela?.setAspectRatio(width * pixelWidthHeightRatio / height)
                 }
+
+                override fun onRenderedFirstFrame() { if (player.playWhenReady) { jaTocou = true; aoMudar(true) } }
             })
         }
     }

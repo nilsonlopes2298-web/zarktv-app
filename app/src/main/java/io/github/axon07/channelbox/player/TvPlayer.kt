@@ -293,6 +293,8 @@ class TvPlayer(
             })
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    // Com o motor clássico tocando, o motor novo não mexe no aviso da tela.
+                    if (usandoClassico.value) return
                     when (playbackState) {
                         Player.STATE_READY -> {
                             ZarkDiag.voltou()
