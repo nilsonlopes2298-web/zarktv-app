@@ -157,42 +157,9 @@ fun BoxScope.StatusMessage(status: PlayerStatus, channel: ChannelEntity?, fallba
         }
         return
     }
-    // ZarkTV: abrindo o canal = logo + nome do canal, anel girando em volta e barrinha passando.
+    // Abrindo o canal: só a bolinha girando no meio, sem cartão, nome ou marca.
     if (channel != null && status is PlayerStatus.Buffering) {
-        val giro = androidx.compose.animation.core.rememberInfiniteTransition(label = "carregando")
-        val ang by giro.animateFloat(
-            0f, 360f,
-            androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1000, easing = androidx.compose.animation.core.LinearEasing)),
-            label = "ang",
-        )
-        val pulso by giro.animateFloat(
-            0.92f, 1.04f,
-            androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(700), androidx.compose.animation.core.RepeatMode.Reverse),
-            label = "pulso",
-        )
-        androidx.compose.foundation.layout.Column(
-            Modifier.align(Alignment.Center)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xB3000000))
-                .padding(horizontal = 28.dp, vertical = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
-                BolinhasCarregando(Modifier.fillMaxSize())
-                Box(
-                    Modifier.size(46.dp).graphicsLayer { scaleX = pulso; scaleY = pulso }
-                        .clip(androidx.compose.foundation.shape.CircleShape).background(Color(0x26FFFFFF)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    ChannelLogo(channel.logoUrl, channel.name, Modifier.fillMaxSize().padding(6.dp))
-                }
-            }
-            androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
-            Text(channel.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1)
-            Text(if (velocidade > 0.05) "Abrindo o canal… %.1f MB/s".format(velocidade) else "Abrindo o canal…", fontSize = 12.sp, color = Color(0xB3FFFFFF))
-            androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
-            MarcaPequena(11)
-        }
+        BolinhasCarregando(Modifier.align(Alignment.Center).size(56.dp))
         return
     }
     if (channel != null && status is PlayerStatus.Error) {
