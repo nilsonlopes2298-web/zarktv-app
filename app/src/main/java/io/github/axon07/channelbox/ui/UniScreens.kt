@@ -253,7 +253,7 @@ fun UniShell(
             // Subindo do conteúdo para as abas, o foco cai sempre na aba aberta (não numa vizinha, que trocaria a aba).
             LaunchedEffect(tab) { if (!(voltouDoCanal.value && tab == Aba.TV)) runCatching { tabFocus[tab].requestFocus() } }
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(if (compacto) 4.dp else 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(if (compacto) 2.dp else 4.dp),
                 modifier = Modifier.fillMaxWidth()
                     .focusProperties { enter = { tabFocus[tab] } }
                     .focusGroup(),
@@ -388,23 +388,22 @@ private fun AbaItem(nome: String, selecionada: Boolean, modifier: Modifier, comp
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
-            focusedContainerColor = Color(0x22FFFFFF),
+            // Como na UniTV: a aba onde o controle está fica vermelha; sem moldura amarela.
+            focusedContainerColor = Color(0xFFE50914),
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = ZarkLeve.escala(1.04f)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
     ) {
         Box(
-            Modifier
-                .border(if (focused) 2.dp else 0.dp, if (focused) Color(0xFFFFCC80) else Color.Transparent, RoundedCornerShape(12.dp))
-                .padding(horizontal = if (compacto) 12.dp else 20.dp, vertical = if (compacto) 6.dp else 8.dp)
+            Modifier.padding(horizontal = if (compacto) 10.dp else 14.dp, vertical = if (compacto) 5.dp else 6.dp)
         ) {
             if (nome == "KIDS") {
                 Row {
                     val cores = listOf(Color(0xFFFF6B9D), Color(0xFF4FC3F7), Color(0xFFFFD54F), Color(0xFF81C784))
-                    nome.forEachIndexed { i, c -> Text(c.toString(), color = cores[i % 4], fontSize = if (compacto) 15.sp else 21.sp, fontWeight = FontWeight.Black) }
+                    nome.forEachIndexed { i, c -> Text(c.toString(), color = if (focused) Color.White else cores[i % 4], fontSize = if (compacto) 15.sp else 19.sp, fontWeight = FontWeight.Black) }
                 }
             } else {
                 Text(
-                    nome, color = if (selecionada) Color(0xFFFF4D57) else Color(0xE6FFFFFF), fontSize = if (compacto) 15.sp else 21.sp,
+                    nome, color = when { focused -> Color.White; selecionada -> Color(0xFFFF4D57); else -> Color(0xE6FFFFFF) }, fontSize = if (compacto) 15.sp else 19.sp,
                     fontWeight = FontWeight.Medium,
                 )
             }

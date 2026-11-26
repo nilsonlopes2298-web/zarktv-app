@@ -1653,11 +1653,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         AndroidView(
             factory = { ctx ->
                 // Fire Stick / Fire TV: TextureView (com SurfaceView a imagem congelava e só tocava o som).
-                // Fire Stick 4K (MediaTek): com TextureView o decodificador do aparelho mostra 1 quadro e congela
-                // ("IMGEGLImage is not consistent" no registro). Lá vai SurfaceView, que com a correção de troca de
-                // superfície (TvPlayer) não congela mais. Os outros Fire continuam com TextureView.
                 val fire = (android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true) ||
-                    ctx.packageManager.hasSystemFeature("amazon.hardware.fire_tv")) && !io.github.axon07.channelbox.player.TvPlayer.FIRE_MEDIATEK
+                    ctx.packageManager.hasSystemFeature("amazon.hardware.fire_tv"))
                 (if (fire) android.view.LayoutInflater.from(ctx).inflate(io.github.axon07.channelbox.R.layout.zark_player_textura, null) as PlayerView
                  else PlayerView(ctx)).apply {
                     useController = false

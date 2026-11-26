@@ -228,7 +228,7 @@ class TvPlayer(
             if (mime == MimeTypes.VIDEO_DOLBY_VISION && !dolbyVisionAllowed) return@setMediaCodecSelector emptyList()
             val all = androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(mime, secure, tunneling)
             // HDR / Dolby Vision only come out of the hardware decoder, so it stays first for Dolby Vision.
-            val software = if (mime.startsWith("video/")) (options.softwareVideo != trocarDecodificador) && mime != MimeTypes.VIDEO_DOLBY_VISION
+            val software = if (mime.startsWith("video/")) (softwarePrimeiro(mime) != trocarDecodificador) && mime != MimeTypes.VIDEO_DOLBY_VISION
             else options.softwareAudio
             // Software first when chosen; hardware stays as a fallback (protected video has no software decoder).
             if (software) all.sortedBy { !it.softwareOnly } else all
@@ -771,6 +771,13 @@ class TvPlayer(
     @Volatile private var trocarDecodificador = false
     /** Quantas vezes a imagem congelou neste vídeo. */
     private var travadasImagem = 0
+    /**
+     * Fire Stick 4K (MediaTek, Fire OS 6): o decodificador H.264 do aparelho mostra 1 quadro e congela com o som
+     * andando (visto no registro do aparelho); o de software toca liso. Lá o H.264 já começa no software.
+     * Se mesmo assim travar, o vigia troca para o do aparelho.
+     */
+    private fun softwarePrimeiro(mime: String) = options.softwareVideo || (FIRE_MEDIATEK && mime == MimeTypes.VIDEO_H264)
+
     private var ultimoQuadro = -1
     private var quadroParado = 0
     private var ultimosDescartados = 0
@@ -802,7 +809,7 @@ class TvPlayer(
                 mostrarImagemDeNovo(restaurarStatus = false)
                 travadasImagem++
                 val altura = exo.videoFormat?.height ?: 0
-                val usandoSoftware = options.softwareVideo != trocarDecodificador
+                val usandoSoftware = softwarePrimeiro(exo.videoFormat?.sampleMimeType ?: "") != trocarDecodificador
                 when {
                     // Decodificando por software (lento no Fire Stick): volta para o do aparelho na hora, em qualquer resolução.
                     usandoSoftware -> { trocarDecodificador = !trocarDecodificador; android.util.Log.w("ZarkPlayer", "imagem parada (${altura}p): software → aparelho") }
