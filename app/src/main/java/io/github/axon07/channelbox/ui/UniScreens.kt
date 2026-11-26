@@ -593,7 +593,7 @@ fun ListaDeCanais(
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         // Número na frente, numa coluna fixa (todos alinhados), como na UniTV.
                         Text(
-                            "${ch.number}", color = Color.White, fontSize = 20.sp,
+                            if (tocando) "▶" else "${ch.number}", color = Color.White, fontSize = 20.sp,
                             fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Start, modifier = Modifier.width(66.dp),
                         )
                         Spacer(Modifier.width(8.dp))
@@ -619,7 +619,6 @@ fun ListaDeCanais(
                             }
                         }
                         if (ch.id in favorites) Text("★", color = Palette.Favorite, fontSize = 15.sp)
-                        if (tocando) Text("  ▶", color = Color.White, fontSize = 14.sp)
                     }
                 }
             }
