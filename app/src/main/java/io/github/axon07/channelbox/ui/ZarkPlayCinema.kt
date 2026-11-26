@@ -51,12 +51,86 @@ import kotlinx.coroutines.delay
  */
 object ZarkPlayTema {
     val atual = mutableStateOf("blocos")
+    /** Já escolheu o visual na primeira entrada (a pergunta aparece uma vez só). */
+    val escolhido = mutableStateOf(true)
+    private fun p(c: android.content.Context) = c.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE)
     fun carregar(c: android.content.Context) {
-        atual.value = c.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).getString("zp_tema", "blocos") ?: "blocos"
+        atual.value = p(c).getString("zp_tema", "blocos") ?: "blocos"
+        escolhido.value = p(c).getBoolean("zp_tema_escolhido", false)
     }
     fun salvar(c: android.content.Context, v: String) {
         atual.value = v
-        c.getSharedPreferences("zarktv", android.content.Context.MODE_PRIVATE).edit().putString("zp_tema", v).apply()
+        escolhido.value = true
+        p(c).edit().putString("zp_tema", v).putBoolean("zp_tema_escolhido", true).apply()
+    }
+}
+
+/**
+ * Primeira entrada no ZarkPlay: o cliente escolhe o visual da tela inicial (Blocos ou Cinema).
+ * Dá para trocar depois em Configurações › Tela inicial.
+ */
+@Composable
+fun EscolherTemaZp(onEscolher: (String) -> Unit) {
+    val primeiro = remember { FocusRequester() }
+    LaunchedEffect(Unit) { delay(200); runCatching { primeiro.requestFocus() } }
+    Box(Modifier.fillMaxSize().background(Color(0xF20B0B0D)), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Como você quer a tela inicial?", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+            Text("Dá para trocar depois em Configurações › Tela inicial.", color = Color(0x99FFFFFF), fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp, bottom = 28.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                OpcaoTema("Blocos", "Quatro blocos grandes, simples e direto.", Modifier.focusRequester(primeiro), { onEscolher("blocos") }) {
+                    // miniatura: bloco vermelho grande + três blocos de vidro
+                    Row(Modifier.fillMaxSize().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.weight(1.4f).fillMaxSize().clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(listOf(Color(0xFFFF4D5A), Color(0xFFC70818)))))
+                        Column(Modifier.weight(2f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Box(Modifier.weight(1f).fillMaxSize().clip(RoundedCornerShape(10.dp)).background(Color(0x33FFFFFF)))
+                                Box(Modifier.weight(1f).fillMaxSize().clip(RoundedCornerShape(10.dp)).background(Color(0x33FFFFFF)))
+                            }
+                            Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0x33FFFFFF)))
+                        }
+                    }
+                }
+                OpcaoTema("Cinema", "Filme em cartaz no fundo, capas e botões embaixo.", Modifier, { onEscolher("cinema") }) {
+                    // miniatura: fundo de cinema, fileira de capas e botões
+                    Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF4A1530), Color(0xFF14101C), Color(0xFF0B0B0D))))) {
+                        Column(Modifier.fillMaxSize().padding(14.dp)) {
+                            Box(Modifier.width(120.dp).height(12.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xCCFFFFFF)))
+                            Box(Modifier.padding(top = 6.dp).width(160.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color(0x66FFFFFF)))
+                            Spacer(Modifier.weight(1f))
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { repeat(6) { Box(Modifier.size(width = 26.dp, height = 38.dp).clip(RoundedCornerShape(4.dp)).background(Color(0x55FFFFFF))) } }
+                            Spacer(Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(Modifier.weight(1f).height(16.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xFFE50914)))
+                                repeat(3) { Box(Modifier.weight(1f).height(16.dp).clip(RoundedCornerShape(5.dp)).background(Color(0x33FFFFFF))) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OpcaoTema(nome: String, desc: String, modifier: Modifier, onClick: () -> Unit, miniatura: @Composable () -> Unit) {
+    var foco by remember { mutableStateOf(false) }
+    val escala by androidx.compose.animation.core.animateFloatAsState(if (foco) 1.06f else 1f, label = "tema")
+    val forma = RoundedCornerShape(20.dp)
+    Column(
+        modifier.width(320.dp)
+            .graphicsLayer { scaleX = escala; scaleY = escala }
+            .clip(forma)
+            .background(Color(0xFF17171C))
+            .border(if (foco) 4.dp else 1.dp, if (foco) Color.White else Color(0x26FFFFFF), forma)
+            .onFocusChanged { foco = it.isFocused }
+            .clickable(onClickLabel = nome, onClick = onClick),
+    ) {
+        Box(Modifier.fillMaxWidth().height(180.dp)) { miniatura() }
+        Column(Modifier.padding(16.dp)) {
+            Text(nome, color = if (foco) Color(0xFFFFD60A) else Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(desc, color = Color(0xB3FFFFFF), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+        }
     }
 }
 

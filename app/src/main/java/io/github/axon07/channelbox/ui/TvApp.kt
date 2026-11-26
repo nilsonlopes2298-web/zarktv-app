@@ -2050,6 +2050,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 LaunchedEffect(Unit) { ZarkLayout.atualizar(zarkCtx); ZarkPlayTema.carregar(zarkCtx) }
                 val extrasPainel = remember(conta) { io.github.axon07.channelbox.data.ZarkPainel.extras(zarkCtx) }
                 if (mode == Mode.HOME && allChannels.isEmpty() && refreshState is RefreshState.Running) ZarkCarregando(refreshState)
+                else if (mode == Mode.HOME && ZarkPlay.ativo && !zpJogos && !ZarkPlayTema.escolhido.value && androidx.compose.ui.platform.LocalConfiguration.current.let { it.screenWidthDp > it.screenHeightDp }) EscolherTemaZp { ZarkPlayTema.salvar(zarkCtx, it) }
                 else if (mode == Mode.HOME && ZarkPlay.ativo && !zpJogos && ZarkPlayTema.atual.value == "cinema" && androidx.compose.ui.platform.LocalConfiguration.current.let { it.screenWidthDp > it.screenHeightDp }) InicioCinemaZp(
                     vm = vm,
                     usuario = pl?.xtUser.orEmpty(),
