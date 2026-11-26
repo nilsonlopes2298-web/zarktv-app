@@ -37,6 +37,7 @@ class MainActivity : ComponentActivity() {
                 TamanhoProporcional { TvApp(vm) }
             }
         }
+        intent?.getStringExtra("zark_canal")?.let { vm.canalPedido.value = it }
         // O logo da janela (zark_janela) só serve para o instante do toque no ícone; depois o fundo volta a ser preto.
         window.decorView.postDelayed({ window.setBackgroundDrawableResource(android.R.color.black) }, 1500)
         // Usuário desativado (no servidor ou bloqueado no painel): o app fecha na hora, sem aviso.
@@ -144,4 +145,10 @@ fun TamanhoProporcional(conteudo: @androidx.compose.runtime.Composable () -> Uni
         androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(dens.density * fator, dens.fontScale),
         androidx.compose.ui.platform.LocalConfiguration provides novaCfg,
     ) { conteudo() }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra("zark_canal")?.let { vm.canalPedido.value = it }
+    }
+
 }

@@ -764,6 +764,17 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         mode = Mode.PLAYER
     }
 
+    // Teste pelo PC: abre o canal pedido assim que a lista de canais estiver carregada.
+    val canalPedido by vm.canalPedido.collectAsStateWithLifecycle()
+    val todosCanais by vm.allChannels.collectAsStateWithLifecycle()
+    LaunchedEffect(canalPedido, todosCanais.size) {
+        val nome = canalPedido ?: return@LaunchedEffect
+        val ch = todosCanais.firstOrNull { it.name.equals(nome, true) } ?: todosCanais.firstOrNull { it.name.contains(nome, true) } ?: return@LaunchedEffect
+        vm.canalPedido.value = null
+        android.util.Log.i("ZarkDiag", "abrindo canal pedido pelo PC: ${ch.name}")
+        tuneAndWatch(ch)
+    }
+
     fun openOptions() {
         optionsReturn = mode
         optionsToken++

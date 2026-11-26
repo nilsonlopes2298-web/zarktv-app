@@ -160,6 +160,9 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     private fun adultoBloq(vararg textos: String?) =
         !zarkAdulto.value && textos.any { it != null && ZarkPrefs.ADULTO.containsMatchIn(it) }
 
+    /** Teste pelo PC (adb): nome do canal para abrir sozinho (am start … --es zark_canal "ESPN"). */
+    val canalPedido = MutableStateFlow<String?>(null)
+
     val allChannels: StateFlow<List<ChannelEntity>> = combine(repo.channels, overrides, c.settings.flow, zarkAdulto) { saved, ov, s, adulto ->
         // Only channels of playlists that exist and are on: a removed playlist disappears at once,
         // without waiting for the reload that deletes its rows.
