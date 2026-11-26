@@ -549,12 +549,8 @@ private fun ShowScreen(
     LaunchedEffect(ficha, show.id) { b.fundoUrl = ficha?.fundo ?: show.poster }
     // Começa a tocar na miniatura assim que os episódios chegam (último assistido ou o primeiro).
     val retratoAuto = androidx.compose.ui.platform.LocalConfiguration.current.let { it.screenHeightDp > it.screenWidthDp }
-    LaunchedEffect(show.id, episodes != null) {
-        if (!retratoAuto && episodes != null && b.previewId == null) {
-            delay(500)
-            (ultimo ?: episodes.firstOrNull { it.season == b.season } ?: episodes.firstOrNull())?.let { b.acaoPreview?.invoke(it, show) }
-        }
-    }
+    // ZarkTV: não começa mais sozinho; espera o cliente dar o play ou escolher o episódio.
+    @Suppress("UNUSED_VARIABLE") val semAuto = retratoAuto
     // O fundo é desenhado atrás do vídeo (TvApp), senão cobriria a miniatura.
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -745,12 +741,7 @@ private fun MovieDetail(
         onPlay(movie, null)
     }
     LaunchedEffect(ficha, movie.id) { b.fundoUrl = ficha?.fundo ?: movie.poster }
-    LaunchedEffect(movie.id) {
-        if (!retrato) {
-            delay(500)
-            b.acaoPreview?.invoke(movie, null)
-        }
-    }
+    // ZarkTV: o filme não começa sozinho; espera o cliente dar o play.
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rolF).padding(horizontal = if (retrato) 18.dp else 36.dp, vertical = 24.dp)) {
             Row(verticalAlignment = Alignment.Top) {
