@@ -543,7 +543,9 @@ class TvPlayer(
         else DefaultDataSource.Factory(context, httpSource)
         // ZarkTV: canais Full HD de IPTV costumam vir sem "quadro-chave IDR" e com unidades de acesso
         // fora do padrão; sem estas opções o player fica só carregando (HD/SD abrem, FHD não).
-        val tsFlags = androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+        // Fire Stick 4K (modo 5): o decodificador MediaTek não consegue começar num quadro-chave que não é IDR
+        // (mostra uns quadros e trava). Lá espera o IDR, como o XCIPTV faz.
+        val tsFlags = (if (FIRE_MEDIATEK && modoFire(context) == 5) 0 else androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES) or
             androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
         val extratores = androidx.media3.extractor.DefaultExtractorsFactory()
             .setTsExtractorFlags(tsFlags)
