@@ -37,6 +37,8 @@ class MainActivity : ComponentActivity() {
                 TamanhoProporcional { TvApp(vm) }
             }
         }
+        // O logo da janela (zark_janela) só serve para o instante do toque no ícone; depois o fundo volta a ser preto.
+        window.decorView.postDelayed({ window.setBackgroundDrawableResource(android.R.color.black) }, 1500)
         // Usuário desativado (no servidor ou bloqueado no painel): o app fecha na hora, sem aviso.
         lifecycleScope.launch {
             io.github.axon07.channelbox.data.ZarkConfig.desativado.collect { if (it) finishAndRemoveTask() }

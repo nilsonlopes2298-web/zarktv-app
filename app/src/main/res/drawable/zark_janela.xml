@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ZarkTV: aparece no mesmo instante em que o ícone é tocado, antes do app desenhar a 1ª tela
+     (no lugar da tela preta). Depois o app troca para a abertura animada. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/black" />
+    <item>
+        <shape android:shape="rectangle">
+            <gradient android:type="radial" android:gradientRadius="70%p" android:centerColor="#33E50914"
+                android:startColor="#66E50914" android:endColor="#000A0A0A" />
+        </shape>
+    </item>
+    <item android:gravity="center"><bitmap android:src="@drawable/zark_logo_janela" android:gravity="center" /></item>
+</layer-list>

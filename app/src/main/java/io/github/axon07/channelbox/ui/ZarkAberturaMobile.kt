@@ -73,7 +73,7 @@ object ZarkAnimacao {
     /** Frase de apresentação. */
     var frase = "Seu entretenimento começa aqui."
     /** Para depois: true = a TV/TV Box também abre com esta animação (hoje só o celular). */
-    var aberturaNaTv = false
+    var aberturaNaTv = true
     /** A abertura já foi mostrada neste uso do app: girar a tela (tela cheia) não mostra de novo. */
     @Volatile var jaMostrou = false
     /** Força o modo de baixo desempenho (menos efeitos) em qualquer aparelho. */
@@ -128,7 +128,8 @@ fun ZarkAberturaAnimada(onFim: () -> Unit) {
     val leve = ZarkAnimacao.leve
     val total = remember {
         val base = if (leve) minOf(ZarkAnimacao.duracaoMs, 2000) else ZarkAnimacao.duracaoMs
-        (base / ZarkAnimacao.velocidade.coerceIn(0.5f, 3f)).toInt().coerceIn(600, 2800)
+        // Na TV/TV box a abertura é mais curta (1,8 s): dá tempo de logar e carregar por trás sem fazer esperar.
+        (base / ZarkAnimacao.velocidade.coerceIn(0.5f, 3f)).toInt().coerceIn(600, if (ehTv(ctx)) 1800 else 2800)
     }
     val t = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
