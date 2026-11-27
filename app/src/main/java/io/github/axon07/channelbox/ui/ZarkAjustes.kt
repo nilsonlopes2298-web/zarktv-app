@@ -474,9 +474,17 @@ private fun VerificarCelular(vm: TvViewModel, versao: String) {
                 Text("Você está na versão mais recente", color = Color(0xFFEDEDED), fontSize = 16.sp, modifier = Modifier.padding(top = 12.dp))
                 Text("Versão $versao", color = Color(0xFF85858B), fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
             }
-            e is TvViewModel.UpdateState.Available || e is TvViewModel.UpdateState.Downloading -> {
+            e is TvViewModel.UpdateState.Available -> {
                 Text("Nova versão disponível", color = Color(0xFFEDEDED), fontSize = 16.sp)
-                Text("Toque em Atualizar no aviso para instalar.", color = Color(0xFF85858B), fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+                Text("Versão ${e.release.version} · você tem a $versao", color = Color(0xFF85858B), fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+                Box(
+                    Modifier.padding(top = 14.dp).fillMaxWidth().height(46.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFFE50914)).clickable { vm.startUpdate() },
+                    contentAlignment = Alignment.Center,
+                ) { Text("Atualizar agora", color = Color.White, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) }
+            }
+            e is TvViewModel.UpdateState.Downloading -> {
+                Text("Baixando a atualização… ${e.percent}%", color = Color(0xFFEDEDED), fontSize = 16.sp)
+                Text("Pode continuar usando o app; ao terminar, é só instalar.", color = Color(0xFF85858B), fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
             }
             e is TvViewModel.UpdateState.Failed -> {
                 Text("Não deu para verificar agora", color = Color(0xFFEDEDED), fontSize = 16.sp)
@@ -494,8 +502,7 @@ private fun VerificarCelular(vm: TvViewModel, versao: String) {
 @Composable
 fun VerificandoAtualizacao(vm: TvViewModel, versao: String, onFechar: () -> Unit) {
     val estado by vm.update.collectAsStateWithLifecycle()
-    // Achou versão nova: o aviso de atualização assume.
-    LaunchedEffect(estado) { if (estado is TvViewModel.UpdateState.Available) { delay(1_600); onFechar() } }
+    // O resultado (tem ou não tem versão nova) aparece aqui mesmo, depois da verificação terminar.
     androidx.activity.compose.BackHandler { onFechar() }
     Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(enabled = false) {}, contentAlignment = Alignment.Center) {
         Column(Modifier.padding(horizontal = 28.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -2343,8 +2343,9 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                     onConfiguracoes = { ajustesVolta = Mode.PROFILE; mode = Mode.AJUSTES },
                     onPlayer = { ajustesVolta = Mode.PROFILE; mode = Mode.AJUSTES },
                     onAtualizar = {
-                        if (io.github.axon07.channelbox.system.Aparelho.soCelular) verificandoCel = true
-                        vm.checkForUpdates(manual = true)
+                        val cel = io.github.axon07.channelbox.system.Aparelho.soCelular
+                        if (cel) verificandoCel = true
+                        vm.checkForUpdates(manual = true, avisoSeparado = !cel)
                     },
                     onTema = { ZarkTema.proximo(ctx) },
                     onPlayerFilmes = {

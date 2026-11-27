@@ -671,7 +671,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
      * [manual] = the user pressed "Procurar atualização": always report the result.
      * Automatic checks stay silent unless there's a new version they haven't skipped.
      */
-    fun checkForUpdates(manual: Boolean) {
+    fun checkForUpdates(manual: Boolean, avisoSeparado: Boolean = true) {
         if (_update.value is UpdateState.Checking || _update.value is UpdateState.Downloading) return
         viewModelScope.launch {
             _update.value = UpdateState.Checking
@@ -687,7 +687,9 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
             if (state is UpdateState.Available) {
                 val skipped = c.settings.current().skippedVersion
                 if (manual) _updatePrompt.value = false
-                _updatePrompt.value = manual || state.release.forced || state.release.version != skipped
+                // Celular: o próprio cartão da verificação mostra o resultado e o botão Atualizar.
+                _updatePrompt.value = if (manual && !avisoSeparado) state.release.forced
+                    else manual || state.release.forced || state.release.version != skipped
             } else if (!manual) {
                 _update.value = UpdateState.Idle
             }
