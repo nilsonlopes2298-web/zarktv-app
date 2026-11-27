@@ -11,14 +11,19 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.graphics.RenderEffect;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -33,9 +38,9 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
-import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -69,14 +74,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Tela inicial ZarkTV no estilo Apple TV: o app em foco aparece grande no topo,
- * fileira de favoritos, grade de apps e o ícone "Meu Servidor", que abre o status
- * desta TV, da VPS Roxinha e de cada sistema. Segurar OK (ou Menu) num app abre as opções.
+ * Tela inicial ZarkTV no estilo Apple TV (tvOS): vitrine grande do app em foco,
+ * fileira de cima com 4 favoritos + "Meu Servidor", grade de apps e uma tela
+ * "Meu Servidor" no estilo dos Ajustes da Apple TV com tudo da VPS Roxinha.
  */
 public class MainActivity extends Activity {
 
     // Paleta (modo escuro da Apple)
-    private static final int FUNDO = Color.parseColor("#0E0E10");
+    private static final int FUNDO = Color.parseColor("#0B0B0D");
     private static final int CINZA_1 = Color.parseColor("#1C1C1E");
     private static final int CINZA_2 = Color.parseColor("#2C2C2E");
     private static final int CINZA_3 = Color.parseColor("#3A3A3C");
@@ -86,6 +91,7 @@ public class MainActivity extends Activity {
     private static final int AMARELO = Color.parseColor("#FFD60A");
     private static final int VERMELHO = Color.parseColor("#FF453A");
     private static final int BRANCO = Color.WHITE;
+    private static final int PRETO_TEXTO = Color.parseColor("#1C1C1E");
 
     private static final String LISTA_SISTEMAS =
             "https://raw.githubusercontent.com/nilsonlopes2298-web/zarktv-app/launcher/launcher/sistemas.json";
@@ -93,6 +99,7 @@ public class MainActivity extends Activity {
     private static final String FAVORITOS_PADRAO =
             "com.google.android.youtube.tv,com.amazon.firetv.youtube,com.netflix.ninja,"
                     + "cfd.zarktvqx.zarkplay,cfd.zarktvqx.tv,com.zark.play.tv";
+    private static final int MAX_DOCK = 4;
     private static final String SERVIDOR = "__servidor__";
     private static final String NOME_SERVIDOR = "Meu Servidor";
 
@@ -108,18 +115,26 @@ public class MainActivity extends Activity {
 
     // Tela inicial
     private ImageView vitrineImagem;
-    private TextView vitrineTitulo, vitrineSub, relogio, statusTopo;
-    private LinearLayout linhaFavoritos;
+    private TextView vitrineTitulo, vitrineSub, relogio;
+    private LinearLayout dock;
     private GridLayout grade;
-    private View primeiroFocavel;
+    private View primeiroFocavel, pontoServidor;
+    private int larguraIcone, alturaIcone, espaco;
 
     // Tela "Meu Servidor"
     private FrameLayout painel;
     private ScrollView painelRolagem;
-    private TextView pAtualizado, pInternet, pRede, pArmazenamento, pMemoria, pApps;
+    private TextView pResumoGrande, pAtualizado, pInternet, pRede, pArmazenamento, pMemoria, pApps;
     private TextView pRoxinhaResumo, pVpsCpu, pVpsMemoria, pVpsDisco, pVpsLigada;
     private LinearLayout pSistemas;
     private View painelPrimeiro;
+
+    // Tela de detalhe de um sistema
+    private FrameLayout detalhe;
+    private ScrollView detalheRolagem;
+    private TextView dTitulo, dGrupo, dSituacao;
+    private LinearLayout dLista;
+    private Sistema sistemaAberto;
 
     private final Map<String, App> apps = new LinkedHashMap<>();
     private final List<Sistema> sistemas = new ArrayList<>();
@@ -130,12 +145,15 @@ public class MainActivity extends Activity {
     static class App {
         String pacote, nome, versao = "";
         Drawable banner, icone;
+        int cor;
     }
 
     static class Sistema {
-        String grupo, nome, url;
+        String grupo, nome, url, detalhes;
         TextView status;
+        View linhaView;
         volatile int estado; // 0 verificando, 1 no ar, 2 lento, 3 fora do ar
+        volatile long ms = -1;
     }
 
     // ================================================================ ciclo de vida
@@ -190,12 +208,17 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (detalhe != null) detalhe.setVisibility(View.GONE);
         fecharPainel();
         if (primeiroFocavel != null) primeiroFocavel.requestFocus();
     }
 
     @Override
     public void onBackPressed() {
+        if (detalhe.getVisibility() == View.VISIBLE) {
+            fecharDetalhe();
+            return;
+        }
         if (painel.getVisibility() == View.VISIBLE) {
             fecharPainel();
             return;
@@ -214,139 +237,158 @@ public class MainActivity extends Activity {
 
     private View montarTela() {
         int altura = getResources().getDisplayMetrics().heightPixels;
-        int alturaVitrine = (int) (altura * 0.66f);
+        int largura = getResources().getDisplayMetrics().widthPixels;
+        int margemLado = dp(64);
+        espaco = dp(26);
+        // 5 ícones por linha, proporção 5:3 dos ícones da Apple TV
+        larguraIcone = (largura - 2 * margemLado - 4 * espaco) / 5;
+        alturaIcone = larguraIcone * 3 / 5;
+        int alturaVitrine = (int) (altura * 0.70f);
 
         FrameLayout raiz = new FrameLayout(this);
         raiz.setBackgroundColor(FUNDO);
 
-        // Vitrine (top shelf): imagem grande do app em foco
+        // Vitrine (top shelf): imagem grande e desfocada do app em foco
         vitrineImagem = new ImageView(this);
         vitrineImagem.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        vitrineImagem.setAlpha(0.55f);
+        vitrineImagem.setAlpha(0.5f);
+        if (Build.VERSION.SDK_INT >= 31) {
+            vitrineImagem.setRenderEffect(RenderEffect.createBlurEffect(28f, 28f, Shader.TileMode.CLAMP));
+        }
         raiz.addView(vitrineImagem, new FrameLayout.LayoutParams(-1, alturaVitrine));
 
         View degradeBaixo = new View(this);
         degradeBaixo.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.parseColor("#000E0E10"), Color.parseColor("#990E0E10"), FUNDO}));
+                new int[]{Color.parseColor("#400B0B0D"), Color.parseColor("#990B0B0D"), FUNDO}));
         raiz.addView(degradeBaixo, new FrameLayout.LayoutParams(-1, alturaVitrine));
 
         View degradeLado = new View(this);
         degradeLado.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.parseColor("#E60E0E10"), Color.parseColor("#660E0E10"), Color.parseColor("#000E0E10")}));
+                new int[]{Color.parseColor("#D90B0B0D"), Color.parseColor("#400B0B0D"), Color.parseColor("#000B0B0D")}));
         raiz.addView(degradeLado, new FrameLayout.LayoutParams(-1, alturaVitrine));
 
-        // Barra de cima: status discreto à esquerda, relógio à direita
-        LinearLayout topo = new LinearLayout(this);
-        topo.setOrientation(LinearLayout.HORIZONTAL);
-        topo.setGravity(Gravity.CENTER_VERTICAL);
-        topo.setPadding(dp(56), dp(28), dp(56), 0);
-        statusTopo = new TextView(this);
-        statusTopo.setTextColor(TEXTO_2);
-        statusTopo.setTextSize(13);
-        topo.addView(statusTopo, new LinearLayout.LayoutParams(0, -2, 1));
+        // Relógio discreto no canto
         relogio = new TextView(this);
         relogio.setTextColor(BRANCO);
         relogio.setTextSize(20);
         relogio.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        topo.addView(relogio);
-        raiz.addView(topo, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
+        FrameLayout.LayoutParams lpRel = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
+        lpRel.setMargins(0, dp(30), margemLado, 0);
+        raiz.addView(relogio, lpRel);
 
         // Conteúdo rolável
         ScrollView rolagem = new ScrollView(this);
         rolagem.setVerticalScrollBarEnabled(false);
         rolagem.setClipChildren(false);
         rolagem.setClipToPadding(false);
+        rolagem.setSmoothScrollingEnabled(true);
         raiz.addView(rolagem, new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout coluna = new LinearLayout(this);
         coluna.setOrientation(LinearLayout.VERTICAL);
         coluna.setClipChildren(false);
         coluna.setClipToPadding(false);
-        coluna.setPadding(0, 0, 0, dp(48));
+        coluna.setPadding(margemLado, 0, margemLado, dp(56));
         rolagem.addView(coluna, new ScrollView.LayoutParams(-1, -2));
 
-        // Nome e detalhe do app em foco, sobre a vitrine
+        // Nome e detalhe do item em foco, sobre a vitrine
         LinearLayout textoVitrine = new LinearLayout(this);
         textoVitrine.setOrientation(LinearLayout.VERTICAL);
         textoVitrine.setGravity(Gravity.BOTTOM);
-        textoVitrine.setPadding(dp(56), 0, dp(56), dp(14));
+        textoVitrine.setPadding(0, 0, 0, dp(26));
         vitrineTitulo = new TextView(this);
         vitrineTitulo.setTextColor(BRANCO);
-        vitrineTitulo.setTextSize(40);
-        vitrineTitulo.setTypeface(Typeface.DEFAULT_BOLD);
+        vitrineTitulo.setTextSize(44);
+        vitrineTitulo.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        vitrineTitulo.setLetterSpacing(-0.01f);
         vitrineTitulo.setSingleLine(true);
         vitrineTitulo.setEllipsize(TextUtils.TruncateAt.END);
+        vitrineTitulo.setShadowLayer(dp(12), 0, dp(2), Color.parseColor("#99000000"));
         textoVitrine.addView(vitrineTitulo);
         vitrineSub = new TextView(this);
-        vitrineSub.setTextColor(TEXTO_2);
-        vitrineSub.setTextSize(15);
-        textoVitrine.addView(vitrineSub, margem(-2, -2, 0, dp(4), 0, 0));
-        coluna.addView(textoVitrine, new LinearLayout.LayoutParams(-1, (int) (altura * 0.42f)));
+        vitrineSub.setTextColor(Color.parseColor("#C7C7CC"));
+        vitrineSub.setTextSize(16);
+        textoVitrine.addView(vitrineSub, margem(-2, -2, 0, dp(6), 0, 0));
+        coluna.addView(textoVitrine, new LinearLayout.LayoutParams(-1, (int) (altura * 0.46f)));
 
-        // Favoritos (fileira de cima, maiores)
-        HorizontalScrollView rolagemFav = new HorizontalScrollView(this);
-        rolagemFav.setHorizontalScrollBarEnabled(false);
-        rolagemFav.setClipChildren(false);
-        rolagemFav.setClipToPadding(false);
-        rolagemFav.setPadding(dp(56), dp(18), dp(56), dp(10));
-        linhaFavoritos = new LinearLayout(this);
-        linhaFavoritos.setOrientation(LinearLayout.HORIZONTAL);
-        linhaFavoritos.setClipChildren(false);
-        rolagemFav.addView(linhaFavoritos);
-        coluna.addView(rolagemFav);
+        // Fileira de cima (dock): 4 favoritos + Meu Servidor
+        dock = new LinearLayout(this);
+        dock.setOrientation(LinearLayout.HORIZONTAL);
+        dock.setClipChildren(false);
+        dock.setClipToPadding(false);
+        coluna.addView(dock, new LinearLayout.LayoutParams(-1, -2));
+
+        // Linha fina separando a fileira de cima da grade
+        View linha = new View(this);
+        linha.setBackgroundColor(Color.parseColor("#22FFFFFF"));
+        coluna.addView(linha, margem(-1, Math.max(1, dp(1) / 2), 0, dp(4), 0, dp(30)));
 
         // Demais apps
         grade = new GridLayout(this);
         grade.setColumnCount(5);
         grade.setClipChildren(false);
         grade.setClipToPadding(false);
-        grade.setPadding(dp(56), dp(18), dp(40), 0);
         coluna.addView(grade);
 
         raiz.addView(montarPainel(), new FrameLayout.LayoutParams(-1, -1));
+        raiz.addView(montarDetalhe(), new FrameLayout.LayoutParams(-1, -1));
         return raiz;
     }
 
-    /** Ladrilho no estilo Apple TV: cantos arredondados, cresce e "flutua" no foco. */
-    private View ladrilho(String chave, int largura, int altura, View conteudo, String nome,
-                          Runnable aoFocar, Runnable aoClicar, Runnable aoSegurar) {
+    /** Ícone no estilo Apple TV: cantos suaves, cresce, ganha sombra e brilho no foco. */
+    private View icone(String chave, View conteudo, Drawable fundoIcone, String nome,
+                       Runnable aoFocar, Runnable aoClicar, Runnable aoSegurar) {
         LinearLayout caixa = new LinearLayout(this);
         caixa.setOrientation(LinearLayout.VERTICAL);
         caixa.setGravity(Gravity.CENTER_HORIZONTAL);
         caixa.setClipChildren(false);
+        caixa.setClipToPadding(false);
 
         FrameLayout cartao = new FrameLayout(this);
-        GradientDrawable fundoCartao = new GradientDrawable();
-        fundoCartao.setColor(CINZA_2);
-        fundoCartao.setCornerRadius(dp(14));
-        cartao.setBackground(fundoCartao);
+        cartao.setBackground(fundoIcone);
         cartao.setClipToOutline(true);
         cartao.addView(conteudo, new FrameLayout.LayoutParams(-1, -1));
-        caixa.addView(cartao, new LinearLayout.LayoutParams(largura, altura));
+
+        // Brilho que aparece no foco (efeito de luz da Apple TV)
+        View brilho = new View(this);
+        brilho.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{Color.parseColor("#40FFFFFF"), Color.parseColor("#08FFFFFF"), Color.parseColor("#00FFFFFF")}));
+        brilho.setAlpha(0f);
+        cartao.addView(brilho, new FrameLayout.LayoutParams(-1, -1));
+        caixa.addView(cartao, new LinearLayout.LayoutParams(larguraIcone, alturaIcone));
 
         TextView rotulo = new TextView(this);
         rotulo.setText(nome);
         rotulo.setTextColor(BRANCO);
-        rotulo.setTextSize(13);
+        rotulo.setTextSize(14);
+        rotulo.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         rotulo.setGravity(Gravity.CENTER);
         rotulo.setSingleLine(true);
         rotulo.setEllipsize(TextUtils.TruncateAt.END);
         rotulo.setAlpha(0f);
-        LinearLayout.LayoutParams lpRotulo = new LinearLayout.LayoutParams(largura, -2);
-        lpRotulo.topMargin = dp(12);
+        LinearLayout.LayoutParams lpRotulo = new LinearLayout.LayoutParams(larguraIcone + dp(20), -2);
+        lpRotulo.topMargin = dp(16);
         caixa.addView(rotulo, lpRotulo);
 
         caixa.setTag(chave);
         caixa.setFocusable(true);
         caixa.setClickable(true);
         caixa.setOnFocusChangeListener((v, foco) -> {
-            float e = foco ? 1.12f : 1f;
-            cartao.animate().scaleX(e).scaleY(e).translationY(foco ? -dp(4) : 0).setDuration(160).start();
-            cartao.setElevation(foco ? dp(18) : 0);
-            rotulo.animate().alpha(foco ? 1f : 0f).setDuration(160).start();
-            if (foco && aoFocar != null) aoFocar.run();
+            float e = foco ? 1.14f : 1f;
+            cartao.animate().scaleX(e).scaleY(e).translationY(foco ? -dp(6) : 0).setDuration(180).start();
+            cartao.setElevation(foco ? dp(24) : dp(2));
+            brilho.animate().alpha(foco ? 1f : 0f).setDuration(180).start();
+            rotulo.animate().alpha(foco ? 1f : 0f).translationY(foco ? dp(4) : 0).setDuration(180).start();
+            if (foco) {
+                v.requestRectangleOnScreen(new Rect(0, -dp(40), v.getWidth(), v.getHeight() + dp(40)));
+                if (aoFocar != null) aoFocar.run();
+            }
         });
-        caixa.setOnClickListener(v -> aoClicar.run());
+        caixa.setOnClickListener(v -> {
+            cartao.animate().scaleX(1.06f).scaleY(1.06f).setDuration(80)
+                    .withEndAction(() -> cartao.animate().scaleX(1.14f).scaleY(1.14f).setDuration(80).start()).start();
+            aoClicar.run();
+        });
         if (aoSegurar != null) {
             caixa.setOnLongClickListener(v -> {
                 aoSegurar.run();
@@ -363,47 +405,81 @@ public class MainActivity extends Activity {
         return caixa;
     }
 
-    private View conteudoApp(App a) {
-        ImageView img = new ImageView(this);
-        if (a.banner != null) {
-            img.setImageDrawable(a.banner);
-            img.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            return img;
-        }
-        FrameLayout f = new FrameLayout(this);
-        img.setImageDrawable(a.icone);
-        img.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        f.addView(img, new FrameLayout.LayoutParams(dp(52), dp(52), Gravity.CENTER));
-        return f;
+    private GradientDrawable fundoArredondado(int[] cores) {
+        GradientDrawable g = cores.length == 1
+                ? new GradientDrawable()
+                : new GradientDrawable(GradientDrawable.Orientation.TL_BR, cores);
+        if (cores.length == 1) g.setColor(cores[0]);
+        g.setCornerRadius(dp(12));
+        return g;
     }
 
-    private View conteudoServidor() {
-        LinearLayout c = new LinearLayout(this);
-        c.setOrientation(LinearLayout.VERTICAL);
-        c.setGravity(Gravity.CENTER);
-        c.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{Color.parseColor("#3A0A0D"), CINZA_1}));
-        TextView simbolo = new TextView(this);
-        simbolo.setText("●  ●  ●");
-        simbolo.setTextColor(TEXTO_2);
-        simbolo.setTextSize(14);
-        simbolo.setTag("bolinhas");
-        c.addView(simbolo);
-        TextView t = new TextView(this);
-        t.setText(NOME_SERVIDOR);
-        t.setTextColor(BRANCO);
-        t.setTextSize(17);
-        t.setTypeface(Typeface.DEFAULT_BOLD);
-        c.addView(t, margem(-2, -2, 0, dp(6), 0, 0));
-        return c;
+    private View iconeApp(App a) {
+        View conteudo;
+        Drawable fundoIcone;
+        if (a.banner != null) {
+            ImageView img = new ImageView(this);
+            img.setImageDrawable(a.banner);
+            img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            conteudo = img;
+            fundoIcone = fundoArredondado(new int[]{CINZA_2});
+        } else {
+            FrameLayout f = new FrameLayout(this);
+            ImageView img = new ImageView(this);
+            img.setImageDrawable(a.icone);
+            img.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            int t = Math.min(alturaIcone * 3 / 5, dp(64));
+            f.addView(img, new FrameLayout.LayoutParams(t, t, Gravity.CENTER));
+            conteudo = f;
+            fundoIcone = fundoArredondado(new int[]{clarear(a.cor, 0.12f), escurecer(a.cor, 0.35f)});
+        }
+        return icone(a.pacote, conteudo, fundoIcone, a.nome,
+                () -> mostrarNaVitrine(a), () -> abrirApp(a.pacote), () -> mostrarOpcoes(a));
+    }
+
+    private View iconeServidor() {
+        FrameLayout f = new FrameLayout(this);
+        ImageView img = new ImageView(this);
+        img.setImageResource(R.drawable.servidor);
+        int t = Math.min(alturaIcone / 2, dp(48));
+        f.addView(img, new FrameLayout.LayoutParams(t, t, Gravity.CENTER));
+        pontoServidor = new View(this);
+        GradientDrawable bola = new GradientDrawable();
+        bola.setShape(GradientDrawable.OVAL);
+        bola.setColor(TEXTO_2);
+        bola.setStroke(dp(2), Color.parseColor("#55000000"));
+        pontoServidor.setBackground(bola);
+        FrameLayout.LayoutParams lpPonto = new FrameLayout.LayoutParams(dp(12), dp(12), Gravity.TOP | Gravity.END);
+        lpPonto.setMargins(0, dp(10), dp(10), 0);
+        f.addView(pontoServidor, lpPonto);
+        return icone(SERVIDOR, f,
+                fundoArredondado(new int[]{Color.parseColor("#C8102E"), Color.parseColor("#4A0710")}),
+                NOME_SERVIDOR, this::mostrarServidorNaVitrine, this::abrirPainel, null);
+    }
+
+    private View iconeAjustes() {
+        FrameLayout f = new FrameLayout(this);
+        ImageView img = new ImageView(this);
+        img.setImageResource(R.drawable.engrenagem);
+        int t = Math.min(alturaIcone / 2, dp(46));
+        f.addView(img, new FrameLayout.LayoutParams(t, t, Gravity.CENTER));
+        return icone("__ajustes__", f,
+                fundoArredondado(new int[]{Color.parseColor("#636366"), Color.parseColor("#2C2C2E")}),
+                "Ajustes",
+                () -> {
+                    vitrineImagem.setImageDrawable(null);
+                    vitrineTitulo.setText("Ajustes");
+                    vitrineSub.setText("Configurações da TV e apps ocultos");
+                },
+                this::opcoesGerais, null);
     }
 
     private void mostrarNaVitrine(App a) {
-        vitrineImagem.setImageDrawable(a.banner);
+        vitrineImagem.setImageDrawable(a.banner != null ? a.banner : a.icone);
         vitrineTitulo.setText(a.nome);
         boolean abre = intencaoAbrir(a.pacote) != null;
         vitrineSub.setText(abre
-                ? (TextUtils.isEmpty(a.versao) ? "Pronto para abrir" : "Pronto para abrir · versão " + a.versao)
+                ? (TextUtils.isEmpty(a.versao) ? "Pronto para abrir" : "Versão " + a.versao)
                 : "Esse app não abre na TV");
     }
 
@@ -445,6 +521,7 @@ public class MainActivity extends Activity {
                         a.icone = ri.loadIcon(pm);
                     } catch (Exception ignorado) {
                     }
+                    a.cor = corMedia(a.icone);
                     try {
                         PackageInfo info = pm.getPackageInfo(pacote, 0);
                         a.versao = info.versionName == null ? "" : info.versionName;
@@ -472,50 +549,46 @@ public class MainActivity extends Activity {
         LinkedHashSet<String> fav = favoritos();
         LinkedHashSet<String> ocultos = ocultos();
 
-        linhaFavoritos.removeAllViews();
+        dock.removeAllViews();
         grade.removeAllViews();
         primeiroFocavel = null;
         View focarDepois = null;
 
-        int lf = dp(212), af = dp(119); // favoritos 16:9
+        // Fileira de cima: até 4 favoritos + Meu Servidor
+        List<App> naGrade = new ArrayList<>();
+        int noDock = 0;
         for (String p : fav) {
             App a = apps.get(p);
             if (a == null || ocultos.contains(p)) continue;
-            View t = ladrilho(p, lf, af, conteudoApp(a), a.nome,
-                    () -> mostrarNaVitrine(a), () -> abrirApp(a.pacote), () -> mostrarOpcoes(a));
-            linhaFavoritos.addView(t, margem(-2, -2, 0, 0, dp(28), 0));
+            if (noDock >= MAX_DOCK) {
+                naGrade.add(a);
+                continue;
+            }
+            View t = iconeApp(a);
+            dock.addView(t, margem(-2, -2, 0, 0, espaco, 0));
+            noDock++;
             if (primeiroFocavel == null) primeiroFocavel = t;
             if (p.equals(chaveFocada)) focarDepois = t;
         }
-        View tServidor = ladrilho(SERVIDOR, lf, af, conteudoServidor(), NOME_SERVIDOR,
-                this::mostrarServidorNaVitrine, this::abrirPainel, null);
-        linhaFavoritos.addView(tServidor, margem(-2, -2, 0, 0, dp(28), 0));
+        View tServidor = iconeServidor();
+        dock.addView(tServidor, margem(-2, -2, 0, 0, 0, 0));
         if (primeiroFocavel == null) primeiroFocavel = tServidor;
         if (SERVIDOR.equals(chaveFocada)) focarDepois = tServidor;
 
-        int lg = dp(150), ag = dp(84);
+        // Grade: favoritos que sobraram + demais apps + Ajustes
         for (App a : apps.values()) {
             if (ocultos.contains(a.pacote) || fav.contains(a.pacote)) continue;
-            View t = ladrilho(a.pacote, lg, ag, conteudoApp(a), a.nome,
-                    () -> mostrarNaVitrine(a), () -> abrirApp(a.pacote), () -> mostrarOpcoes(a));
-            grade.addView(t, itemGrade());
+            naGrade.add(a);
+        }
+        int i = 0;
+        for (App a : naGrade) {
+            View t = iconeApp(a);
+            grade.addView(t, itemGrade(i++));
             if (a.pacote.equals(chaveFocada)) focarDepois = t;
         }
-
-        // Configurações (e apps ocultos) no fim da grade
-        TextView engrenagem = new TextView(this);
-        engrenagem.setText("⚙");
-        engrenagem.setTextColor(BRANCO);
-        engrenagem.setTextSize(30);
-        engrenagem.setGravity(Gravity.CENTER);
-        View tConfig = ladrilho("__config__", lg, ag, engrenagem, "Configurações",
-                () -> {
-                    vitrineImagem.setImageDrawable(null);
-                    vitrineTitulo.setText("Configurações");
-                    vitrineSub.setText("Configurações da TV e apps ocultos");
-                },
-                this::opcoesGerais, null);
-        grade.addView(tConfig, itemGrade());
+        View tAjustes = iconeAjustes();
+        grade.addView(tAjustes, itemGrade(i));
+        if ("__ajustes__".equals(chaveFocada)) focarDepois = tAjustes;
 
         pApps.setText(apps.size() + " instalados");
         atualizarResumo();
@@ -524,11 +597,11 @@ public class MainActivity extends Activity {
         if (alvo != null && painel.getVisibility() != View.VISIBLE) alvo.requestFocus();
     }
 
-    private GridLayout.LayoutParams itemGrade() {
+    private GridLayout.LayoutParams itemGrade(int indice) {
         GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
         lp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
         lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
-        lp.setMargins(0, 0, dp(26), dp(6));
+        lp.setMargins(0, 0, (indice % 5 == 4) ? 0 : espaco, dp(8));
         return lp;
     }
 
@@ -565,7 +638,7 @@ public class MainActivity extends Activity {
         LinkedHashSet<String> fav = favoritos();
         boolean ehFavorito = fav.contains(a.pacote);
         String[] itens = {
-                ehFavorito ? "Tirar dos favoritos" : "Colocar nos favoritos",
+                ehFavorito ? "Tirar da fileira de cima" : "Colocar na fileira de cima",
                 "Ocultar da tela inicial",
                 "Informações do app",
                 "Desinstalar"
@@ -574,8 +647,16 @@ public class MainActivity extends Activity {
                 .setTitle(a.nome)
                 .setItems(itens, (d, qual) -> {
                     if (qual == 0) {
-                        if (ehFavorito) fav.remove(a.pacote);
-                        else fav.add(a.pacote);
+                        if (ehFavorito) {
+                            fav.remove(a.pacote);
+                        } else {
+                            // entra no começo da fileira de cima
+                            LinkedHashSet<String> novo = new LinkedHashSet<>();
+                            novo.add(a.pacote);
+                            novo.addAll(fav);
+                            fav.clear();
+                            fav.addAll(novo);
+                        }
                         salvar("favoritos", fav);
                         desenharApps();
                     } else if (qual == 1) {
@@ -583,7 +664,7 @@ public class MainActivity extends Activity {
                         oc.add(a.pacote);
                         salvar("ocultos", oc);
                         desenharApps();
-                        Toast.makeText(this, a.nome + " foi ocultado. Para voltar: Configurações ⚙", Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, a.nome + " foi ocultado. Para voltar: Ajustes.", Toast.LENGTH_LONG).show();
                     } else if (qual == 2) {
                         abrirIntent(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + a.pacote)));
                     } else if (qual == 3) {
@@ -597,7 +678,7 @@ public class MainActivity extends Activity {
     private void opcoesGerais() {
         String[] itens = {"Configurações da TV", "Mostrar apps ocultos"};
         new AlertDialog.Builder(this, R.style.Dialogo)
-                .setTitle("Configurações")
+                .setTitle("Ajustes")
                 .setItems(itens, (d, qual) -> {
                     if (qual == 0) abrirIntent(new Intent(Settings.ACTION_SETTINGS));
                     else mostrarOcultos();
@@ -660,119 +741,133 @@ public class MainActivity extends Activity {
         prefs.edit().putString(chave, TextUtils.join(",", valores)).apply();
     }
 
-    // ================================================================ tela "Meu Servidor"
+    // ================================================================ tela "Meu Servidor" (estilo Ajustes da Apple TV)
 
     private View montarPainel() {
         painel = new FrameLayout(this);
         painel.setBackgroundColor(FUNDO);
         painel.setVisibility(View.GONE);
 
-        painelRolagem = new ScrollView(this);
-        painelRolagem.setVerticalScrollBarEnabled(false);
-        painel.addView(painelRolagem, new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout duas = new LinearLayout(this);
+        duas.setOrientation(LinearLayout.HORIZONTAL);
+        painel.addView(duas, new FrameLayout.LayoutParams(-1, -1));
 
-        LinearLayout c = new LinearLayout(this);
-        c.setOrientation(LinearLayout.VERTICAL);
-        c.setPadding(dp(120), dp(40), dp(120), dp(48));
-        painelRolagem.addView(c, new ScrollView.LayoutParams(-1, -2));
+        // Lado esquerdo: ícone grande e resumo
+        LinearLayout esq = new LinearLayout(this);
+        esq.setOrientation(LinearLayout.VERTICAL);
+        esq.setGravity(Gravity.CENTER);
+        esq.setPadding(dp(48), dp(40), dp(24), dp(40));
+
+        FrameLayout grande = new FrameLayout(this);
+        grande.setBackground(fundoArredondado(new int[]{Color.parseColor("#C8102E"), Color.parseColor("#4A0710")}));
+        ((GradientDrawable) grande.getBackground()).setCornerRadius(dp(22));
+        grande.setElevation(dp(16));
+        ImageView sv = new ImageView(this);
+        sv.setImageResource(R.drawable.servidor);
+        grande.addView(sv, new FrameLayout.LayoutParams(dp(84), dp(84), Gravity.CENTER));
+        esq.addView(grande, new LinearLayout.LayoutParams(dp(250), dp(150)));
 
         TextView t = new TextView(this);
         t.setText(NOME_SERVIDOR);
         t.setTextColor(BRANCO);
-        t.setTextSize(34);
-        t.setTypeface(Typeface.DEFAULT_BOLD);
-        c.addView(t);
-        pAtualizado = new TextView(this);
-        pAtualizado.setTextColor(TEXTO_2);
-        pAtualizado.setTextSize(14);
-        c.addView(pAtualizado, margem(-2, -2, 0, dp(2), 0, dp(8)));
+        t.setTextSize(30);
+        t.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        t.setGravity(Gravity.CENTER);
+        esq.addView(t, margem(-2, -2, 0, dp(28), 0, 0));
 
-        // VPS Roxinha
-        c.addView(cabecalhoSecao("VPS ROXINHA"));
-        LinearLayout vps = grupo();
-        pRoxinhaResumo = linha(vps, "Sistemas no ar");
-        pVpsCpu = linha(vps, "Processador");
-        pVpsMemoria = linha(vps, "Memória");
-        pVpsDisco = linha(vps, "Disco");
-        pVpsLigada = linha(vps, "Ligada há");
+        TextView sub = new TextView(this);
+        sub.setText("VPS Roxinha · Hostinger");
+        sub.setTextColor(TEXTO_2);
+        sub.setTextSize(15);
+        sub.setGravity(Gravity.CENTER);
+        esq.addView(sub, margem(-2, -2, 0, dp(4), 0, 0));
+
+        pResumoGrande = new TextView(this);
+        pResumoGrande.setTextSize(17);
+        pResumoGrande.setGravity(Gravity.CENTER);
+        esq.addView(pResumoGrande, margem(-2, -2, 0, dp(22), 0, 0));
+
+        pAtualizado = new TextView(this);
+        pAtualizado.setTextColor(TEXTO_3);
+        pAtualizado.setTextSize(13);
+        pAtualizado.setGravity(Gravity.CENTER);
+        esq.addView(pAtualizado, margem(-2, -2, 0, dp(6), 0, 0));
+        duas.addView(esq, new LinearLayout.LayoutParams(0, -1, 0.42f));
+
+        // Lado direito: lista rolável
+        painelRolagem = new ScrollView(this);
+        painelRolagem.setVerticalScrollBarEnabled(false);
+        painelRolagem.setClipToPadding(false);
+        painelRolagem.setPadding(0, dp(48), 0, dp(48));
+        duas.addView(painelRolagem, new LinearLayout.LayoutParams(0, -1, 0.58f));
+
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(dp(12), 0, dp(64), 0);
+        painelRolagem.addView(c, new ScrollView.LayoutParams(-1, -2));
+
+        c.addView(cabecalhoSecao("VPS ROXINHA", true));
+        pRoxinhaResumo = linha(c, "Sistemas no ar", null, null);
+        pVpsCpu = linha(c, "Processador", null, null);
+        pVpsMemoria = linha(c, "Memória", null, null);
+        pVpsDisco = linha(c, "Disco", null, null);
+        pVpsLigada = linha(c, "Ligada há", null, null);
         for (TextView v : new TextView[]{pVpsCpu, pVpsMemoria, pVpsDisco, pVpsLigada}) {
             v.setText("aguardando monitor");
             v.setTextColor(TEXTO_3);
         }
-        c.addView(vps);
 
-        // Sistemas (preenchido por grupo)
         pSistemas = new LinearLayout(this);
         pSistemas.setOrientation(LinearLayout.VERTICAL);
         c.addView(pSistemas);
 
-        // Esta TV
-        c.addView(cabecalhoSecao("ESTA TV"));
-        LinearLayout tv = grupo();
-        pInternet = linha(tv, "Internet");
-        pRede = linha(tv, "Rede");
-        pArmazenamento = linha(tv, "Armazenamento livre");
-        pMemoria = linha(tv, "Memória livre");
-        pApps = linha(tv, "Apps instalados");
-        c.addView(tv);
+        c.addView(cabecalhoSecao("ESTA TV", false));
+        pInternet = linha(c, "Internet", null, null);
+        pRede = linha(c, "Rede", null, null);
+        pArmazenamento = linha(c, "Armazenamento livre", null, null);
+        pMemoria = linha(c, "Memória livre", null, null);
+        pApps = linha(c, "Apps instalados", null, null);
 
         TextView dica = new TextView(this);
-        dica.setText("OK num sistema testa de novo na hora · Voltar fecha");
+        dica.setText("OK num sistema abre os detalhes e as métricas  ·  Voltar fecha");
         dica.setTextColor(TEXTO_3);
         dica.setTextSize(12);
-        dica.setGravity(Gravity.CENTER);
-        c.addView(dica, margem(-1, -2, 0, dp(24), 0, 0));
+        c.addView(dica, margem(-1, -2, dp(18), dp(28), 0, 0));
         return painel;
     }
 
-    private TextView cabecalhoSecao(String texto) {
+    private TextView cabecalhoSecao(String texto, boolean primeiro) {
         TextView h = new TextView(this);
         h.setText(texto);
         h.setTextColor(TEXTO_2);
-        h.setTextSize(12);
-        h.setLetterSpacing(0.06f);
-        h.setPadding(dp(16), dp(26), 0, dp(8));
+        h.setTextSize(13);
+        h.setLetterSpacing(0.05f);
+        h.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        h.setPadding(dp(18), primeiro ? 0 : dp(28), 0, dp(8));
         return h;
     }
 
-    private LinearLayout grupo() {
-        LinearLayout g = new LinearLayout(this);
-        g.setOrientation(LinearLayout.VERTICAL);
-        GradientDrawable f = new GradientDrawable();
-        f.setColor(CINZA_1);
-        f.setCornerRadius(dp(14));
-        g.setBackground(f);
-        g.setClipToOutline(true);
-        return g;
-    }
-
-    /** Linha de um grupo (rótulo à esquerda, valor à direita). Devolve o texto do valor. */
-    private TextView linha(LinearLayout grupo, String rotulo) {
-        return linha(grupo, rotulo, null, null);
-    }
-
-    private TextView linha(LinearLayout grupo, String rotulo, String detalhe, Runnable aoClicar) {
-        if (grupo.getChildCount() > 0) {
-            View sep = new View(this);
-            sep.setBackgroundColor(CINZA_2);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, Math.max(1, dp(1) / 2));
-            lp.leftMargin = dp(18);
-            grupo.addView(sep, lp);
-        }
+    /** Linha estilo Ajustes da Apple TV: no foco vira uma barra branca com texto escuro. */
+    private TextView linha(LinearLayout lista, String rotulo, String detalhe, Runnable aoClicar) {
         LinearLayout l = new LinearLayout(this);
         l.setOrientation(LinearLayout.HORIZONTAL);
         l.setGravity(Gravity.CENTER_VERTICAL);
-        l.setPadding(dp(18), dp(13), dp(18), dp(13));
+        l.setPadding(dp(18), dp(12), dp(18), dp(12));
+        GradientDrawable f = new GradientDrawable();
+        f.setCornerRadius(dp(12));
+        f.setColor(CINZA_1);
+        l.setBackground(f);
 
         LinearLayout esq = new LinearLayout(this);
         esq.setOrientation(LinearLayout.VERTICAL);
         TextView r = new TextView(this);
         r.setText(rotulo);
         r.setTextColor(BRANCO);
-        r.setTextSize(16);
+        r.setTextSize(17);
         esq.addView(r);
+        TextView d = null;
         if (detalhe != null) {
-            TextView d = new TextView(this);
+            d = new TextView(this);
             d.setText(detalhe);
             d.setTextColor(TEXTO_3);
             d.setTextSize(12);
@@ -782,19 +877,25 @@ public class MainActivity extends Activity {
 
         TextView v = new TextView(this);
         v.setTextColor(TEXTO_2);
-        v.setTextSize(15);
+        v.setTextSize(16);
         v.setGravity(Gravity.END);
         v.setText("—");
         l.addView(v);
 
+        final TextView detalheFinal = d;
         l.setFocusable(true);
         l.setClickable(true);
         l.setOnFocusChangeListener((x, foco) -> {
-            x.setBackgroundColor(foco ? CINZA_3 : Color.TRANSPARENT);
-            if (foco) x.requestRectangleOnScreen(new Rect(0, 0, x.getWidth(), x.getHeight()));
+            f.setColor(foco ? BRANCO : CINZA_1);
+            r.setTextColor(foco ? PRETO_TEXTO : BRANCO);
+            v.setTextColor(foco ? CINZA_3 : TEXTO_2);
+            if (detalheFinal != null) detalheFinal.setTextColor(foco ? CINZA_3 : TEXTO_3);
+            x.animate().scaleX(foco ? 1.03f : 1f).scaleY(foco ? 1.03f : 1f).setDuration(140).start();
+            x.setElevation(foco ? dp(10) : 0);
+            if (foco) x.requestRectangleOnScreen(new Rect(0, -dp(60), x.getWidth(), x.getHeight() + dp(60)));
         });
         if (aoClicar != null) l.setOnClickListener(x -> aoClicar.run());
-        grupo.addView(l);
+        lista.addView(l, margem(-1, -2, 0, 0, 0, dp(6)));
         if (painelPrimeiro == null) painelPrimeiro = l;
         return v;
     }
@@ -802,7 +903,7 @@ public class MainActivity extends Activity {
     private void abrirPainel() {
         painel.setVisibility(View.VISIBLE);
         painel.setAlpha(0f);
-        painel.animate().alpha(1f).setDuration(180).start();
+        painel.animate().alpha(1f).setDuration(200).start();
         painelRolagem.scrollTo(0, 0);
         atualizarStatusLocal();
         if (painelPrimeiro != null) painelPrimeiro.requestFocus();
@@ -813,9 +914,168 @@ public class MainActivity extends Activity {
     private void fecharPainel() {
         if (painel == null || painel.getVisibility() != View.VISIBLE) return;
         painel.setVisibility(View.GONE);
-        View p = linhaFavoritos.findViewWithTag(SERVIDOR);
+        View p = dock.findViewWithTag(SERVIDOR);
         if (p != null) p.requestFocus();
         else if (primeiroFocavel != null) primeiroFocavel.requestFocus();
+    }
+
+    // ================================================================ detalhe de um sistema
+
+    private View montarDetalhe() {
+        detalhe = new FrameLayout(this);
+        detalhe.setBackgroundColor(FUNDO);
+        detalhe.setVisibility(View.GONE);
+
+        LinearLayout duas = new LinearLayout(this);
+        duas.setOrientation(LinearLayout.HORIZONTAL);
+        detalhe.addView(duas, new FrameLayout.LayoutParams(-1, -1));
+
+        LinearLayout esq = new LinearLayout(this);
+        esq.setOrientation(LinearLayout.VERTICAL);
+        esq.setGravity(Gravity.CENTER);
+        esq.setPadding(dp(48), dp(40), dp(24), dp(40));
+
+        FrameLayout grande = new FrameLayout(this);
+        GradientDrawable fg = fundoArredondado(new int[]{Color.parseColor("#3A3A3C"), Color.parseColor("#1C1C1E")});
+        fg.setCornerRadius(dp(22));
+        grande.setBackground(fg);
+        grande.setElevation(dp(16));
+        ImageView sv = new ImageView(this);
+        sv.setImageResource(R.drawable.servidor);
+        grande.addView(sv, new FrameLayout.LayoutParams(dp(72), dp(72), Gravity.CENTER));
+        esq.addView(grande, new LinearLayout.LayoutParams(dp(250), dp(150)));
+
+        dGrupo = new TextView(this);
+        dGrupo.setTextColor(TEXTO_2);
+        dGrupo.setTextSize(13);
+        dGrupo.setLetterSpacing(0.06f);
+        dGrupo.setGravity(Gravity.CENTER);
+        esq.addView(dGrupo, margem(-2, -2, 0, dp(26), 0, 0));
+
+        dTitulo = new TextView(this);
+        dTitulo.setTextColor(BRANCO);
+        dTitulo.setTextSize(28);
+        dTitulo.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        dTitulo.setGravity(Gravity.CENTER);
+        esq.addView(dTitulo, margem(-2, -2, 0, dp(4), 0, 0));
+
+        dSituacao = new TextView(this);
+        dSituacao.setTextSize(17);
+        dSituacao.setGravity(Gravity.CENTER);
+        esq.addView(dSituacao, margem(-2, -2, 0, dp(16), 0, 0));
+        duas.addView(esq, new LinearLayout.LayoutParams(0, -1, 0.42f));
+
+        detalheRolagem = new ScrollView(this);
+        detalheRolagem.setVerticalScrollBarEnabled(false);
+        detalheRolagem.setClipToPadding(false);
+        detalheRolagem.setPadding(0, dp(48), 0, dp(48));
+        duas.addView(detalheRolagem, new LinearLayout.LayoutParams(0, -1, 0.58f));
+
+        dLista = new LinearLayout(this);
+        dLista.setOrientation(LinearLayout.VERTICAL);
+        dLista.setPadding(dp(12), 0, dp(64), 0);
+        detalheRolagem.addView(dLista, new ScrollView.LayoutParams(-1, -2));
+        return detalhe;
+    }
+
+    private void abrirDetalhe(Sistema s) {
+        sistemaAberto = s;
+        dGrupo.setText(s.grupo.toUpperCase(PT_BR));
+        dTitulo.setText(s.nome);
+        dLista.removeAllViews();
+
+        dLista.addView(cabecalhoSecao("SITUAÇÃO", true));
+        View primeira = null;
+        TextView situacao = linha(dLista, "Agora", null, () -> {
+            pintar(dSituacao, "testando…", AMARELO);
+            dSituacao.setTextColor(BRANCO);
+            testarUm(s);
+        });
+        situacao.setTag("situacao");
+        primeira = (View) situacao.getParent();
+        TextView endereco = linha(dLista, "Endereço", null, null);
+        endereco.setText(Uri.parse(s.url).getHost());
+        TextView resposta = linha(dLista, "Tempo de resposta", null, null);
+        resposta.setTag("resposta");
+        preencherSituacao(s);
+
+        dLista.addView(cabecalhoSecao("MÉTRICAS", false));
+        LinearLayout metricas = new LinearLayout(this);
+        metricas.setOrientation(LinearLayout.VERTICAL);
+        dLista.addView(metricas);
+        if (s.detalhes == null) {
+            TextView v = linha(metricas, "Ainda não ligado", "Este sistema ainda não manda números para a TV", null);
+            v.setText("");
+        } else {
+            TextView carregando = linha(metricas, "Carregando…", null, null);
+            carregando.setText("");
+            final String url = s.detalhes;
+            rede.execute(() -> {
+                String json = baixar(url);
+                ui.post(() -> {
+                    if (sistemaAberto != s) return;
+                    metricas.removeAllViews();
+                    if (json == null) {
+                        TextView v = linha(metricas, "Não consegui buscar as métricas", "O sistema não respondeu agora", null);
+                        v.setText("");
+                        return;
+                    }
+                    try {
+                        JSONArray itens = new JSONObject(json).getJSONArray("itens");
+                        for (int i = 0; i < itens.length(); i++) {
+                            JSONObject it = itens.getJSONObject(i);
+                            String det = it.optString("detalhe", "");
+                            TextView v = linha(metricas, it.optString("rotulo", "—"), det.isEmpty() ? null : det, null);
+                            v.setText(it.optString("valor", "—"));
+                        }
+                        if (itens.length() == 0) {
+                            TextView v = linha(metricas, "Sem números por enquanto", null, null);
+                            v.setText("");
+                        }
+                    } catch (Exception e) {
+                        TextView v = linha(metricas, "Resposta inválida do sistema", null, null);
+                        v.setText("");
+                    }
+                });
+            });
+        }
+
+        detalhe.setVisibility(View.VISIBLE);
+        detalhe.setAlpha(0f);
+        detalhe.animate().alpha(1f).setDuration(200).start();
+        detalheRolagem.scrollTo(0, 0);
+        if (primeira != null) primeira.requestFocus();
+    }
+
+    private void preencherSituacao(Sistema s) {
+        String texto;
+        int cor;
+        if (s.estado == 1) {
+            texto = "No ar";
+            cor = VERDE;
+        } else if (s.estado == 2) {
+            texto = "Lento";
+            cor = AMARELO;
+        } else if (s.estado == 3) {
+            texto = "Fora do ar";
+            cor = VERMELHO;
+        } else {
+            texto = "Verificando…";
+            cor = TEXTO_2;
+        }
+        pintar(dSituacao, texto, cor);
+        dSituacao.setTextColor(BRANCO);
+        View sit = dLista.findViewWithTag("situacao");
+        if (sit instanceof TextView) pintar((TextView) sit, texto + "  ·  OK testa de novo", cor);
+        View resp = dLista.findViewWithTag("resposta");
+        if (resp instanceof TextView) ((TextView) resp).setText(s.ms >= 0 ? s.ms + " ms" : "—");
+    }
+
+    private void fecharDetalhe() {
+        detalhe.setVisibility(View.GONE);
+        Sistema s = sistemaAberto;
+        sistemaAberto = null;
+        if (s != null && s.linhaView != null) s.linhaView.requestFocus();
     }
 
     // ================================================================ sistemas da Roxinha
@@ -843,6 +1103,8 @@ public class MainActivity extends Activity {
                 s.grupo = o.optString("grupo", "Outros");
                 s.nome = o.optString("nome", "Sistema");
                 s.url = o.optString("url", "");
+                s.detalhes = o.optString("detalhes", "");
+                if (s.detalhes.isEmpty()) s.detalhes = null;
                 if (!s.url.isEmpty()) novos.add(s);
             }
         } catch (Exception e) {
@@ -853,20 +1115,15 @@ public class MainActivity extends Activity {
         sistemas.addAll(novos);
 
         pSistemas.removeAllViews();
-        Map<String, LinearLayout> grupos = new LinkedHashMap<>();
+        String grupoAtual = null;
         for (Sistema s : sistemas) {
-            LinearLayout g = grupos.get(s.grupo);
-            if (g == null) {
-                pSistemas.addView(cabecalhoSecao(s.grupo.toUpperCase(PT_BR)));
-                g = grupo();
-                pSistemas.addView(g);
-                grupos.put(s.grupo, g);
+            if (!s.grupo.equals(grupoAtual)) {
+                pSistemas.addView(cabecalhoSecao(s.grupo.toUpperCase(PT_BR), false));
+                grupoAtual = s.grupo;
             }
             String host = Uri.parse(s.url).getHost();
-            s.status = linha(g, s.nome, host, () -> {
-                pintar(s.status, "testando…", AMARELO);
-                testarUm(s);
-            });
+            s.status = linha(pSistemas, s.nome, host, () -> abrirDetalhe(s));
+            s.linhaView = (View) s.status.getParent();
             pintar(s.status, "verificando", TEXTO_3);
         }
         atualizarResumo();
@@ -915,6 +1172,7 @@ public class MainActivity extends Activity {
             testes.execute(() -> {
                 long ms = testar(s.url, 0);
                 ui.post(() -> {
+                    s.ms = ms;
                     if (ms < 0) {
                         s.estado = 3;
                         pintar(s.status, "Fora do ar", VERMELHO);
@@ -926,6 +1184,7 @@ public class MainActivity extends Activity {
                         pintar(s.status, "No ar · " + ms + " ms", VERDE);
                     }
                     atualizarResumo();
+                    if (s == sistemaAberto && detalhe.getVisibility() == View.VISIBLE) preencherSituacao(s);
                 });
             });
         } catch (Exception ignorado) {
@@ -952,39 +1211,38 @@ public class MainActivity extends Activity {
     }
 
     private void atualizarResumo() {
-        if (statusTopo == null || pRoxinhaResumo == null) return;
+        if (pRoxinhaResumo == null) return;
         int total = sistemas.size(), ok = 0, fora = 0, testados = 0;
         for (Sistema s : sistemas) {
             if (s.estado != 0) testados++;
             if (s.estado == 1 || s.estado == 2) ok++;
             if (s.estado == 3) fora++;
         }
+        int cor;
+        String texto;
+        if (!temInternet) {
+            cor = VERMELHO;
+            texto = "Sem internet na TV";
+        } else if (total == 0 || testados < total) {
+            cor = TEXTO_2;
+            texto = "Verificando…";
+        } else if (fora == 0) {
+            cor = VERDE;
+            texto = "Tudo funcionando";
+        } else {
+            cor = fora == total ? VERMELHO : AMARELO;
+            texto = fora == 1 ? "1 sistema fora do ar" : fora + " sistemas fora do ar";
+        }
         if (total > 0 && testados > 0) {
             pintar(pRoxinhaResumo, ok + " de " + total, fora == 0 ? VERDE : ok == 0 ? VERMELHO : AMARELO);
         }
-        // Status discreto na tela inicial
-        String texto;
-        int cor;
-        if (!temInternet) {
-            texto = "Sem internet";
-            cor = VERMELHO;
-        } else if (total == 0 || testados < total) {
-            texto = "Verificando o servidor…";
-            cor = TEXTO_3;
-        } else if (fora == 0) {
-            texto = "Servidor: tudo funcionando";
-            cor = VERDE;
-        } else {
-            texto = "Servidor: " + (fora == 1 ? "1 sistema fora do ar" : fora + " sistemas fora do ar");
-            cor = fora == total ? VERMELHO : AMARELO;
+        pintar(pResumoGrande, texto, cor);
+        pResumoGrande.setTextColor(BRANCO);
+        if (pontoServidor != null && pontoServidor.getBackground() instanceof GradientDrawable) {
+            ((GradientDrawable) pontoServidor.getBackground()).setColor(cor);
         }
-        pintar(statusTopo, texto, cor);
-        View p = linhaFavoritos == null ? null : linhaFavoritos.findViewWithTag(SERVIDOR);
-        if (p != null) {
-            View b = p.findViewWithTag("bolinhas");
-            if (b instanceof TextView) ((TextView) b).setTextColor(cor == TEXTO_3 ? TEXTO_2 : cor);
-            if (p.hasFocus()) vitrineSub.setText(resumoGeral());
-        }
+        View p = dock == null ? null : dock.findViewWithTag(SERVIDOR);
+        if (p != null && p.hasFocus()) vitrineSub.setText(resumoGeral());
     }
 
     private String resumoGeral() {
@@ -1110,12 +1368,57 @@ public class MainActivity extends Activity {
 
     // ================================================================ utilidades
 
+    /** Escreve "● texto" com a bolinha colorida; respeita a linha em foco (texto escuro). */
     private void pintar(TextView v, String texto, int corBolinha) {
         if (v == null) return;
         SpannableString s = new SpannableString("●  " + texto);
         s.setSpan(new ForegroundColorSpan(corBolinha), 0, 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         v.setText(s);
-        v.setTextColor(TEXTO_2);
+        ViewParent pai = v.getParent();
+        boolean emFoco = pai instanceof View && ((View) pai).isFocused();
+        v.setTextColor(emFoco ? CINZA_3 : TEXTO_2);
+    }
+
+    /** Cor média de um ícone (para o fundo dos ícones sem banner). */
+    private int corMedia(Drawable d) {
+        if (d == null) return CINZA_2;
+        try {
+            Drawable copia = d.getConstantState() != null ? d.getConstantState().newDrawable().mutate() : d;
+            Bitmap b = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888);
+            Canvas c = new Canvas(b);
+            copia.setBounds(0, 0, 16, 16);
+            copia.draw(c);
+            long r = 0, g = 0, bl = 0, n = 0;
+            for (int x = 0; x < 16; x++) {
+                for (int y = 0; y < 16; y++) {
+                    int px = b.getPixel(x, y);
+                    if (Color.alpha(px) < 160) continue;
+                    int pr = Color.red(px), pg = Color.green(px), pb = Color.blue(px);
+                    int max = Math.max(pr, Math.max(pg, pb)), min = Math.min(pr, Math.min(pg, pb));
+                    if (max - min < 24) continue; // ignora branco, preto e cinza
+                    r += pr;
+                    g += pg;
+                    bl += pb;
+                    n++;
+                }
+            }
+            b.recycle();
+            if (n == 0) return CINZA_2;
+            return Color.rgb((int) (r / n), (int) (g / n), (int) (bl / n));
+        } catch (Exception e) {
+            return CINZA_2;
+        }
+    }
+
+    private static int escurecer(int cor, float quanto) {
+        return Color.rgb((int) (Color.red(cor) * (1 - quanto)), (int) (Color.green(cor) * (1 - quanto)),
+                (int) (Color.blue(cor) * (1 - quanto)));
+    }
+
+    private static int clarear(int cor, float quanto) {
+        return Color.rgb((int) (Color.red(cor) + (255 - Color.red(cor)) * quanto),
+                (int) (Color.green(cor) + (255 - Color.green(cor)) * quanto),
+                (int) (Color.blue(cor) + (255 - Color.blue(cor)) * quanto));
     }
 
     private static String gb(long bytes) {

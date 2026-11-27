@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Símbolo do servidor (três gavetas com luzinhas), branco -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.95"
+        android:pathData="M12,8h40a5,5 0,0 1,5 5v6a5,5 0,0 1,-5 5h-40a5,5 0,0 1,-5 -5v-6a5,5 0,0 1,5 -5z" />
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.75"
+        android:pathData="M12,28h40a5,5 0,0 1,5 5v6a5,5 0,0 1,-5 5h-40a5,5 0,0 1,-5 -5v-6a5,5 0,0 1,5 -5z" />
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.55"
+        android:pathData="M12,48h40a5,5 0,0 1,5 5v1a5,5 0,0 1,-5 5h-40a5,5 0,0 1,-5 -5v-1a5,5 0,0 1,5 -5z" />
+    <path android:fillColor="#1C1C1E" android:pathData="M15,16m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
+    <path android:fillColor="#1C1C1E" android:pathData="M15,36m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
+    <path android:fillColor="#1C1C1E" android:pathData="M26,14.5h22v3h-22z" />
+    <path android:fillColor="#1C1C1E" android:pathData="M26,34.5h22v3h-22z" />
+</vector>
