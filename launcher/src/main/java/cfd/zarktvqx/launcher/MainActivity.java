@@ -269,14 +269,17 @@ public class MainActivity extends Activity {
         raiz.setBackgroundColor(FUNDO);
 
         // Vitrine (top shelf): fotos grandes passando sozinhas (estilo Fire TV / Apple TV)
+        FrameLayout molduraFotos = new FrameLayout(this); // corta o zoom lento dentro da área da foto
+        molduraFotos.setClipChildren(true);
         fotoA = new ImageView(this);
         fotoA.setScaleType(ImageView.ScaleType.CENTER_CROP);
         fotoA.setAlpha(0f);
-        raiz.addView(fotoA, new FrameLayout.LayoutParams(-1, alturaVitrine));
+        molduraFotos.addView(fotoA, new FrameLayout.LayoutParams(-1, -1));
         fotoB = new ImageView(this);
         fotoB.setScaleType(ImageView.ScaleType.CENTER_CROP);
         fotoB.setAlpha(0f);
-        raiz.addView(fotoB, new FrameLayout.LayoutParams(-1, alturaVitrine));
+        molduraFotos.addView(fotoB, new FrameLayout.LayoutParams(-1, -1));
+        raiz.addView(molduraFotos, new FrameLayout.LayoutParams(-1, alturaVitrine));
 
         // Fundo das marcas próprias (ZarkTV, ZarkPlay, Meu Servidor)
         marcaFundo = new FrameLayout(this);
