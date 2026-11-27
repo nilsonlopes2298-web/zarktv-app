@@ -102,7 +102,7 @@ enum class BackAction(val label: String) {
 /** Network settings that help when an ISP blocks or throttles IPTV. */
 data class NetworkSettings(
     /** system, cloudflare, google, quad9, adguard, custom */
-    val dns: String = "system",
+    val dns: String = "zark",
     val dnsCustomUrl: String = "",
     /** none, http, socks5 */
     val proxyType: String = "none",
@@ -315,7 +315,7 @@ class SettingsStore(private val context: Context) {
         pinHash = this[Keys.PIN_HASH],
         pinForSettings = this[Keys.PIN_SETTINGS] ?: false,
         network = NetworkSettings(
-            dns = this[Keys.DNS] ?: "system",
+            dns = this[Keys.DNS] ?: "zark",
             dnsCustomUrl = this[Keys.DNS_URL].orEmpty(),
             proxyType = this[Keys.PROXY_TYPE] ?: "none",
             proxyHost = this[Keys.PROXY_HOST].orEmpty(),

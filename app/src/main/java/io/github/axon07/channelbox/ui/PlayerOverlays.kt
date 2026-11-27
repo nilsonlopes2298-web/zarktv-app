@@ -100,7 +100,7 @@ fun BoxScope.InfoBanner(
                 if (next != null) {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Next  ${timeFormat(next.start)}   ${next.title}",
+                        "Depois  ${timeFormat(next.start)}   ${next.title}",
                         fontSize = 13.sp, color = Palette.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }

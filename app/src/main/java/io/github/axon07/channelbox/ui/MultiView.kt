@@ -220,7 +220,7 @@ fun MultiViewScreen(
 
         when (state.count) {
             0 -> Text(
-                "Press Menu (or long-press) to add a channel",
+                "Aperte Menu (ou segure) para adicionar um canal",
                 fontSize = 14.sp, color = Palette.TextDim, modifier = Modifier.align(Alignment.Center),
             )
             1 -> tile(0, Modifier.fillMaxSize())
@@ -249,8 +249,8 @@ fun MultiViewScreen(
 
         AnimatedVisibility(hints, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
             Text(
-                if (touch) "Tap: sound from that channel · Long-press: full screen, change, add or remove"
-                else "OK: change channel · Hold OK: full screen & more · Menu: add a channel · Back: exit",
+                if (touch) "Toque: som desse canal · Segure: tela cheia, trocar, adicionar ou tirar"
+                else "OK: trocar canal · Segure OK: tela cheia e mais · Menu: adicionar canal · Voltar: sair",
                 fontSize = 12.sp, color = Color.White,
                 modifier = Modifier
                     .padding(bottom = 12.dp)

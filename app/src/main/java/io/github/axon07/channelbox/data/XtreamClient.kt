@@ -106,7 +106,7 @@ class XtreamClient(private val http: OkHttpClient) {
             throw IOException("Login failed – check the server, username and password")
         }
         userInfo.str("status")?.let { status ->
-            if (!status.equals("Active", ignoreCase = true)) throw IOException("Account status: $status")
+            if (!status.equals("Active", ignoreCase = true)) throw IOException("Situação da conta: $status")
         }
         // Archive times are given in the server's own time zone.
         val serverZone = (auth["server_info"] as? JsonObject)?.str("timezone")?.takeIf { it.isNotBlank() }

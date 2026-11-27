@@ -30,7 +30,7 @@ object UserAgent {
 
     /** Name to user-agent string. Empty string = Channelbox default. */
     val PRESETS = linkedMapOf(
-        "Channelbox (default)" to "",
+        "Padrão do ZarkTV" to "",
         "VLC" to "VLC/3.0.20 LibVLC/3.0.20",
         "Kodi" to "Kodi/21.0 (Linux; Android 12.0; Build) Android/12.0.0 Sys_CPU/aarch64 App_Bitness/64 Version/21.0",
         "Chrome (Android)" to "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
@@ -44,12 +44,13 @@ object UserAgent {
     }
 
     fun presetName(value: String): String =
-        PRESETS.entries.firstOrNull { it.value == value }?.key ?: "Custom"
+        PRESETS.entries.firstOrNull { it.value == value }?.key ?: "Personalizado"
 }
 
 /** DNS-over-HTTPS choices: name to (URL, bootstrap IPs). Gets around ISP DNS blocking. */
 val DNS_PRESETS = linkedMapOf(
-    "system" to ("System (your ISP)" to emptyList<String>()),
+    "zark" to ("" to emptyList<String>()),
+    "system" to ("Do aparelho (operadora)" to emptyList<String>()),
     "cloudflare" to ("https://cloudflare-dns.com/dns-query" to listOf("1.1.1.1", "1.0.0.1")),
     "google" to ("https://dns.google/dns-query" to listOf("8.8.8.8", "8.8.4.4")),
     "quad9" to ("https://dns.quad9.net/dns-query" to listOf("9.9.9.9", "149.112.112.112")),
@@ -58,12 +59,13 @@ val DNS_PRESETS = linkedMapOf(
 )
 
 val DNS_LABELS = mapOf(
-    "system" to "System (your ISP)",
+    "zark" to "Automático (Google 8.8.8.8 + Cloudflare 1.1.1.1)",
+    "system" to "Do aparelho (operadora)",
     "cloudflare" to "Cloudflare 1.1.1.1",
     "google" to "Google 8.8.8.8",
     "quad9" to "Quad9",
     "adguard" to "AdGuard",
-    "custom" to "Custom",
+    "custom" to "Personalizado",
 )
 
 /**
@@ -105,6 +107,12 @@ fun createHttpClient(net: NetworkSettings = NetworkSettings()): OkHttpClient {
         }
     }
 
+    // ZarkTV (padrão): todo endereço é procurado no Google 8.8.8.8; se falhar, no Cloudflare 1.1.1.1;
+    // e só por último no DNS da internet do cliente. Assim o bloqueio/falha do DNS da operadora não trava o app.
+    if (net.dns == "zark") {
+        builder.dns(DnsZark)
+        return builder.build()
+    }
     // Encrypted DNS (DNS-over-HTTPS), falling back to the system DNS if it's unreachable.
     if (net.dns != "system") {
         val preset = DNS_PRESETS[net.dns]
@@ -186,3 +194,30 @@ fun maybeGunzip(input: InputStream): InputStream {
 fun redact(url: String): String = url
     .replace(Regex("(?i)(password|username)=[^&]*"), "$1=***")
     .substringBefore("/live/")
+
+
+/** DNS do ZarkTV: Google → Cloudflare → DNS do aparelho, com memória de 10 minutos por endereço. */
+object DnsZark : Dns {
+    private fun doh(url: String, ips: List<String>): DnsOverHttps = DnsOverHttps.Builder()
+        .client(OkHttpClient.Builder().connectTimeout(4, TimeUnit.SECONDS).readTimeout(4, TimeUnit.SECONDS).build())
+        .url(url.toHttpUrlOrNull()!!)
+        .bootstrapDnsHosts(ips.map { InetAddress.getByName(it) })
+        .includeIPv6(false)
+        .build()
+
+    private val google by lazy { doh("https://dns.google/dns-query", listOf("8.8.8.8", "8.8.4.4")) }
+    private val cloudflare by lazy { doh("https://cloudflare-dns.com/dns-query", listOf("1.1.1.1", "1.0.0.1")) }
+    private val memoria = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, List<InetAddress>>>()
+
+    override fun lookup(hostname: String): List<InetAddress> {
+        // Endereço já em número (IP) ou nome local: não precisa procurar.
+        if (hostname.firstOrNull()?.isDigit() == true || !hostname.contains('.')) return Dns.SYSTEM.lookup(hostname)
+        val agora = System.currentTimeMillis()
+        memoria[hostname]?.let { (quando, ips) -> if (agora - quando < 10 * 60_000) return ips }
+        for (fonte in listOf<() -> List<InetAddress>>({ google.lookup(hostname) }, { cloudflare.lookup(hostname) })) {
+            val ips = runCatching { fonte() }.getOrNull()
+            if (!ips.isNullOrEmpty()) { memoria[hostname] = agora to ips; return ips }
+        }
+        return Dns.SYSTEM.lookup(hostname)
+    }
+}

@@ -231,7 +231,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setChannelHidden(ch: ChannelEntity, hidden: Boolean) {
         edit(channelKey(ch.id)) { it.copy(hidden = hidden) }
-        if (hidden) showToast("${ch.name} hidden – show it again in Settings → Parental controls & hidden")
+        if (hidden) showToast("${ch.name} escondido – mostre de novo em Ajustes → Controle dos pais e escondidos")
     }
 
     fun renameGroup(shown: String, name: String?) =
@@ -239,7 +239,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setGroupHidden(shown: String, hidden: Boolean) {
         edit(groupKey(originalGroup(shown))) { it.copy(hidden = hidden) }
-        if (hidden) showToast("${groupLabel(shown)} hidden – show it again in Settings → Parental controls & hidden")
+        if (hidden) showToast("${groupLabel(shown)} escondido – mostre de novo em Ajustes → Controle dos pais e escondidos")
     }
 
     /** Moves a group up (-1) or down (+1) in the groups menu. */
@@ -415,18 +415,18 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     /** Choose a new PIN (asks for the old one first). */
     fun changePin() {
         val nova = { _pinRequest.value = PinRequest("Choose a 4-digit PIN", setup = true) {} }
-        if (unlocked) nova() else _pinRequest.value = PinRequest("Enter your current PIN", continuar = false, onSuccess = nova)
+        if (unlocked) nova() else _pinRequest.value = PinRequest("Digite sua senha atual", continuar = false, onSuccess = nova)
     }
 
     fun removePin() {
         val tirar = {
             viewModelScope.launch {
                 c.settings.setPinHash(null)
-                showToast("PIN removed – nothing is locked any more")
+                showToast("Senha removida – nada está bloqueado")
             }
             Unit
         }
-        if (unlocked) tirar() else _pinRequest.value = PinRequest("Enter your PIN to remove it", continuar = false, onSuccess = tirar)
+        if (unlocked) tirar() else _pinRequest.value = PinRequest("Digite sua senha para removê-la", continuar = false, onSuccess = tirar)
     }
 
     fun setPinForSettings(on: Boolean) = requirePin("Digite sua senha") {
@@ -778,7 +778,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     /** Smooth Streaming channels can't be recorded yet: say so instead of adding a recording that fails. */
     private fun canRecord(ch: ChannelEntity): Boolean {
         if (recorder.canRecord(StreamSpecs.from(ch))) return true
-        showToast("${ch.name} uses Smooth Streaming, which can't be recorded yet")
+        showToast("${ch.name} usa Smooth Streaming, que ainda não dá para gravar")
         return false
     }
 
@@ -795,7 +795,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val title = program?.title ?: ch.name
             recorder.schedule(ch, title, now, program?.stop?.plus(2 * 60_000L) ?: (now + 2 * HOUR), program?.start)
-            showToast("● Recording: $title")
+            showToast("● Gravando: $title")
         }
     }
 
@@ -821,7 +821,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
                 stop = program.stop + 2 * 60_000L,
                 programStart = program.start,
             )
-            showToast(if (program.start > now) "Recording scheduled: ${program.title}" else "● Recording: ${program.title}")
+            showToast(if (program.start > now) "Recording scheduled: ${program.title}" else "● Gravando: ${program.title}")
         }
     }
 
@@ -930,7 +930,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     fun setVpnEnabled(on: Boolean) = viewModelScope.launch {
         val n = c.settings.current().network
         if (on && n.vpnConfig.isBlank()) {
-            showToast("Add a WireGuard config first")
+            showToast("Adicione primeiro a configuração WireGuard")
             return@launch
         }
         c.settings.saveNetwork(n.copy(vpnEnabled = on))
@@ -981,7 +981,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         } finally {
             if (android.os.Build.VERSION.SDK_INT >= 28) drm.close() else @Suppress("DEPRECATION") drm.release()
         }
-    }.getOrDefault("not available")
+    }.getOrDefault("indisponível")
 
     /** Back to live TV after watching a recording. */
     // ---- Movies & TV shows -----------------------------------------------------------------
@@ -1074,9 +1074,9 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     /** [category]: null = all, [VOD_CONTINUE] = started but not finished. */
     fun vodItems(kind: String, category: String?, query: String): Flow<List<VodEntity>> = libraryRaw(kind, category, query)
         .map { list ->
-            // Titles from locked categories stay out of "All" and search until the PIN is entered.
+            // Titles from locked categories stay out of "Todos" and search until the PIN is entered.
             val browsingOneCategory = query.isBlank() && category != null && category != VOD_CONTINUE
-            // Titles from hidden categories stay out of "All", search and "Continuar assistindo".
+            // Titles from hidden categories stay out of "Todos", search and "Continuar assistindo".
             val shown = if (browsingOneCategory) list else list.filter { overrides.value[vodKey(kind, it.category)]?.hidden != true }
             (if (unlocked || browsingOneCategory) shown
             else shown.filter { overrides.value[vodKey(kind, it.category)]?.locked != true })

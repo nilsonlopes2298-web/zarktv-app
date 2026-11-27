@@ -152,14 +152,14 @@ fun SetupScreen(
                     when {
                         firstRun -> "Set up your TV service"
                         initial == null -> "Add a playlist"
-                        else -> "Edit ${initial.displayName}"
+                        else -> "Editar ${initial.displayName}"
                     },
                     fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text,
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
                     if (firstRun) "Enter the details from your IPTV provider. Channelbox doesn't come with any channels. You can add more playlists later in Settings."
-                    else "Channels from all your playlists are shown together, and each playlist also gets its own entry in the groups menu.",
+                    else "Os canais de todas as suas listas aparecem juntos, e cada lista ganha sua entrada no menu de grupos.",
                     fontSize = 13.sp, color = Palette.TextDim, lineHeight = 19.sp,
                 )
                 Spacer(Modifier.height(24.dp))
@@ -172,7 +172,7 @@ fun SetupScreen(
                 Spacer(Modifier.height(22.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    TvTextField("Name – optional, e.g. \"Sports\" or the provider's name", name, { name = it })
+                    TvTextField("Nome – opcional, ex.: \"Esportes\" ou o nome do servidor", name, { name = it })
                     when (type) {
                         SourceType.STALKER -> {
                             TvTextField("Portal URL (e.g. http://example.com:8080/c/)", server, { server = it }, keyboardType = KeyboardType.Uri)
@@ -258,7 +258,7 @@ fun SetupScreen(
                 val failed = submitted && refreshState is RefreshState.Failed
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        if (failed) "Works in other apps or on other networks? Your internet provider may be blocking it – try another DNS, a proxy or a VPN, then save again."
+                        if (failed) "Funciona em outros apps ou outra internet? Sua operadora pode estar bloqueando – tente outro DNS, um proxy ou uma VPN e salve de novo."
                         else "Internet provider blocking IPTV? Set up DNS, a proxy, a VPN or the user agent first.",
                         fontSize = 12.sp, lineHeight = 17.sp, color = if (failed) Palette.Text else Palette.TextDim,
                         modifier = Modifier.weight(1f),
@@ -395,7 +395,7 @@ private fun QuietButton(label: String, onClick: () -> Unit) {
     }
 }
 
-/** QR code + address of the "add a playlist from your phone" page. */
+/** QR code + address of the "adicione uma lista pelo celular" page. */
 @Composable
 private fun PhonePanel(url: String?) {
     Column(
@@ -414,7 +414,7 @@ private fun PhonePanel(url: String?) {
         Spacer(Modifier.height(6.dp))
         if (url == null) {
             Text(
-                "Connect this box to your home Wi-Fi or network to type the playlist on your phone instead.",
+                "Conecte o aparelho ao Wi-Fi de casa para digitar a lista pelo celular.",
                 fontSize = 12.sp, lineHeight = 17.sp, color = Palette.TextDim, textAlign = TextAlign.Center,
             )
             return@Column
@@ -433,7 +433,7 @@ private fun PhonePanel(url: String?) {
             )
         }
         Spacer(Modifier.height(14.dp))
-        Text("or open", fontSize = 11.sp, color = Palette.TextDim)
+        Text("ou abra", fontSize = 11.sp, color = Palette.TextDim)
         Text(url, fontSize = 12.sp, color = Palette.Text, textAlign = TextAlign.Center)
         Spacer(Modifier.height(14.dp))
         Text(

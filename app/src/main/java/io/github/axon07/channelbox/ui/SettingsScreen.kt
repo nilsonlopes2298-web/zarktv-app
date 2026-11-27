@@ -209,7 +209,7 @@ fun SettingsScreen(
                     autoFocus = false,
                 )
                 if (languages.size == 1) {
-                    Text("More languages are on the way.", fontSize = 13.sp, color = Palette.TextDim, modifier = Modifier.padding(top = 10.dp))
+                    Text("Mais idiomas em breve.", fontSize = 13.sp, color = Palette.TextDim, modifier = Modifier.padding(top = 10.dp))
                 }
             }
             SettingsCategory.PARENTAL -> ParentalSettings(settings, vm)
@@ -346,7 +346,7 @@ fun SettingsScreen(
                                 autoFocus = false,
                             )
                             if (languages.size == 1) {
-                                Text("More languages are on the way.", fontSize = 13.sp, color = Palette.TextDim, modifier = Modifier.padding(top = 10.dp))
+                                Text("Mais idiomas em breve.", fontSize = 13.sp, color = Palette.TextDim, modifier = Modifier.padding(top = 10.dp))
                             }
                         }
                         SettingsCategory.PARENTAL -> ParentalSettings(settings, vm)
@@ -380,9 +380,9 @@ private fun SourceSettings(
         SettingCard(
             title = p.displayName,
             description = when {
-                !p.enabled -> p.summary + " · off"
-                error != null -> "Couldn't load: $error" + (n?.let { " · showing $it channels from last time" } ?: "")
-                else -> p.summary + (n?.let { " · $it channels" } ?: "")
+                !p.enabled -> p.summary + " · desligado"
+                error != null -> "Não carregou: $error" + (n?.let { " · mostrando $it canais da última vez" } ?: "")
+                else -> p.summary + (n?.let { " · $it canais" } ?: "")
             },
             value = if (p.enabled) "Manage" else "Off",
             onClick = { onPlaylist(p.id) },
@@ -401,8 +401,8 @@ private fun SourceSettings(
         description = when (refreshState) {
             is RefreshState.Running -> refreshState.message
             is RefreshState.Failed -> "Last attempt failed: ${refreshState.message}"
-            is RefreshState.Done -> "$channelCount channels · ${refreshState.programmes} guide entries"
-            RefreshState.Idle -> "$channelCount channels" + (last?.let { " · updated $it" } ?: "")
+            is RefreshState.Done -> "$channelCount canais · ${refreshState.programmes} programas no guia"
+            RefreshState.Idle -> "$channelCount channels" + (last?.let { " · atualizado $it" } ?: "")
         },
         value = if (refreshState is RefreshState.Running) "Loading…" else "Reload",
         onClick = { vm.refreshNow() },
@@ -411,8 +411,8 @@ private fun SourceSettings(
         var confirmClear by remember { mutableStateOf(false) }
         SettingCard(
             title = if (confirmClear) "Press again to clear and reload" else "Clear saved channels and reload",
-            description = "Deletes all saved channels, movies & shows and guide, then loads your playlists fresh. " +
-                "Favourites, recordings and your own names and numbers are kept.",
+            description = "Apaga canais, filmes, séries e guia salvos e carrega suas listas de novo. " +
+                "Favoritos, gravações e seus nomes e números são mantidos.",
             highlight = confirmClear,
             onClick = {
                 if (confirmClear) {
@@ -430,15 +430,15 @@ private fun SourceSettings(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { vm.restoreFrom(it) } }
     SettingCard(
-        title = "Back up data",
-        description = "Save playlists, settings, favourites and channel changes to a file. It includes your logins – keep it private",
+        title = "Fazer cópia de segurança",
+        description = "Salva listas, ajustes, favoritos e mudanças de canais num arquivo. Inclui seus acessos – guarde com cuidado",
         onClick = {
             try { saveFile.launch(vm.backupFileName()) } catch (e: android.content.ActivityNotFoundException) { vm.backupToDownloads() }
         },
     )
     SettingCard(
         title = "Restore data",
-        description = "Load a backup file. Replaces your current settings, favourites and channel changes",
+        description = "Carrega uma cópia de segurança. Substitui seus ajustes, favoritos e mudanças de canais",
         onClick = {
             try { openFile.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
             catch (e: android.content.ActivityNotFoundException) { vm.restoreLatest() }
@@ -461,7 +461,7 @@ private fun SourceSettings(
     )
     SettingCard(
         title = "Jellyfin",
-        description = errors[io.github.axon07.channelbox.data.JellyfinClient.PLAYLIST_ID]?.let { "Last load failed: $it" }
+        description = errors[io.github.axon07.channelbox.data.JellyfinClient.PLAYLIST_ID]?.let { "Último carregamento falhou: $it" }
             ?: "Show movies & shows from your own Jellyfin server, next to or instead of your provider's",
         highlight = errors.containsKey(io.github.axon07.channelbox.data.JellyfinClient.PLAYLIST_ID),
         value = when {
@@ -491,7 +491,7 @@ private fun SourceSettings(
     )
 }
 
-private fun guideDaysLabel(days: Int) = if (days == 1) "1 day" else "$days days"
+private fun guideDaysLabel(days: Int) = if (days == 1) "1 day" else "$days dias"
 
 private val IDLE_CHOICES = listOf(30, 60, 120, 300, 0)
 
@@ -617,7 +617,7 @@ private fun NetworkSettingsList(settings: AppSettings, vm: TvViewModel, openPage
     val vpn by vm.vpnState.collectAsStateWithLifecycle()
     val askVpn = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) vm.setVpnEnabled(true)
-        else Toast.makeText(context, "Android didn't allow the VPN", Toast.LENGTH_SHORT).show()
+        else Toast.makeText(context, "O Android não liberou a VPN", Toast.LENGTH_SHORT).show()
     }
 
     if (vm.networkNeedsRestart(net)) {
@@ -632,10 +632,10 @@ private fun NetworkSettingsList(settings: AppSettings, vm: TvViewModel, openPage
     SettingCard(
         title = "VPN (WireGuard)",
         description = when (val v = vpn) {
-            VpnManager.State.On -> "Connected" + if (net.vpnAllApps) " · whole box" else " · Channelbox only"
+            VpnManager.State.On -> "Connected" + if (net.vpnAllApps) " · whole box" else " · só o ZarkTV"
             VpnManager.State.Connecting -> "Connecting…"
             is VpnManager.State.Failed -> "Couldn't connect: ${v.message}"
-            VpnManager.State.Off -> if (net.vpnConfig.isBlank()) "Add a WireGuard config from your VPN provider first" else "Off"
+            VpnManager.State.Off -> if (net.vpnConfig.isBlank()) "Adicione primeiro a configuração WireGuard da sua VPN" else "Off"
         },
         toggle = net.vpnEnabled,
         onClick = {
@@ -651,7 +651,7 @@ private fun NetworkSettingsList(settings: AppSettings, vm: TvViewModel, openPage
     )
     SettingCard(
         title = "VPN configuration",
-        description = if (net.vpnConfig.isBlank()) "Not set" else "WireGuard config saved",
+        description = if (net.vpnConfig.isBlank()) "Não configurado" else "WireGuard config saved",
         value = "Edit",
         onClick = { openPage(Page.VPN) },
     )
@@ -688,7 +688,7 @@ private fun RecordingSettings(settings: AppSettings, vm: TvViewModel, onOpenReco
     SettingCard(
         title = "Recordings",
         description = "Watch, stop or delete your recordings",
-        value = "Open",
+        value = "Abrir",
         onClick = onOpenRecordings,
     )
     SettingCard(
@@ -713,7 +713,7 @@ private fun RecordingSettings(settings: AppSettings, vm: TvViewModel, onOpenReco
     if (st.type == "smb") {
         SettingCard(
             title = "Network share (SMB)",
-            description = if (st.smbHost.isBlank()) "Windows PC, NAS or Samba server – not set" else "\\\\${st.smbHost}\\${st.smbShare}",
+            description = if (st.smbHost.isBlank()) "PC Windows, NAS ou servidor Samba – não configurado" else "\\\\${st.smbHost}\\${st.smbShare}",
             value = "Edit",
             onClick = { openPage(Page.SMB) },
         )
@@ -721,8 +721,8 @@ private fun RecordingSettings(settings: AppSettings, vm: TvViewModel, onOpenReco
     if (st.type == "webdav") {
         SettingCard(
             title = "WebDAV folder",
-            description = st.davUrl.ifBlank { "Nextcloud, Synology, QNAP… – not set" } +
-                " · recorded here first, uploaded when finished",
+            description = st.davUrl.ifBlank { "Nextcloud, Synology, QNAP… – não configurado" } +
+                " · grava aqui primeiro e envia ao terminar",
             value = "Edit",
             onClick = { openPage(Page.WEBDAV) },
         )
@@ -772,12 +772,12 @@ private fun ParentalSettings(settings: AppSettings, vm: TvViewModel) {
         )
     }
     if (locked.isNotEmpty()) {
-        PageHeader("Locked", "Select one to unlock it")
+        PageHeader("Locked", "Escolha um para desbloquear")
         locked.forEach { item ->
             SettingCard(title = item.label, description = null, value = "Unlock", onClick = { vm.unlockItem(item) })
         }
     }
-    PageHeader("Hidden", if (hidden.isEmpty()) "Nothing is hidden" else "Select one to show it again")
+    PageHeader("Hidden", if (hidden.isEmpty()) "Nothing is hidden" else "Escolha um para mostrar de novo")
     hidden.forEach { item ->
         SettingCard(
             title = item.label,
@@ -798,8 +798,8 @@ private fun ParentalSettings(settings: AppSettings, vm: TvViewModel) {
 private fun StartupSettings(settings: AppSettings, vm: TvViewModel, onExit: () -> Unit, openPage: (Page) -> Unit) {
     val context = LocalContext.current
     SettingCard(
-        title = "Turn on last channel on app start",
-        description = "Off: Channelbox opens on the TV guide instead of playing",
+        title = "Abrir no último canal ao iniciar",
+        description = "Desligado: o ZarkTV abre no guia em vez de tocar",
         toggle = settings.playLastOnStart,
         onClick = { vm.setPlayLastOnStart(!settings.playLastOnStart) },
     )
@@ -832,14 +832,14 @@ private fun StartupSettings(settings: AppSettings, vm: TvViewModel, onExit: () -
     if (SetTopBox.needsOverlayPermission()) {
         SettingCard(
             title = "Permission to start by itself",
-            description = if (canAutoStart) "Allowed – Channelbox can open on power-on and wake"
-            else "Needed for both options above: allow \"Display over other apps\"",
+            description = if (canAutoStart) "Liberado – o ZarkTV pode abrir ao ligar a TV"
+            else "Necessário para as duas opções acima: liberar \"Sobrepor a outros apps\"",
             value = if (canAutoStart) "Granted" else "Allow",
             onClick = {
                 if (!SetTopBox.openOverlaySettings(context)) {
                     Toast.makeText(
                         context,
-                        "This box hides that setting. Grant it from a computer:\n" + SetTopBox.adbGrantCommand(context),
+                        "Este aparelho esconde essa opção. Libere pelo computador:\n" + SetTopBox.adbGrantCommand(context),
                         Toast.LENGTH_LONG,
                     ).show()
                 }
@@ -848,7 +848,7 @@ private fun StartupSettings(settings: AppSettings, vm: TvViewModel, onExit: () -
     }
     SettingCard(
         title = "Use as home screen",
-        description = if (isHome) "Press Home and choose Channelbox → Always" else "Home button opens live TV instead of the Android home screen",
+        description = if (isHome) "Aperte Início e escolha ZarkTV → Sempre" else "O botão Início abre a TV ao vivo em vez da tela do Android",
         toggle = isHome,
         onClick = {
             SetTopBox.setHomeScreen(context, !isHome)
@@ -857,7 +857,7 @@ private fun StartupSettings(settings: AppSettings, vm: TvViewModel, onExit: () -
     )
     SettingCard(
         title = "Back button on the groups menu",
-        description = "What happens on the last Back press (TV → guide → groups → …)",
+        description = "O que acontece no último Voltar (TV → guia → grupos → …)",
         value = settings.backAction.label,
         onClick = { openPage(Page.BACK) },
     )
@@ -893,7 +893,7 @@ private fun UpdateSettings(settings: AppSettings, vm: TvViewModel) {
         },
     )
     SettingCard(
-        title = "Check when the app starts",
+        title = "Verificar ao abrir o app",
         description = "Offer new versions automatically",
         toggle = settings.autoUpdateCheck,
         onClick = { vm.setAutoUpdateCheck(!settings.autoUpdateCheck) },
@@ -906,7 +906,7 @@ private fun AboutSettings(vm: TvViewModel) {
     InfoCard("Versão", "ZarkTV ${vm.appVersion} (build ${BuildConfig.VERSION_CODE})")
     InfoCard("Device", "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}")
     InfoCard("Widevine security level", "$widevine – L1 = hardware, L3 = software")
-    InfoCard("Audio decoding", "Box decoders, plus bundled FFmpeg for Dolby Digital, DD+, DTS and TrueHD")
+    InfoCard("Audio decoding", "Decodificadores do aparelho, mais FFmpeg para Dolby Digital, DD+, DTS e TrueHD")
     InfoCard("Source code", "github.com/Axon07/Channelbox · free and open source under GPL-3.0")
     InfoCard("Channels", "Channelbox is only a player – channels come from your own TV service")
 }
@@ -944,15 +944,15 @@ private fun SubPage(
             }
             PageHeader(
                 "WireGuard VPN",
-                "Get a WireGuard config (.conf) from your VPN provider – most offer one – and paste it below, load it from a link, or open the file.",
+                "Pegue a configuração WireGuard (.conf) com sua VPN – a maioria oferece – e cole abaixo, carregue por um link ou abra o arquivo.",
             )
             TvTextField("Config", config, { config = it }, lines = 8)
             Spacer(Modifier.height(8.dp))
-            TvTextField("…or a link to the config file", link, { link = it }, keyboardType = KeyboardType.Uri)
+            TvTextField("…ou o link do arquivo de configuração", link, { link = it }, keyboardType = KeyboardType.Uri)
             Spacer(Modifier.height(10.dp))
             SettingCard(
                 title = "Send all apps through the VPN",
-                description = if (allApps) "The whole box uses the VPN" else "Only Channelbox uses the VPN (recommended)",
+                description = if (allApps) "O aparelho todo usa a VPN" else "Only Channelbox uses the VPN (recommended)",
                 toggle = allApps,
                 onClick = { allApps = !allApps },
             )
@@ -961,7 +961,7 @@ private fun SubPage(
                 "Save" to {
                     val error = vm.saveVpnConfig(config, allApps)
                     if (error != null) {
-                        toast("Not a valid WireGuard config: $error")
+                        toast("Configuração WireGuard inválida: $error")
                     } else {
                         toast("Saved")
                         onClose()
@@ -969,12 +969,12 @@ private fun SubPage(
                 },
                 "Load link" to {
                     if (link.isBlank()) {
-                        toast("Type the link first")
+                        toast("Digite o link primeiro")
                     } else {
                         scope.launch {
                             runCatching { vm.fetchText(link.trim()) }
-                                .onSuccess { config = it; toast("Loaded – check it and press Save") }
-                                .onFailure { toast("Couldn't load it: ${it.message}") }
+                                .onSuccess { config = it; toast("Carregado – confira e aperte Salvar") }
+                                .onFailure { toast("Não carregou: ${it.message}") }
                         }
                     }
                 },
@@ -994,7 +994,7 @@ private fun SubPage(
             var port by remember { mutableStateOf(net.proxyPort.takeIf { it > 0 }?.toString().orEmpty()) }
             var user by remember { mutableStateOf(net.proxyUser) }
             var pass by remember { mutableStateOf(net.proxyPass) }
-            PageHeader("Proxy", "All of Channelbox's traffic (playlists, guide, streams) goes through the proxy. Restart to apply.")
+            PageHeader("Proxy", "Toda a conexão do ZarkTV (listas, guia, vídeos) passa pelo proxy. Reinicie para aplicar.")
             ChoiceList(
                 options = listOf("none" to "Off", "http" to "HTTP proxy", "socks5" to "SOCKS5 proxy"),
                 selected = type,
@@ -1025,7 +1025,7 @@ private fun SubPage(
             var url by remember { mutableStateOf(net.dnsCustomUrl) }
             PageHeader(
                 "Encrypted DNS",
-                "Looks up server names over an encrypted connection, so your ISP can't block or redirect them. Restart to apply.",
+                "Procura os endereços dos servidores por conexão protegida, para a operadora não bloquear nem desviar. Reinicie para aplicar.",
             )
             ChoiceList(
                 options = DNS_LABELS.toList(),
@@ -1041,12 +1041,12 @@ private fun SubPage(
             )
             if (net.dns == "custom") {
                 Spacer(Modifier.height(12.dp))
-                TvTextField("DNS-over-HTTPS address (e.g. https://dns.nextdns.io/abc123)", url, { url = it }, keyboardType = KeyboardType.Uri)
+                TvTextField("Endereço DNS-over-HTTPS (ex.: https://dns.nextdns.io/abc123)", url, { url = it }, keyboardType = KeyboardType.Uri)
                 Spacer(Modifier.height(10.dp))
                 ButtonRow(
                     "Save" to {
                         if (!url.trim().startsWith("https://")) {
-                            toast("It needs to start with https://")
+                            toast("Precisa começar com https://")
                         } else {
                             vm.saveNetwork(net.copy(dns = "custom", dnsCustomUrl = url))
                             onClose()
@@ -1059,7 +1059,7 @@ private fun SubPage(
             val presetKeys = UserAgent.PRESETS.values.toList()
             var custom by remember { mutableStateOf(net.userAgent.takeIf { it !in presetKeys }.orEmpty()) }
             var showCustom by remember { mutableStateOf(net.userAgent !in presetKeys) }
-            PageHeader("User agent", "How Channelbox introduces itself to servers. Some providers only allow certain players.")
+            PageHeader("User agent", "Como o ZarkTV se identifica para os servidores. Alguns só aceitam certos players.")
             ChoiceList(
                 options = UserAgent.PRESETS.map { (name, value) -> value to name } + ("__custom" to "Custom…"),
                 selected = if (showCustom) "__custom" else net.userAgent,
@@ -1075,7 +1075,7 @@ private fun SubPage(
             )
             if (showCustom) {
                 Spacer(Modifier.height(12.dp))
-                TvTextField("Custom user agent", custom, { custom = it }, lines = 3)
+                TvTextField("Identificação personalizada", custom, { custom = it }, lines = 3)
                 Spacer(Modifier.height(10.dp))
                 ButtonRow(
                     "Save" to {
@@ -1086,7 +1086,7 @@ private fun SubPage(
             }
         }
         Page.SCALE -> {
-            PageHeader("Picture size", "How the picture fills the screen. You can also change it while watching (hold OK).")
+            PageHeader("Picture size", "Como a imagem ocupa a tela. Dá para mudar assistindo (segure OK).")
             ChoiceList(
                 options = SCALE_LABELS.mapIndexed { i, label -> i.toString() to label },
                 selected = settings.videoScale.toString(),
@@ -1101,7 +1101,7 @@ private fun SubPage(
             val overridesVersion by vm.overrides.collectAsStateWithLifecycle()
             PageHeader(
                 page.title,
-                "On = shown in ${if (page == Page.MOVIE_CATEGORIES) "Movies" else "TV Shows"}. Off = hidden there and from search. Stays this way after reloads.",
+                "Ligado = aparece em ${if (page == Page.MOVIE_CATEGORIES) "Filmes" else "Séries"}. Desligado = escondido lá e na busca. Continua assim depois de recarregar.",
             )
             val list = categories
             when {
@@ -1134,7 +1134,7 @@ private fun SubPage(
             }
         }
         Page.GUIDE_DAYS -> {
-            PageHeader("Days of TV guide", "How far ahead the guide goes. Applies at the next reload.")
+            PageHeader("Days of TV guide", "Até quantos dias o guia mostra. Vale no próximo carregamento.")
             ChoiceList(
                 options = listOf(1, 2, 3, 5, 7).map { it.toString() to guideDaysLabel(it) },
                 selected = settings.guideDays.toString(),
@@ -1153,7 +1153,7 @@ private fun SubPage(
             )
         }
         Page.BUFFER -> {
-            PageHeader("Buffer size", "How much video is loaded ahead. Takes effect the next time Channelbox starts.")
+            PageHeader("Buffer size", "Quanto vídeo é carregado adiantado. Vale na próxima vez que o ZarkTV abrir.")
             ChoiceList(
                 options = BUFFER_CHOICES,
                 selected = settings.bufferSize,
@@ -1161,7 +1161,7 @@ private fun SubPage(
             )
         }
         Page.QUALITY -> {
-            PageHeader("Maximum quality", "Channelbox picks the best quality your connection can handle, up to this limit.")
+            PageHeader("Maximum quality", "O ZarkTV escolhe a melhor qualidade que sua internet aguenta, até esse limite.")
             ChoiceList(
                 options = QUALITY_CHOICES.map { it.first.toString() to it.second },
                 selected = settings.maxQuality.toString(),
@@ -1180,14 +1180,14 @@ private fun SubPage(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 SettingCard(
                     title = "Use this playlist",
-                    description = if (p.enabled) "Its channels are in the guide" else "Hidden – its channels aren't loaded",
+                    description = if (p.enabled) "Os canais dela estão no guia" else "Escondida – os canais não são carregados",
                     toggle = p.enabled,
                     onClick = { vm.setPlaylistEnabled(p.id, !p.enabled) },
                 )
                 SettingCard(
                     title = "Include movies & shows",
                     description = if (p.includeVod) "Shown under Movies and TV Shows. Turn off to load huge lists much faster."
-                    else "Off – only live TV is loaded from this playlist",
+                    else "Desligado – só a TV ao vivo é carregada desta lista",
                     toggle = p.includeVod,
                     onClick = { vm.savePlaylist(p.copy(includeVod = !p.includeVod)) },
                 )
@@ -1200,14 +1200,14 @@ private fun SubPage(
                 if (settings.playlists.size > 1) {
                     if (index > 0) SettingCard(
                         title = "Move up",
-                        description = "Earlier playlists get the lower channel numbers",
-                        value = "${index + 1} of ${settings.playlists.size}",
+                        description = "As primeiras listas ficam com os menores números",
+                        value = "${index + 1} de ${settings.playlists.size}",
                         onClick = { vm.movePlaylist(p.id, -1) },
                     )
                     if (index < settings.playlists.size - 1) SettingCard(
                         title = "Move down",
-                        description = "Later playlists continue the numbering",
-                        value = "${index + 1} of ${settings.playlists.size}",
+                        description = "As listas seguintes continuam a numeração",
+                        value = "${index + 1} de ${settings.playlists.size}",
                         onClick = { vm.movePlaylist(p.id, 1) },
                     )
                 }
@@ -1225,7 +1225,7 @@ private fun SubPage(
             }
         }
         Page.REFRESH -> {
-            PageHeader("Reload automatically", "How often to fetch the latest channels and programme guide in the background.")
+            PageHeader("Reload automatically", "De quanto em quanto tempo buscar os canais e o guia em segundo plano.")
             ChoiceList(
                 options = REFRESH_CHOICES.map { it.toString() to refreshLabel(it).substringBefore(" (") },
                 selected = settings.refreshHours.toString(),
@@ -1233,7 +1233,7 @@ private fun SubPage(
             )
         }
         Page.BACK -> {
-            PageHeader("Back button on the groups menu", "Back goes TV → guide → groups menu. This is what the next press does.")
+            PageHeader("Back button on the groups menu", "Voltar vai TV → guia → grupos. É isso que o próximo aperto faz.")
             ChoiceList(
                 options = BackAction.entries.map { it.name to it.label },
                 selected = settings.backAction.name,
@@ -1246,7 +1246,7 @@ private fun SubPage(
             ChoiceList(
                 options = listOf(
                     "local" to "This box",
-                    "removable" to if (drives > 0) "USB drive / SD card" else "USB drive / SD card (none connected)",
+                    "removable" to if (drives > 0) "USB drive / SD card" else "Pen drive / cartão SD (nenhum conectado)",
                     "smb" to "Network share (NAS, Windows, Samba)",
                     "webdav" to "WebDAV (Nextcloud, Synology…)",
                 ),
@@ -1275,15 +1275,15 @@ private fun SubPage(
             )
             PageHeader(
                 "Network share (SMB)",
-                "Windows shared folder, NAS (Synology, QNAP, TrueNAS, Unraid…) or Samba. Recordings are written straight to it.",
+                "Pasta compartilhada do Windows, NAS (Synology, QNAP, TrueNAS, Unraid…) ou Samba. As gravações vão direto para lá.",
             )
-            TvTextField("Server (name or IP, e.g. 192.168.1.20)", host, { host = it }, keyboardType = KeyboardType.Uri)
+            TvTextField("Servidor (nome ou IP, ex.: 192.168.1.20)", host, { host = it }, keyboardType = KeyboardType.Uri)
             Spacer(Modifier.height(8.dp))
-            TvTextField("Share name (e.g. media)", share, { share = it })
+            TvTextField("Nome do compartilhamento (ex.: media)", share, { share = it })
             Spacer(Modifier.height(8.dp))
             TvTextField("Folder inside the share", path, { path = it })
             Spacer(Modifier.height(8.dp))
-            TvTextField("Username (empty for guest)", user, { user = it })
+            TvTextField("Usuário (vazio para convidado)", user, { user = it })
             Spacer(Modifier.height(8.dp))
             TvTextField("Password", pass, { pass = it }, password = true)
             Spacer(Modifier.height(8.dp))
@@ -1310,7 +1310,7 @@ private fun SubPage(
             fun edited() = JellyfinSettings(on, server, user, pass, if (replace) "replace" else "add")
             PageHeader(
                 "Jellyfin",
-                "Your own movies & shows in Movies and TV Shows. Videos play straight from your server.",
+                "Seus próprios filmes e séries em Filmes e Séries. Os vídeos tocam direto do seu servidor.",
             )
             SettingCard(
                 title = "Use Jellyfin",
@@ -1319,12 +1319,12 @@ private fun SubPage(
             )
             SettingCard(
                 title = "Provider's movies & shows",
-                description = if (replace) "Hidden – only your Jellyfin library is shown" else "Kept – Jellyfin is added alongside, in its own categories",
+                description = if (replace) "Escondido – só a biblioteca do Jellyfin aparece" else "Mantido – o Jellyfin entra junto, em categorias próprias",
                 value = if (replace) "Replace" else "Add to",
                 onClick = { replace = !replace },
             )
             Spacer(Modifier.height(8.dp))
-            TvTextField("Server address (e.g. http://192.168.1.20:8096)", server, { server = it }, keyboardType = KeyboardType.Uri)
+            TvTextField("Endereço do servidor (ex.: http://192.168.1.20:8096)", server, { server = it }, keyboardType = KeyboardType.Uri)
             Spacer(Modifier.height(8.dp))
             TvTextField("Username", user, { user = it })
             Spacer(Modifier.height(8.dp))
@@ -1348,13 +1348,13 @@ private fun SubPage(
             fun edited() = st.copy(type = "webdav", davUrl = url, davUser = user, davPass = pass)
             PageHeader(
                 "WebDAV folder",
-                "Nextcloud, ownCloud, Synology, QNAP… Recordings are saved on the box first and uploaded when they finish.",
+                "Nextcloud, ownCloud, Synology, QNAP… As gravações ficam no aparelho e são enviadas ao terminar.",
             )
-            TvTextField("Folder address (https://…)", url, { url = it }, keyboardType = KeyboardType.Uri)
+            TvTextField("Endereço da pasta (https://…)", url, { url = it }, keyboardType = KeyboardType.Uri)
             Spacer(Modifier.height(8.dp))
             TvTextField("Username", user, { user = it })
             Spacer(Modifier.height(8.dp))
-            TvTextField("Password / app password", pass, { pass = it }, password = true)
+            TvTextField("Senha / senha de app", pass, { pass = it }, password = true)
             Spacer(Modifier.height(12.dp))
             ButtonRow(
                 "Test" to {
@@ -1471,7 +1471,7 @@ private fun CategoryRow(
 }
 
 /**
- * One setting: title and description on the left, and either a value ("Every 12 hours ›")
+ * One setting: title and description on the left, and either a value ("A cada 12 horas ›")
  * or an on/off switch on the right.
  */
 @Composable

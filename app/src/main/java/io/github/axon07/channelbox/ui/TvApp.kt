@@ -583,7 +583,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
     /** Pick a channel for [tile] (== count adds a tile). */
     fun pickForTile(tile: Int) {
         if (tile >= multi.count && !multi.canAdd) {
-            vm.showToast("Up to ${MultiViewState.MAX} channels at once")
+            vm.showToast("Até ${MultiViewState.MAX} canais ao mesmo tempo")
             return
         }
         multi.pickTarget = tile
@@ -792,7 +792,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             playbackToken++
             mode = Mode.PLAYBACK
         } else {
-            vm.showToast("Catch-up isn't available for this channel")
+            vm.showToast("Este canal não tem programas para rever")
         }
     }
 

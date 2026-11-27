@@ -176,7 +176,7 @@ fun GuideScreen(
                             fontSize = 14.sp, color = Palette.Accent,
                         )
                         if (selectedChannel != null && selectedProgram.stop <= now && canCatchUp(selectedChannel, selectedProgram)) {
-                            Text("↺ Catch-up available – press OK to watch", fontSize = 13.sp, color = Palette.Text)
+                            Text("↺ Disponível para rever – aperte OK para assistir", fontSize = 13.sp, color = Palette.Text)
                         }
                         Spacer(Modifier.height(8.dp))
                         Text(

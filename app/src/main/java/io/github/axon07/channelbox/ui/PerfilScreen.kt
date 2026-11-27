@@ -190,7 +190,7 @@ fun PerfilUni(
                     Text("Seu aparelho", color = Color(0x99FFFFFF), fontSize = 12.sp)
                     Text(android.os.Build.MODEL.orEmpty(), color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (mbs > 0.05) Text(
-                        (if (mbs >= 2.0) "Internet boa" else if (mbs >= 0.7) "Internet ok" else "Internet fraca") + " · %.0f Mb/s".format(mbs * 8),
+                        (if (mbs >= 2.0) "Internet boa" else if (mbs >= 0.7) "Internet funcionando" else "Internet fraca") + " · %.0f Mb/s".format(mbs * 8),
                         color = if (mbs >= 0.7) Color(0xFF22C55E) else Color(0xFFF59E0B), fontSize = 13.sp,
                     )
                     Text("Versão ${io.github.axon07.channelbox.BuildConfig.VERSION_NAME}", color = Color(0x99FFFFFF), fontSize = 12.sp)

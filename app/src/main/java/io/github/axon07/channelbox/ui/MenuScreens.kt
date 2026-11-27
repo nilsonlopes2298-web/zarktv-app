@@ -94,7 +94,7 @@ fun GroupsPanel(
             RailItem("Live TV", AppIcons.List, highlighted = !inRail, selected = selected == n + 6) { onSelect(n + 6) }
             if (movieCount > 0) RailItem("Movies", AppIcons.Film, selected == n + 3) { onSelect(n + 3) }
             if (showCount > 0) RailItem("TV Shows", AppIcons.Tv, selected == n + 4) { onSelect(n + 4) }
-            RailItem(if (recordingCount > 0) "Recordings ($recordingCount)" else "Recordings", AppIcons.Record, selected == n + 1) { onSelect(n + 1) }
+            RailItem(if (recordingCount > 0) "Gravações ($recordingCount)" else "Recordings", AppIcons.Record, selected == n + 1) { onSelect(n + 1) }
             RailItem("Settings", AppIcons.Settings, selected == n + 2) { onSelect(n + 2) }
         }
         // Groups.
@@ -275,7 +275,7 @@ fun RecordingsScreen(
             )
         }
         Text(
-            if (touch) "Tap to play · long-press for options" else "OK to play · hold OK for options",
+            if (touch) "Toque para assistir · segure para opções" else "OK assistir · segure OK para opções",
             fontSize = 12.sp, color = Palette.TextDim, modifier = Modifier.padding(top = 2.dp),
         )
         Spacer(Modifier.height(14.dp))

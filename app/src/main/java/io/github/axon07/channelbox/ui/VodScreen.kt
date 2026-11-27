@@ -180,7 +180,7 @@ private fun CategoryMenu(b: VodBrowser, vm: TvViewModel, category: String, locke
         }
         DialogRow("Hide this category") {
             vm.setVodCategoriesHidden(b.kind, listOf(category), true)
-            vm.showToast("$category hidden – show it again in Settings → Playlist & guide")
+            vm.showToast("$category escondido – mostre de novo em Ajustes → Lista e guia")
             if (b.category == category) b.category = null
             onClose()
         }
@@ -273,7 +273,7 @@ private fun LibraryScreen(
                                 b.query = ""
                                 b.category = id
                             }
-                            if (locked) vm.requirePin("Enter your PIN to open $label", action = open) else open()
+                            if (locked) vm.requirePin("Digite sua senha para abrir $label", action = open) else open()
                         },
                         onLongClick = if (real) ({ onCategoryMenu(id!!, locked) }) else null,
                     )

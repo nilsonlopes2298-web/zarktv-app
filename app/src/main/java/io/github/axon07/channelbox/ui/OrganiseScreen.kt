@@ -101,8 +101,8 @@ private fun GroupsOrganiser(vm: TvViewModel, focusToken: Int, onOpen: (String) -
     Column(Modifier.fillMaxSize()) {
         Header(
             "Organise groups",
-            if (moving != null) "▲ ▼ move · OK to put it here"
-            else "OK select · ▶ open a group's channels · hold OK to move a group",
+            if (moving != null) "▲ ▼ mover · OK para colocar aqui"
+            else "OK selecionar · ▶ abrir os canais do grupo · segure OK para mover o grupo",
         )
         ActionBar(
             listOf(
@@ -124,7 +124,7 @@ private fun GroupsOrganiser(vm: TvViewModel, focusToken: Int, onOpen: (String) -
             item(key = FAVOURITES) {
                 OrgRow(
                     title = "★  Favourites",
-                    detail = "$favCount channels · ▶ to sort",
+                    detail = "$favCount canais · ▶ para ordenar",
                     checked = null,
                     dim = false,
                     moving = false,
@@ -177,15 +177,15 @@ private fun ChannelsOrganiser(vm: TvViewModel, group: String, onBack: () -> Unit
         Header(
             title,
             when {
-                moving != null -> "▲ ▼ move · OK to put it here"
-                favourites -> "OK select · hold OK to move a channel · Back to groups"
-                else -> "OK select channels, then add them to Favourites or hide them · Back to groups"
+                moving != null -> "▲ ▼ mover · OK para colocar aqui"
+                favourites -> "OK selecionar · segure OK para mover o canal · Voltar aos grupos"
+                else -> "OK seleciona canais, depois adicione aos Favoritos ou esconda · Voltar aos grupos"
             },
         )
         val sel = selected.toList()
         val actions = buildList<Pair<String, () -> Unit>> {
-            if (!favourites) add("★ Add to Favourites${count(sel.size)}" to { vm.addFavorites(sel); selected.clear() })
-            add("Remove from Favourites${count(sel.size)}" to { vm.removeFavorites(sel); selected.clear() })
+            if (!favourites) add("★ Adicionar aos Favoritos${count(sel.size)}" to { vm.addFavorites(sel); selected.clear() })
+            add("Tirar dos Favoritos${count(sel.size)}" to { vm.removeFavorites(sel); selected.clear() })
             add("Hide${count(sel.size)}" to { vm.setChannelsHidden(sel, true); selected.clear() })
             add("Show${count(sel.size)}" to { vm.setChannelsHidden(sel, false); selected.clear() })
             add("Select all" to { selected.clear(); selected.addAll(order) })
