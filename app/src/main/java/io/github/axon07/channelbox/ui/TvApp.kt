@@ -1762,9 +1762,12 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
         )
         // Motor clássico (o mesmo do XCIPTV, ExoPlayer 2.13) para os canais ao vivo: desenha por cima, no mesmo lugar.
         val usandoClassico by vm.player.usandoClassico.collectAsStateWithLifecycle()
-        if (usandoClassico) AndroidView(
+        // A tela do motor clássico fica criada desde o início e só aparece/some (antes era criada na hora e o
+        // 1º canal ao abrir o app podia ficar com a imagem preta).
+        AndroidView(
             factory = { ctx -> vm.player.classico.criarTela(ctx) },
             update = { v ->
+                v.visibility = if (usandoClassico) android.view.View.VISIBLE else android.view.View.GONE
                 v.resizeMode = when (settings.videoScale) {
                     1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
@@ -2703,10 +2706,16 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             }
         }
         // ZarkTV Mobile: na tela cheia do canal, botão para encher a tela toda ou mostrar o vídeo inteiro.
-        if (io.github.axon07.channelbox.system.Aparelho.soCelular && mode == Mode.PLAYER && !inPip) Box(Modifier.fillMaxSize()) {
+        // Só aparece junto com os controles (ao tocar na tela) e some com eles: nada fica parado na frente do canal.
+        var formatoToque by remember { mutableIntStateOf(0) }
+        var formatoVisivel by remember { mutableStateOf(false) }
+        LaunchedEffect(mode, formatoToque, touchBar) {
+            if (mode == Mode.PLAYER) { formatoVisivel = true; delay(4_000); formatoVisivel = touchBar } else formatoVisivel = false
+        }
+        if (io.github.axon07.channelbox.system.Aparelho.soCelular && mode == Mode.PLAYER && !inPip && (formatoVisivel || touchBar)) Box(Modifier.fillMaxSize()) {
             Box(
                 Modifier.align(Alignment.TopEnd).padding(12.dp).size(40.dp).clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(Color(0x66000000)).clickable { TelaCelular.alternar(zarkCtx) },
+                    .background(Color(0x66000000)).clickable { TelaCelular.alternar(zarkCtx); formatoToque++ },
                 contentAlignment = Alignment.Center,
             ) { AppIcon(if (TelaCelular.encher.value) AppIcons.Resolucao else AppIcons.TelaCheia, tint = Color.White, size = 18.dp) }
         }

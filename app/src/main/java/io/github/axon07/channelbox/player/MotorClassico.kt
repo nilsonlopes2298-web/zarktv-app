@@ -48,13 +48,29 @@ class MotorClassico(
     private var urlAtual: String? = null
     private var tentativas = 0
     private var jaTocou = false
+    /** Já apareceu imagem neste canal? (senão o vigia religa a tela) */
+    private var quadroVisto = false
+    private var religadas = 0
+    private val vigiaTela = Runnable {
+        // Tocando, mas sem nenhuma imagem: a tela foi criada depois do vídeo começar (1º canal ao abrir o app).
+        // Religa o vídeo na tela; se mesmo assim não vier imagem, abre o canal de novo.
+        if (!quadroVisto && player.playWhenReady && atual != null && player.videoFormat != null && religadas < 1) {
+            religadas++
+            android.util.Log.w("ZarkClassico", "sem imagem – religando a tela")
+            superficie?.let { sv -> player.clearVideoSurface(); player.setVideoSurfaceView(sv) }
+            handler.postDelayed({ if (!quadroVisto && player.playWhenReady && atual != null) reabrir() }, 3_000)
+        }
+    }
 
     val player: SimpleExoPlayer by lazy {
         SimpleExoPlayer.Builder(context, DefaultRenderersFactory(context).setEnableDecoderFallback(true)).build().also { p ->
             p.addListener(object : Player.EventListener {
                 override fun onPlaybackStateChanged(state: Int) {
                     when (state) {
-                        Player.STATE_READY -> { jaTocou = true; tentativas = 0; aoMudar(true) }
+                        Player.STATE_READY -> {
+                            jaTocou = true; tentativas = 0; aoMudar(true)
+                            if (!quadroVisto) { handler.removeCallbacks(vigiaTela); handler.postDelayed(vigiaTela, 2_500) }
+                        }
                         Player.STATE_BUFFERING -> aoMudar(false)
                         Player.STATE_ENDED -> reabrir() // ao vivo não termina: o servidor fechou, abre de novo
                         else -> {}
@@ -71,7 +87,11 @@ class MotorClassico(
                     if (height > 0) tela?.setAspectRatio(width * pixelWidthHeightRatio / height)
                 }
 
-                override fun onRenderedFirstFrame() { if (player.playWhenReady) { jaTocou = true; aoMudar(true) } }
+                override fun onRenderedFirstFrame() {
+                    quadroVisto = true
+                    handler.removeCallbacks(vigiaTela)
+                    if (player.playWhenReady) { jaTocou = true; aoMudar(true) }
+                }
             })
         }
     }
@@ -95,6 +115,7 @@ class MotorClassico(
         tentativas = 0
         jaTocou = false
         hostsRestantes = null
+        religadas = 0
         abrir(spec.url)
     }
 
@@ -113,6 +134,8 @@ class MotorClassico(
             ProgressiveMediaSource.Factory(fabrica, DefaultExtractorsFactory()).createMediaSource(item)
         }
         aoMudar(false)
+        quadroVisto = false
+        handler.removeCallbacks(vigiaTela)
         player.setMediaSource(fonte)
         player.prepare()
         player.playWhenReady = true

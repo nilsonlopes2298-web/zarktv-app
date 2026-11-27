@@ -193,30 +193,54 @@ object ZarkConfig {
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong("conta_expira", 0L).takeIf { it > 0 }
 
     /** Testa usuário e senha em cada DNS do servidor, na ordem, até um responder. */
+    /** Uma tentativa num DNS com uma identidade. null = esse endereço não respondeu. */
+    private fun tentarLogin(http: OkHttpClient, dns: String, user: String, pass: String, ua: String?): Login? {
+        val base = XtreamClient.Login(dns, user, pass).base
+        val u = URLEncoder.encode(user.trim(), "UTF-8")
+        val p = URLEncoder.encode(pass.trim(), "UTF-8")
+        val txt = get(http, "$base/player_api.php?username=$u&password=$p", ua)
+            ?.takeIf { it.contains("user_info") || it.trim().startsWith("{") } ?: return null
+        val info = runCatching { (Json.parseToJsonElement(txt) as? JsonObject)?.get("user_info") as? JsonObject }.getOrNull()
+        val auth = (info?.get("auth") as? JsonPrimitive)?.content
+        val exp = (info?.get("exp_date") as? JsonPrimitive)?.content?.toLongOrNull()?.takeIf { it > 0 }?.times(1000)
+        val status = (info?.get("status") as? JsonPrimitive)?.content.orEmpty()
+        if (info != null && status.equals("Expired", ignoreCase = true)) return Login.Vencida(exp)
+        // Usuário desativado no servidor: não entra e o app fecha sozinho, sem aviso.
+        if (info != null && (status.equals("Disabled", ignoreCase = true) || status.equals("Banned", ignoreCase = true))) {
+            desativado.value = true
+            return Login.SenhaErrada
+        }
+        if (info == null || auth == "0") return Login.SenhaErrada
+        return Login.Ok(base, exp, status)
+    }
+
+    /**
+     * Login num servidor: testa TODOS os DNS dele ao mesmo tempo e entra pelo primeiro que aceitar
+     * (antes era um de cada vez e um DNS fora do ar segurava a entrada por vários segundos).
+     * Se nenhum responder com a identificação padrão, tenta as outras identificações, também ao mesmo tempo.
+     */
     suspend fun login(http: OkHttpClient, server: Server, user: String, pass: String): Login = withContext(Dispatchers.IO) {
         var wrong = false
-        for (dns in server.dns) {
-            val base = XtreamClient.Login(dns, user, pass).base
-            val u = URLEncoder.encode(user.trim(), "UTF-8")
-            val p = URLEncoder.encode(pass.trim(), "UTF-8")
-            val api = "$base/player_api.php?username=$u&password=$p"
-            // Se o servidor não responder com a identificação padrão, tenta as outras.
-            val txt = IDENTIDADES.firstNotNullOfOrNull { ua -> get(http, api, ua)?.takeIf { it.contains("user_info") || it.trim().startsWith("{") } } ?: continue
-            val info = runCatching { (Json.parseToJsonElement(txt) as? JsonObject)?.get("user_info") as? JsonObject }.getOrNull()
-            val auth = (info?.get("auth") as? JsonPrimitive)?.content
-            val exp = (info?.get("exp_date") as? JsonPrimitive)?.content?.toLongOrNull()?.takeIf { it > 0 }?.times(1000)
-            val status = (info?.get("status") as? JsonPrimitive)?.content.orEmpty()
-            if (info != null && status.equals("Expired", ignoreCase = true)) return@withContext Login.Vencida(exp)
-            // Usuário desativado no servidor: não entra e o app fecha sozinho, sem aviso.
-            if (info != null && (status.equals("Disabled", ignoreCase = true) || status.equals("Banned", ignoreCase = true))) {
-                desativado.value = true
-                return@withContext Login.SenhaErrada
+        val dnsLista = server.dns.distinct()
+        for (rodada in listOf(listOf<String?>(null), IDENTIDADES.drop(1))) {
+            val r = kotlinx.coroutines.coroutineScope {
+                val tentativas = dnsLista.flatMap { d -> rodada.map { ua -> d to ua } }
+                val canal = kotlinx.coroutines.channels.Channel<Login?>(tentativas.size.coerceAtLeast(1))
+                val jobs = tentativas.map { (d, ua) -> launch { canal.send(runCatching { tentarLogin(http, d, user, pass, ua) }.getOrNull()) } }
+                var achou: Login? = null
+                var vencida: Login? = null
+                repeat(tentativas.size) {
+                    when (val x = canal.receive()) {
+                        is Login.Ok -> { achou = x; jobs.forEach { it.cancel() }; return@coroutineScope x }
+                        is Login.Vencida -> if (vencida == null) vencida = x
+                        Login.SenhaErrada -> wrong = true
+                        else -> {}
+                    }
+                }
+                achou ?: vencida
             }
-            if (info == null || auth == "0") {
-                wrong = true
-                continue
-            }
-            return@withContext Login.Ok(base, exp, status)
+            if (r != null) return@withContext r
+            if (wrong) break // o servidor respondeu e recusou: não adianta trocar a identificação
         }
         if (wrong) Login.SenhaErrada else Login.SemResposta
     }
