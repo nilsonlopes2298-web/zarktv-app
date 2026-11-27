@@ -71,13 +71,20 @@ fun AbaTvCelular(
     val vermelho = Color(0xFFE50914)
     Column(Modifier.fillMaxSize()) {
         // ---- Vídeo ----
+        // Canal tocando: nada na frente da imagem. Um toque mostra os botões por 4 s;
+        // tocar de novo (ou no botão de tela cheia) abre a tela cheia.
+        var botoes by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+        var toques by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+        androidx.compose.runtime.LaunchedEffect(toques, botoes) { if (botoes) { kotlinx.coroutines.delay(4_000); botoes = false } }
+        androidx.compose.runtime.LaunchedEffect(current?.id) { botoes = false }
+        val mostrar = current == null || botoes
         Box(
             Modifier.fillMaxWidth().aspectRatio(16f / 9f)
                 .onGloballyPositioned { onPreviewRect(it.boundsInRoot()) }
-                .clickable { if (current != null) onFull() }
+                .clickable { if (current != null) { if (botoes) onFull() else { botoes = true; toques++ } } }
         ) {
             if (current == null) Text("Escolha um canal na lista", color = Color(0xFFA1A1A6), fontSize = 15.sp, modifier = Modifier.align(Alignment.Center))
-            Row(
+            if (mostrar) Row(
                 Modifier.align(Alignment.TopEnd).padding(6.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
@@ -95,7 +102,7 @@ fun AbaTvCelular(
                 if (current != null) IconeVideo(if (current.id in favorites) AppIcons.EstrelaCheia else AppIcons.Estrela, if (current.id in favorites) Color(0xFFFFC107) else Color.White) { onFavorite(current) }
                 IconeVideo(AppIcons.Transmitir) { onTransmitir() }
             }
-            if (current != null) Box(
+            if (current != null && botoes) Box(
                 Modifier.align(Alignment.BottomEnd).padding(8.dp).size(36.dp).clip(RoundedCornerShape(8.dp))
                     .background(Color(0x66000000)).clickable { onFull() },
                 contentAlignment = Alignment.Center,
