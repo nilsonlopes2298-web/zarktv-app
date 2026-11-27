@@ -5,122 +5,122 @@
       "grupo": "ZarkTV",
       "nome": "Web Play",
       "url": "https://tv.zarktvqx.cfd",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=webplay,zarktv-web"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-caddy"
     },
     {
       "grupo": "ZarkTV",
       "nome": "Painel ZarkTV Cloud",
       "url": "https://painel.zarktvqx.cfd",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=painel,zarktv-cloud"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zarkplay-painel,zarkplay-sincronia"
     },
     {
       "grupo": "ZarkTV",
       "nome": "Checkout Pix",
       "url": "https://painel.zarktvqx.cfd/checkout",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=checkout"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zarktv-checkout"
     },
     {
       "grupo": "ZarkTV",
       "nome": "Lojinha de apps",
       "url": "https://loja.zarktvqx.cfd",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=loja"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-caddy"
     },
     {
       "grupo": "ZarkTV",
       "nome": "ZarkPlay",
       "url": "https://zarkplay.zarktvqx.cfd",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=zarkplay"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zarkplay-painel"
     },
     {
       "grupo": "ZarkTV",
       "nome": "Downloads dos apps",
       "url": "https://zark.zarktvqx.cfd",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=zark-apps,download"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-caddy"
     },
     {
       "grupo": "ZarkTV",
       "nome": "Zplay",
       "url": "https://zplay.rstvquix.com",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=zplay"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zplay-app,zplay-supa-db,zplay-agendador"
     },
     {
       "grupo": "ZarkTV",
       "nome": "Pix",
       "url": "https://pix.rstvquix.com",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=pix"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=verificador-pix"
     },
     {
       "grupo": "Disparos",
       "nome": "DisparaBit (ofertas)",
       "url": "https://ofertas.zarktvqx.cfd",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=disparabit,dispara,ofertas"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=primeofertas,status-grupos,mlconector,primebyte-postador"
     },
     {
       "grupo": "Disparos",
       "nome": "Achadinhos",
       "url": "https://achadinhos.rstvquix.com",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=achadinhos"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=bot-achadinhos"
     },
     {
       "grupo": "Disparos",
       "nome": "Bot de ativação",
       "url": "https://botativacao.rstvquix.com",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=botativacao,ativacao"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=primebyte-ativacoes"
     },
     {
       "grupo": "WhatsApp",
       "nome": "Evolution API (principal)",
       "url": "https://api.rstvquix.com",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=evolution"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-evolution,evolution-api-postgres,evolution-api-redis,wa85,wa88"
     },
     {
       "grupo": "WhatsApp",
       "nome": "WA-AKG (reserva)",
       "url": "https://wakg.rstvquix.com",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=wa-akg,wakg"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=wa-akg"
     },
     {
       "grupo": "WhatsApp",
       "nome": "OpenWA (reserva)",
       "url": "https://wa2.rstvquix.com",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=openwa"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=openwa"
     },
     {
       "grupo": "Negócios",
       "nome": "Point do Açaí",
       "url": "https://pointdoacaiquixeramobim.tech",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=acai,deliverweb,point"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=pointdoacai-site,supabase-db,supabase-auth,acai-backup"
     },
     {
       "grupo": "Negócios",
       "nome": "Anotado",
       "url": "https://anotado.zarktvqx.cfd",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=anotado,anotador"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=anotador51,anotador-nfce,anotador-backup,n8n-financas"
     },
     {
       "grupo": "Negócios",
       "nome": "QuixMídia",
       "url": "https://quixmidia.187-41-105-104.sslip.io/painel/",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=quixmidia"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=quixmidia"
     },
     {
       "grupo": "Negócios",
       "nome": "PulseGym",
       "url": "https://dev-academia.primebytecloud.com.br",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=academia,gym"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=opengym-dev"
     },
     {
       "grupo": "Negócios",
       "nome": "Livros de colorir",
       "url": "https://livros.rstvquix.com",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=livros,colorbook"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=colorbook-hml"
     },
     {
       "grupo": "Negócios",
       "nome": "Figurinha com som",
       "url": "https://figurinha.rstvquix.com",
-      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=figurinha"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=figurinha-bot"
     }
   ],
-  "metricas": "http://187.41.105.104:9123/k/{CHAVE}/metricas"
+  "metricas": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/metricas"
 }

@@ -1,5 +1,6 @@
 # Monitor da VPS Roxinha (somente leitura) para a tela inicial ZarkTV.
 # A chave vem da variável CHAVE (definida no painel da Hostinger ao criar o projeto).
+# Sem porta pública: o Caddy da Roxinha entrega em https://tvmonitor.187-41-105-104.sslip.io
 services:
   monitor:
     image: python:3.12-alpine
@@ -8,8 +9,6 @@ services:
     environment:
       - CHAVE=${CHAVE}
       - PORTA=9123
-    ports:
-      - "9123:9123"
     volumes:
       - /proc:/host/proc:ro
       - /:/host/root:ro
