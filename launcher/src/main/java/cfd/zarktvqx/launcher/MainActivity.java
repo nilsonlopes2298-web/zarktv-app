@@ -39,6 +39,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.ImageView;
@@ -676,12 +677,13 @@ public class MainActivity extends Activity {
     }
 
     private void opcoesGerais() {
-        String[] itens = {"Configurações da TV", "Mostrar apps ocultos"};
+        String[] itens = {"Configurações da TV", "Mostrar apps ocultos", "Chave do servidor"};
         new AlertDialog.Builder(this, R.style.Dialogo)
                 .setTitle("Ajustes")
                 .setItems(itens, (d, qual) -> {
                     if (qual == 0) abrirIntent(new Intent(Settings.ACTION_SETTINGS));
-                    else mostrarOcultos();
+                    else if (qual == 1) mostrarOcultos();
+                    else pedirChave();
                 })
                 .setNegativeButton("Cancelar", null)
                 .show();
@@ -813,7 +815,7 @@ public class MainActivity extends Activity {
         pVpsDisco = linha(c, "Disco", null, null);
         pVpsLigada = linha(c, "Ligada há", null, null);
         for (TextView v : new TextView[]{pVpsCpu, pVpsMemoria, pVpsDisco, pVpsLigada}) {
-            v.setText("aguardando monitor");
+            v.setText("aguardando o monitor");
             v.setTextColor(TEXTO_3);
         }
 
@@ -1003,13 +1005,17 @@ public class MainActivity extends Activity {
         LinearLayout metricas = new LinearLayout(this);
         metricas.setOrientation(LinearLayout.VERTICAL);
         dLista.addView(metricas);
-        if (s.detalhes == null) {
+        final String urlDetalhes = comChave(s.detalhes);
+        if (s.detalhes != null && urlDetalhes == null) {
+            TextView v = linha(metricas, "Chave do servidor não configurada", "Ajustes → Chave do servidor", null);
+            v.setText("");
+        } else if (s.detalhes == null) {
             TextView v = linha(metricas, "Ainda não ligado", "Este sistema ainda não manda números para a TV", null);
             v.setText("");
         } else {
             TextView carregando = linha(metricas, "Carregando…", null, null);
             carregando.setText("");
-            final String url = s.detalhes;
+            final String url = urlDetalhes;
             rede.execute(() -> {
                 String json = baixar(url);
                 ui.post(() -> {
@@ -1080,6 +1086,47 @@ public class MainActivity extends Activity {
 
     // ================================================================ sistemas da Roxinha
 
+    /** Chave do monitor: fica só na TV (preferências ou arquivo chave.txt na pasta do app). */
+    private String chave() {
+        String c = prefs.getString("chave", "");
+        if (!c.isEmpty()) return c;
+        try {
+            java.io.File f = new java.io.File(getExternalFilesDir(null), "chave.txt");
+            if (f.exists()) {
+                c = ler(new java.io.FileInputStream(f)).trim();
+                if (!c.isEmpty()) prefs.edit().putString("chave", c).apply();
+                return c;
+            }
+        } catch (Exception ignorado) {
+        }
+        return "";
+    }
+
+    /** Troca {CHAVE} pela chave da TV; devolve null se a chave ainda não foi configurada. */
+    private String comChave(String url) {
+        if (url == null) return null;
+        if (!url.contains("{CHAVE}")) return url;
+        String c = chave();
+        return c.isEmpty() ? null : url.replace("{CHAVE}", c);
+    }
+
+    private void pedirChave() {
+        EditText campo = new EditText(this);
+        campo.setSingleLine(true);
+        campo.setHint("Chave do monitor");
+        campo.setText(prefs.getString("chave", ""));
+        new AlertDialog.Builder(this, R.style.Dialogo)
+                .setTitle("Chave do servidor")
+                .setView(campo)
+                .setPositiveButton("Salvar", (d, w) -> {
+                    prefs.edit().putString("chave", campo.getText().toString().trim()).apply();
+                    ui.removeCallbacks(verificar);
+                    ui.post(verificar);
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
     private String listaInicial() {
         String salvo = prefs.getString("sistemas_json", null);
         if (salvo != null) return salvo;
@@ -1148,7 +1195,8 @@ public class MainActivity extends Activity {
                         ui.post(() -> montarSistemas(json));
                     }
                 }
-                String m = (ms >= 0 && urlMetricas != null) ? baixar(urlMetricas) : null;
+                String urlM = comChave(urlMetricas);
+                String m = (ms >= 0 && urlM != null) ? baixar(urlM) : null;
                 ui.post(() -> {
                     if (m != null) mostrarMetricas(m);
                     testarSistemas(ms >= 0);

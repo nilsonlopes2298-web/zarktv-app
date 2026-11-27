@@ -1,0 +1,21 @@
+# Monitor da VPS Roxinha (somente leitura) para a tela inicial ZarkTV.
+# A chave vem da variável CHAVE (definida no painel da Hostinger ao criar o projeto).
+services:
+  monitor:
+    image: python:3.12-alpine
+    container_name: roxinha-monitor
+    restart: unless-stopped
+    environment:
+      - CHAVE=${CHAVE}
+      - PORTA=9123
+    ports:
+      - "9123:9123"
+    volumes:
+      - /proc:/host/proc:ro
+      - /:/host/root:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: >
+      sh -c "wget -qO /monitor.py https://raw.githubusercontent.com/nilsonlopes2298-web/zarktv-app/launcher/launcher/monitor/monitor.py
+      && exec python -u /monitor.py"
+    mem_limit: 64m
+    cpus: 0.25

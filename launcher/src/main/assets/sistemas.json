@@ -1,28 +1,126 @@
 {
-  "_leia": "Lista dos sistemas da VPS Roxinha que a tela inicial ZarkTV testa a cada 30 s. Para adicionar ou tirar um sistema, edite este arquivo no ramo 'launcher' (a TV pega a lista nova sozinha, sem reinstalar).",
+  "_leia": "Lista dos sistemas da VPS Roxinha que a tela inicial ZarkTV testa a cada 30 s. Edite no ramo 'launcher' (a TV pega sozinha). {CHAVE} é trocado pela chave do monitor guardada só na TV (nunca coloque a chave aqui: o repositório é público).",
   "sistemas": [
-    { "grupo": "ZarkTV", "nome": "Web Play", "url": "https://tv.zarktvqx.cfd" },
-    { "grupo": "ZarkTV", "nome": "Painel ZarkTV Cloud", "url": "https://painel.zarktvqx.cfd" },
-    { "grupo": "ZarkTV", "nome": "Checkout Pix", "url": "https://painel.zarktvqx.cfd/checkout" },
-    { "grupo": "ZarkTV", "nome": "Lojinha de apps", "url": "https://loja.zarktvqx.cfd" },
-    { "grupo": "ZarkTV", "nome": "ZarkPlay", "url": "https://zarkplay.zarktvqx.cfd" },
-    { "grupo": "ZarkTV", "nome": "Downloads dos apps", "url": "https://zark.zarktvqx.cfd" },
-    { "grupo": "ZarkTV", "nome": "Zplay", "url": "https://zplay.rstvquix.com" },
-    { "grupo": "ZarkTV", "nome": "Pix", "url": "https://pix.rstvquix.com" },
-
-    { "grupo": "Disparos", "nome": "DisparaBit (ofertas)", "url": "https://ofertas.zarktvqx.cfd" },
-    { "grupo": "Disparos", "nome": "Achadinhos", "url": "https://achadinhos.rstvquix.com" },
-    { "grupo": "Disparos", "nome": "Bot de ativação", "url": "https://botativacao.rstvquix.com" },
-
-    { "grupo": "WhatsApp", "nome": "Evolution API (principal)", "url": "https://api.rstvquix.com" },
-    { "grupo": "WhatsApp", "nome": "WA-AKG (reserva)", "url": "https://wakg.rstvquix.com" },
-    { "grupo": "WhatsApp", "nome": "OpenWA (reserva)", "url": "https://wa2.rstvquix.com" },
-
-    { "grupo": "Negócios", "nome": "Point do Açaí", "url": "https://pointdoacaiquixeramobim.tech" },
-    { "grupo": "Negócios", "nome": "Anotado", "url": "https://anotado.zarktvqx.cfd" },
-    { "grupo": "Negócios", "nome": "QuixMídia", "url": "https://quixmidia.187-41-105-104.sslip.io/painel/" },
-    { "grupo": "Negócios", "nome": "PulseGym", "url": "https://dev-academia.primebytecloud.com.br" },
-    { "grupo": "Negócios", "nome": "Livros de colorir", "url": "https://livros.rstvquix.com" },
-    { "grupo": "Negócios", "nome": "Figurinha com som", "url": "https://figurinha.rstvquix.com" }
-  ]
+    {
+      "grupo": "ZarkTV",
+      "nome": "Web Play",
+      "url": "https://tv.zarktvqx.cfd",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=webplay,zarktv-web"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Painel ZarkTV Cloud",
+      "url": "https://painel.zarktvqx.cfd",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=painel,zarktv-cloud"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Checkout Pix",
+      "url": "https://painel.zarktvqx.cfd/checkout",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=checkout"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Lojinha de apps",
+      "url": "https://loja.zarktvqx.cfd",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=loja"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "ZarkPlay",
+      "url": "https://zarkplay.zarktvqx.cfd",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=zarkplay"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Downloads dos apps",
+      "url": "https://zark.zarktvqx.cfd",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=zark-apps,download"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Zplay",
+      "url": "https://zplay.rstvquix.com",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=zplay"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Pix",
+      "url": "https://pix.rstvquix.com",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=pix"
+    },
+    {
+      "grupo": "Disparos",
+      "nome": "DisparaBit (ofertas)",
+      "url": "https://ofertas.zarktvqx.cfd",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=disparabit,dispara,ofertas"
+    },
+    {
+      "grupo": "Disparos",
+      "nome": "Achadinhos",
+      "url": "https://achadinhos.rstvquix.com",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=achadinhos"
+    },
+    {
+      "grupo": "Disparos",
+      "nome": "Bot de ativação",
+      "url": "https://botativacao.rstvquix.com",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=botativacao,ativacao"
+    },
+    {
+      "grupo": "WhatsApp",
+      "nome": "Evolution API (principal)",
+      "url": "https://api.rstvquix.com",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=evolution"
+    },
+    {
+      "grupo": "WhatsApp",
+      "nome": "WA-AKG (reserva)",
+      "url": "https://wakg.rstvquix.com",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=wa-akg,wakg"
+    },
+    {
+      "grupo": "WhatsApp",
+      "nome": "OpenWA (reserva)",
+      "url": "https://wa2.rstvquix.com",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=openwa"
+    },
+    {
+      "grupo": "Negócios",
+      "nome": "Point do Açaí",
+      "url": "https://pointdoacaiquixeramobim.tech",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=acai,deliverweb,point"
+    },
+    {
+      "grupo": "Negócios",
+      "nome": "Anotado",
+      "url": "https://anotado.zarktvqx.cfd",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=anotado,anotador"
+    },
+    {
+      "grupo": "Negócios",
+      "nome": "QuixMídia",
+      "url": "https://quixmidia.187-41-105-104.sslip.io/painel/",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=quixmidia"
+    },
+    {
+      "grupo": "Negócios",
+      "nome": "PulseGym",
+      "url": "https://dev-academia.primebytecloud.com.br",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=academia,gym"
+    },
+    {
+      "grupo": "Negócios",
+      "nome": "Livros de colorir",
+      "url": "https://livros.rstvquix.com",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=livros,colorbook"
+    },
+    {
+      "grupo": "Negócios",
+      "nome": "Figurinha com som",
+      "url": "https://figurinha.rstvquix.com",
+      "detalhes": "http://187.41.105.104:9123/k/{CHAVE}/detalhes?busca=figurinha"
+    }
+  ],
+  "metricas": "http://187.41.105.104:9123/k/{CHAVE}/metricas"
 }
