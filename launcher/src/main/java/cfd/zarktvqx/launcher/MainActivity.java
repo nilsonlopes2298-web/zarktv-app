@@ -13,6 +13,8 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.Typeface;
@@ -124,8 +126,11 @@ public class MainActivity extends Activity {
     private ScrollView painelRolagem;
     private TextView pResumoGrande, pAtualizado, pInternet, pRede, pArmazenamento, pMemoria, pApps;
     private TextView pRoxinhaResumo, pVpsCpu, pVpsMemoria, pVpsDisco, pVpsLigada;
-    private LinearLayout pSistemas;
+    private GridLayout pSistemas;
     private View painelPrimeiro;
+    private Medidor gCpu, gMem, gDisco, gCont;
+    private TextView tCpu, tMem, tDisco, tCont, sNoAr, sFora;
+    private int larguraCartaoSistema;
 
     // Tela de detalhe de um sistema
     private FrameLayout detalhe;
@@ -150,6 +155,8 @@ public class MainActivity extends Activity {
         String grupo, nome, url, detalhes;
         TextView status;
         View linhaView;
+        GradientDrawable fundoCartao;
+        TextView nomeV, grupoV, hostV;
         volatile int estado; // 0 verificando, 1 no ar, 2 lento, 3 fora do ar
         volatile long ms = -1;
     }
@@ -741,95 +748,262 @@ public class MainActivity extends Activity {
 
     private View montarPainel() {
         painel = new FrameLayout(this);
-        painel.setBackgroundColor(FUNDO);
+        painel.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.parseColor("#1A0A0C"), FUNDO, FUNDO}));
         painel.setVisibility(View.GONE);
 
-        LinearLayout duas = new LinearLayout(this);
-        duas.setOrientation(LinearLayout.HORIZONTAL);
-        painel.addView(duas, new FrameLayout.LayoutParams(-1, -1));
+        int largura = getResources().getDisplayMetrics().widthPixels;
+        int lado = dp(56);
+        int vao = dp(18);
+        int util = largura - 2 * lado;
+        int quarto = (util - 3 * vao) / 4;
+        larguraCartaoSistema = quarto;
 
-        // Lado esquerdo: ícone grande e resumo
-        LinearLayout esq = new LinearLayout(this);
-        esq.setOrientation(LinearLayout.VERTICAL);
-        esq.setGravity(Gravity.CENTER);
-        esq.setPadding(dp(48), dp(40), dp(24), dp(40));
-
-        FrameLayout grande = new FrameLayout(this);
-        grande.setBackground(fundoArredondado(new int[]{Color.parseColor("#C8102E"), Color.parseColor("#4A0710")}));
-        ((GradientDrawable) grande.getBackground()).setCornerRadius(dp(22));
-        grande.setElevation(dp(16));
-        ImageView sv = new ImageView(this);
-        sv.setImageResource(R.drawable.servidor);
-        grande.addView(sv, new FrameLayout.LayoutParams(dp(84), dp(84), Gravity.CENTER));
-        esq.addView(grande, new LinearLayout.LayoutParams(dp(250), dp(150)));
-
-        TextView t = new TextView(this);
-        t.setText(NOME_SERVIDOR);
-        t.setTextColor(BRANCO);
-        t.setTextSize(30);
-        t.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
-        t.setGravity(Gravity.CENTER);
-        esq.addView(t, margem(-2, -2, 0, dp(28), 0, 0));
-
-        TextView sub = new TextView(this);
-        sub.setText("VPS Roxinha · Hostinger");
-        sub.setTextColor(TEXTO_2);
-        sub.setTextSize(15);
-        sub.setGravity(Gravity.CENTER);
-        esq.addView(sub, margem(-2, -2, 0, dp(4), 0, 0));
-
-        pResumoGrande = new TextView(this);
-        pResumoGrande.setTextSize(17);
-        pResumoGrande.setGravity(Gravity.CENTER);
-        esq.addView(pResumoGrande, margem(-2, -2, 0, dp(22), 0, 0));
-
-        pAtualizado = new TextView(this);
-        pAtualizado.setTextColor(TEXTO_3);
-        pAtualizado.setTextSize(13);
-        pAtualizado.setGravity(Gravity.CENTER);
-        esq.addView(pAtualizado, margem(-2, -2, 0, dp(6), 0, 0));
-        duas.addView(esq, new LinearLayout.LayoutParams(0, -1, 0.42f));
-
-        // Lado direito: lista rolável
         painelRolagem = new ScrollView(this);
         painelRolagem.setVerticalScrollBarEnabled(false);
         painelRolagem.setClipToPadding(false);
-        painelRolagem.setPadding(0, dp(48), 0, dp(48));
-        duas.addView(painelRolagem, new LinearLayout.LayoutParams(0, -1, 0.58f));
+        painel.addView(painelRolagem, new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
-        c.setPadding(dp(12), 0, dp(64), 0);
+        c.setClipChildren(false);
+        c.setClipToPadding(false);
+        c.setPadding(lado, dp(32), lado, dp(48));
         painelRolagem.addView(c, new ScrollView.LayoutParams(-1, -2));
 
-        c.addView(cabecalhoSecao("VPS ROXINHA", true));
-        pRoxinhaResumo = linha(c, "Sistemas no ar", null, null);
-        pVpsCpu = linha(c, "Processador", null, null);
-        pVpsMemoria = linha(c, "Memória", null, null);
-        pVpsDisco = linha(c, "Disco", null, null);
-        pVpsLigada = linha(c, "Ligada há", null, null);
-        for (TextView v : new TextView[]{pVpsCpu, pVpsMemoria, pVpsDisco, pVpsLigada}) {
-            v.setText("aguardando o monitor");
-            v.setTextColor(TEXTO_3);
-        }
+        // Cabeçalho: ícone, título, atualizado, situação geral
+        LinearLayout cab = new LinearLayout(this);
+        cab.setOrientation(LinearLayout.HORIZONTAL);
+        cab.setGravity(Gravity.CENTER_VERTICAL);
+        FrameLayout mini = new FrameLayout(this);
+        GradientDrawable fm = fundoArredondado(new int[]{Color.parseColor("#C8102E"), Color.parseColor("#4A0710")});
+        fm.setCornerRadius(dp(12));
+        mini.setBackground(fm);
+        ImageView sv = new ImageView(this);
+        sv.setImageResource(R.drawable.servidor);
+        mini.addView(sv, new FrameLayout.LayoutParams(dp(30), dp(30), Gravity.CENTER));
+        cab.addView(mini, new LinearLayout.LayoutParams(dp(72), dp(44)));
+        LinearLayout tit = new LinearLayout(this);
+        tit.setOrientation(LinearLayout.VERTICAL);
+        tit.setPadding(dp(16), 0, 0, 0);
+        TextView t = new TextView(this);
+        t.setText(NOME_SERVIDOR);
+        t.setTextColor(BRANCO);
+        t.setTextSize(28);
+        t.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        tit.addView(t);
+        pAtualizado = new TextView(this);
+        pAtualizado.setTextColor(TEXTO_2);
+        pAtualizado.setTextSize(13);
+        tit.addView(pAtualizado);
+        cab.addView(tit, new LinearLayout.LayoutParams(0, -2, 1));
+        pResumoGrande = new TextView(this);
+        pResumoGrande.setTextSize(15);
+        pResumoGrande.setPadding(dp(16), dp(8), dp(18), dp(8));
+        GradientDrawable pilula = new GradientDrawable();
+        pilula.setColor(CINZA_1);
+        pilula.setCornerRadius(dp(20));
+        pResumoGrande.setBackground(pilula);
+        cab.addView(pResumoGrande);
+        c.addView(cab);
 
-        pSistemas = new LinearLayout(this);
-        pSistemas.setOrientation(LinearLayout.VERTICAL);
+        // Medidores da VPS
+        c.addView(tituloBloco("VPS Roxinha"), margem(-1, -2, 0, dp(26), 0, dp(12)));
+        LinearLayout medidores = new LinearLayout(this);
+        medidores.setOrientation(LinearLayout.HORIZONTAL);
+        Object[] m1 = cartaoMedidor(medidores, "Processador", quarto, false);
+        gCpu = (Medidor) m1[0];
+        tCpu = (TextView) m1[1];
+        Object[] m2 = cartaoMedidor(medidores, "Memória", quarto, true);
+        gMem = (Medidor) m2[0];
+        tMem = (TextView) m2[1];
+        Object[] m3 = cartaoMedidor(medidores, "Disco", quarto, true);
+        gDisco = (Medidor) m3[0];
+        tDisco = (TextView) m3[1];
+        Object[] m4 = cartaoMedidor(medidores, "Containers", quarto, true);
+        gCont = (Medidor) m4[0];
+        tCont = (TextView) m4[1];
+        c.addView(medidores);
+
+        // Números rápidos
+        LinearLayout numeros = new LinearLayout(this);
+        numeros.setOrientation(LinearLayout.HORIZONTAL);
+        sNoAr = cartaoNumero(numeros, "Sistemas no ar", quarto, false);
+        sFora = cartaoNumero(numeros, "Fora do ar", quarto, true);
+        pVpsLigada = cartaoNumero(numeros, "Ligada há", quarto, true);
+        pInternet = cartaoNumero(numeros, "Internet da TV", quarto, true);
+        c.addView(numeros, margem(-1, -2, 0, vao, 0, 0));
+        // campos antigos (mantidos para compatibilidade)
+        pRoxinhaResumo = new TextView(this);
+        pVpsCpu = tCpu;
+        pVpsMemoria = tMem;
+        pVpsDisco = tDisco;
+
+        // Sistemas
+        c.addView(tituloBloco("Sistemas"), margem(-1, -2, 0, dp(28), 0, dp(12)));
+        pSistemas = new GridLayout(this);
+        pSistemas.setColumnCount(4);
+        pSistemas.setClipChildren(false);
+        pSistemas.setClipToPadding(false);
         c.addView(pSistemas);
 
-        c.addView(cabecalhoSecao("ESTA TV", false));
-        pInternet = linha(c, "Internet", null, null);
-        pRede = linha(c, "Rede", null, null);
-        pArmazenamento = linha(c, "Armazenamento livre", null, null);
-        pMemoria = linha(c, "Memória livre", null, null);
-        pApps = linha(c, "Apps instalados", null, null);
+        // Esta TV
+        c.addView(tituloBloco("Esta TV"), margem(-1, -2, 0, dp(22), 0, dp(10)));
+        LinearLayout tv = new LinearLayout(this);
+        tv.setOrientation(LinearLayout.VERTICAL);
+        pRede = linha(tv, "Rede", null, null);
+        pArmazenamento = linha(tv, "Armazenamento livre", null, null);
+        pMemoria = linha(tv, "Memória livre", null, null);
+        pApps = linha(tv, "Apps instalados", null, null);
+        c.addView(tv);
 
         TextView dica = new TextView(this);
-        dica.setText("OK num sistema abre os detalhes e as métricas  ·  Voltar fecha");
+        dica.setText("OK num sistema abre os detalhes  ·  Voltar fecha");
         dica.setTextColor(TEXTO_3);
         dica.setTextSize(12);
-        c.addView(dica, margem(-1, -2, dp(18), dp(28), 0, 0));
+        dica.setGravity(Gravity.CENTER);
+        c.addView(dica, margem(-1, -2, 0, dp(22), 0, 0));
+        painelPrimeiro = null;
         return painel;
+    }
+
+    private TextView tituloBloco(String texto) {
+        TextView h = new TextView(this);
+        h.setText(texto);
+        h.setTextColor(BRANCO);
+        h.setTextSize(19);
+        h.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        return h;
+    }
+
+    private GradientDrawable fundoCartaoPainel() {
+        GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.parseColor("#232326"), CINZA_1});
+        g.setCornerRadius(dp(18));
+        return g;
+    }
+
+    /** Cartão com medidor redondo; devolve {Medidor, legenda}. */
+    private Object[] cartaoMedidor(LinearLayout linhaPai, String rotulo, int largura, boolean margemEsq) {
+        LinearLayout k = new LinearLayout(this);
+        k.setOrientation(LinearLayout.VERTICAL);
+        k.setGravity(Gravity.CENTER_HORIZONTAL);
+        k.setPadding(dp(12), dp(16), dp(12), dp(16));
+        k.setBackground(fundoCartaoPainel());
+        Medidor md = new Medidor(this);
+        k.addView(md, new LinearLayout.LayoutParams(dp(108), dp(108)));
+        TextView r = new TextView(this);
+        r.setText(rotulo);
+        r.setTextColor(BRANCO);
+        r.setTextSize(15);
+        r.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        r.setGravity(Gravity.CENTER);
+        k.addView(r, margem(-2, -2, 0, dp(6), 0, 0));
+        TextView leg = new TextView(this);
+        leg.setText("aguardando o monitor");
+        leg.setTextColor(TEXTO_2);
+        leg.setTextSize(12);
+        leg.setGravity(Gravity.CENTER);
+        k.addView(leg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(largura, -2);
+        if (margemEsq) lp.leftMargin = dp(18);
+        linhaPai.addView(k, lp);
+        return new Object[]{md, leg};
+    }
+
+    /** Cartão com um número grande; devolve o texto do valor. */
+    private TextView cartaoNumero(LinearLayout linhaPai, String rotulo, int largura, boolean margemEsq) {
+        LinearLayout k = new LinearLayout(this);
+        k.setOrientation(LinearLayout.VERTICAL);
+        k.setPadding(dp(18), dp(14), dp(18), dp(14));
+        k.setBackground(fundoCartaoPainel());
+        TextView r = new TextView(this);
+        r.setText(rotulo.toUpperCase(PT_BR));
+        r.setTextColor(TEXTO_2);
+        r.setTextSize(11);
+        r.setLetterSpacing(0.06f);
+        k.addView(r);
+        TextView v = new TextView(this);
+        v.setText("—");
+        v.setTextColor(BRANCO);
+        v.setTextSize(22);
+        v.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        v.setSingleLine(true);
+        v.setEllipsize(TextUtils.TruncateAt.END);
+        k.addView(v, margem(-2, -2, 0, dp(4), 0, 0));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(largura, -2);
+        if (margemEsq) lp.leftMargin = dp(18);
+        linhaPai.addView(k, lp);
+        return v;
+    }
+
+    /** Cartão de um sistema na grade; no foco fica branco (estilo Apple TV). */
+    private View cartaoSistema(Sistema s, int indice) {
+        LinearLayout k = new LinearLayout(this);
+        k.setOrientation(LinearLayout.VERTICAL);
+        k.setPadding(dp(14), dp(12), dp(14), dp(12));
+        s.fundoCartao = new GradientDrawable();
+        s.fundoCartao.setCornerRadius(dp(16));
+        s.fundoCartao.setColor(CINZA_1);
+        k.setBackground(s.fundoCartao);
+
+        s.grupoV = new TextView(this);
+        s.grupoV.setText(s.grupo.toUpperCase(PT_BR));
+        s.grupoV.setTextColor(TEXTO_3);
+        s.grupoV.setTextSize(10);
+        s.grupoV.setLetterSpacing(0.08f);
+        k.addView(s.grupoV);
+
+        s.nomeV = new TextView(this);
+        s.nomeV.setText(s.nome);
+        s.nomeV.setTextColor(BRANCO);
+        s.nomeV.setTextSize(15);
+        s.nomeV.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        s.nomeV.setSingleLine(true);
+        s.nomeV.setEllipsize(TextUtils.TruncateAt.END);
+        k.addView(s.nomeV, margem(-1, -2, 0, dp(2), 0, 0));
+
+        s.hostV = new TextView(this);
+        s.hostV.setText(Uri.parse(s.url).getHost());
+        s.hostV.setTextColor(TEXTO_3);
+        s.hostV.setTextSize(11);
+        s.hostV.setSingleLine(true);
+        s.hostV.setEllipsize(TextUtils.TruncateAt.END);
+        k.addView(s.hostV);
+
+        s.status = new TextView(this);
+        s.status.setTextSize(12);
+        s.status.setSingleLine(true);
+        k.addView(s.status, margem(-1, -2, 0, dp(8), 0, 0));
+
+        k.setFocusable(true);
+        k.setClickable(true);
+        k.setOnFocusChangeListener((v, foco) -> {
+            pintarCartao(s, foco);
+            v.animate().scaleX(foco ? 1.07f : 1f).scaleY(foco ? 1.07f : 1f).setDuration(130).start();
+            v.setElevation(foco ? dp(14) : 0);
+            if (foco) v.requestRectangleOnScreen(new Rect(0, -dp(80), v.getWidth(), v.getHeight() + dp(80)));
+        });
+        k.setOnClickListener(v -> abrirDetalhe(s));
+        s.linhaView = k;
+        return k;
+    }
+
+    /** Cores do cartão conforme a situação do sistema e o foco. */
+    private void pintarCartao(Sistema s, boolean foco) {
+        if (s.fundoCartao == null) return;
+        if (foco) {
+            s.fundoCartao.setColor(BRANCO);
+            s.nomeV.setTextColor(PRETO_TEXTO);
+            s.grupoV.setTextColor(CINZA_3);
+            s.hostV.setTextColor(CINZA_3);
+        } else {
+            s.fundoCartao.setColor(s.estado == 3 ? Color.parseColor("#3A1416") : s.estado == 2 ? Color.parseColor("#33290F") : CINZA_1);
+            s.nomeV.setTextColor(BRANCO);
+            s.grupoV.setTextColor(TEXTO_3);
+            s.hostV.setTextColor(TEXTO_3);
+        }
+        s.status.setTextColor(foco ? CINZA_3 : TEXTO_2);
     }
 
     private TextView cabecalhoSecao(String texto, boolean primeiro) {
@@ -902,7 +1076,9 @@ public class MainActivity extends Activity {
         painel.animate().alpha(1f).setDuration(200).start();
         painelRolagem.scrollTo(0, 0);
         atualizarStatusLocal();
-        if (painelPrimeiro != null) painelPrimeiro.requestFocus();
+        View primeiro = pSistemas.getChildCount() > 0 ? pSistemas.getChildAt(0) : null;
+        if (primeiro != null) primeiro.requestFocus();
+        painelRolagem.post(() -> painelRolagem.scrollTo(0, 0));
         ui.removeCallbacks(verificar);
         ui.post(verificar);
     }
@@ -1156,16 +1332,15 @@ public class MainActivity extends Activity {
         sistemas.addAll(novos);
 
         pSistemas.removeAllViews();
-        String grupoAtual = null;
+        int i = 0;
         for (Sistema s : sistemas) {
-            if (!s.grupo.equals(grupoAtual)) {
-                pSistemas.addView(cabecalhoSecao(s.grupo.toUpperCase(PT_BR), false));
-                grupoAtual = s.grupo;
-            }
-            String host = Uri.parse(s.url).getHost();
-            s.status = linha(pSistemas, s.nome, host, () -> abrirDetalhe(s));
-            s.linhaView = (View) s.status.getParent();
+            View k = cartaoSistema(s, i);
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
+            lp.width = larguraCartaoSistema;
+            lp.setMargins(0, 0, (i % 4 == 3) ? 0 : dp(18), dp(18));
+            pSistemas.addView(k, lp);
             pintar(s.status, "verificando", TEXTO_3);
+            i++;
         }
         atualizarResumo();
     }
@@ -1178,8 +1353,9 @@ public class MainActivity extends Activity {
                 long ms = testar(TESTE_INTERNET, 204);
                 temInternet = ms >= 0;
                 ui.post(() -> {
-                    if (ms >= 0) pintar(pInternet, "Online · " + ms + " ms", ms < 400 ? VERDE : AMARELO);
+                    if (ms >= 0) pintar(pInternet, ms + " ms", ms < 400 ? VERDE : AMARELO);
                     else pintar(pInternet, "Sem internet", VERMELHO);
+                    pInternet.setTextColor(BRANCO);
                 });
                 if (ms >= 0 && System.currentTimeMillis() - ultimaListaMs > 10 * 60_000) {
                     String json = baixar(LISTA_SISTEMAS);
@@ -1227,6 +1403,7 @@ public class MainActivity extends Activity {
                         s.estado = 1;
                         pintar(s.status, "No ar · " + ms + " ms", VERDE);
                     }
+                    if (s.linhaView != null) pintarCartao(s, s.linhaView.isFocused());
                     atualizarResumo();
                     if (s == sistemaAberto && detalhe.getVisibility() == View.VISIBLE) preencherSituacao(s);
                 });
@@ -1240,16 +1417,30 @@ public class MainActivity extends Activity {
         try {
             JSONObject o = new JSONObject(json);
             double cpu = o.optDouble("cpu", -1);
-            if (cpu >= 0) pintar(pVpsCpu, String.format(PT_BR, "%.0f%% em uso", cpu), cpu < 70 ? VERDE : cpu < 90 ? AMARELO : VERMELHO);
-            double mu = o.optDouble("memoria_usada", -1), mt = o.optDouble("memoria_total", -1);
-            if (mu >= 0 && mt > 0) pintar(pVpsMemoria, String.format(PT_BR, "%.1f de %.0f GB", mu, mt), mu / mt < 0.8 ? VERDE : mu / mt < 0.92 ? AMARELO : VERMELHO);
-            double du = o.optDouble("disco_usado", -1), dt = o.optDouble("disco_total", -1);
-            if (du >= 0 && dt > 0) pintar(pVpsDisco, String.format(PT_BR, "%.0f de %.0f GB", du, dt), du / dt < 0.8 ? VERDE : du / dt < 0.92 ? AMARELO : VERMELHO);
-            String ligada = o.optString("ligada", "");
-            if (!ligada.isEmpty()) {
-                pVpsLigada.setText(ligada);
-                pVpsLigada.setTextColor(TEXTO_2);
+            if (cpu >= 0) {
+                int cor = cpu < 70 ? VERDE : cpu < 90 ? AMARELO : VERMELHO;
+                gCpu.definir((float) cpu, cor, null);
+                tCpu.setText("em uso agora");
             }
+            double mu = o.optDouble("memoria_usada", -1), mt = o.optDouble("memoria_total", -1);
+            if (mu >= 0 && mt > 0) {
+                double pct = 100 * mu / mt;
+                gMem.definir((float) pct, pct < 80 ? VERDE : pct < 92 ? AMARELO : VERMELHO, null);
+                tMem.setText(String.format(PT_BR, "%.1f de %.1f GB", mu, mt));
+            }
+            double du = o.optDouble("disco_usado", -1), dt = o.optDouble("disco_total", -1);
+            if (du >= 0 && dt > 0) {
+                double pct = 100 * du / dt;
+                gDisco.definir((float) pct, pct < 80 ? VERDE : pct < 92 ? AMARELO : VERMELHO, null);
+                tDisco.setText(String.format(PT_BR, "%.0f de %.0f GB", du, dt));
+            }
+            int cr = o.optInt("containers_rodando", -1), ct = o.optInt("containers_total", -1);
+            if (cr >= 0 && ct > 0) {
+                gCont.definir(100f * cr / ct, VERDE, String.valueOf(cr));
+                tCont.setText(cr + " de " + ct + " rodando");
+            }
+            String ligada = o.optString("ligada", "");
+            if (!ligada.isEmpty()) pVpsLigada.setText(ligada);
         } catch (Exception ignorado) {
         }
     }
@@ -1278,7 +1469,10 @@ public class MainActivity extends Activity {
             texto = fora == 1 ? "1 sistema fora do ar" : fora + " sistemas fora do ar";
         }
         if (total > 0 && testados > 0) {
-            pintar(pRoxinhaResumo, ok + " de " + total, fora == 0 ? VERDE : ok == 0 ? VERMELHO : AMARELO);
+            sNoAr.setText(ok + " de " + total);
+            sNoAr.setTextColor(fora == 0 ? VERDE : BRANCO);
+            sFora.setText(String.valueOf(fora));
+            sFora.setTextColor(fora == 0 ? VERDE : VERMELHO);
         }
         pintar(pResumoGrande, texto, cor);
         pResumoGrande.setTextColor(BRANCO);
@@ -1479,5 +1673,52 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(l, a);
         lp.setMargins(esq, topo, dir, baixo);
         return lp;
+    }
+
+    /** Medidor redondo (arco de 270°) no estilo dos anéis da Apple. */
+    static class Medidor extends View {
+        private float valor = -1;
+        private int cor = Color.parseColor("#636366");
+        private String textoCentral;
+        private final Paint trilho = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint arco = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint texto = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF caixa = new RectF();
+
+        Medidor(Context c) {
+            super(c);
+            trilho.setStyle(Paint.Style.STROKE);
+            trilho.setStrokeCap(Paint.Cap.ROUND);
+            trilho.setColor(Color.parseColor("#2C2C2E"));
+            arco.setStyle(Paint.Style.STROKE);
+            arco.setStrokeCap(Paint.Cap.ROUND);
+            texto.setColor(Color.WHITE);
+            texto.setTextAlign(Paint.Align.CENTER);
+            texto.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        }
+
+        void definir(float v, int c, String central) {
+            valor = Math.max(0, Math.min(100, v));
+            cor = c;
+            textoCentral = central;
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float w = getWidth(), h = getHeight();
+            float esp = w * 0.10f;
+            trilho.setStrokeWidth(esp);
+            arco.setStrokeWidth(esp);
+            caixa.set(esp / 2, esp / 2, w - esp / 2, h - esp / 2);
+            canvas.drawArc(caixa, 135, 270, false, trilho);
+            if (valor >= 0) {
+                arco.setColor(cor);
+                canvas.drawArc(caixa, 135, Math.max(1f, 270 * valor / 100f), false, arco);
+            }
+            String t = textoCentral != null ? textoCentral : (valor < 0 ? "—" : Math.round(valor) + "%");
+            texto.setTextSize(w * (t.length() > 3 ? 0.2f : 0.24f));
+            canvas.drawText(t, w / 2, h / 2 - (texto.descent() + texto.ascent()) / 2, texto);
+        }
     }
 }
