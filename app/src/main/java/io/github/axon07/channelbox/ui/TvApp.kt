@@ -1403,7 +1403,8 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
             Mode.PLAYBACK, Mode.UPDATE -> Unit
             // ZarkPlay (XCIPTV): busca não toca nada; lista de canais e guia só tocam quando escolher o canal.
             Mode.SEARCH -> if (ZarkPlay.ativo) vm.enterLibrary() else vm.leaveLibrary()
-            Mode.LIVE, Mode.GUIDE -> if (ZarkPlay.ativo) vm.liberarAoVivo() else vm.leaveLibrary()
+            Mode.LIVE -> if (ZarkPlay.ativo) vm.liberarAoVivo(tocarAtual = true) else vm.leaveLibrary()
+            Mode.GUIDE -> if (ZarkPlay.ativo) vm.liberarAoVivo() else vm.leaveLibrary()
             // Audio & subtitles opened from a movie, episode or recording is still part of playback.
             Mode.OPTIONS -> if (optionsReturn != Mode.PLAYBACK) vm.leaveLibrary()
             // ZarkPlay: telas da TV ao vivo nunca mostram o filme/série que estava aberto (imagem congelada).

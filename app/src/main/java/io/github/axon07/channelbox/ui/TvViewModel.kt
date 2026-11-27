@@ -1315,10 +1315,12 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     private val semFundo: Boolean get() = io.github.axon07.channelbox.system.Aparelho.soCelular || ZarkPlay.ativo
 
     /** ZarkPlay: entrou na lista de canais ou no guia. Libera tocar, mas só toca quando escolher o canal. */
-    fun liberarAoVivo() {
+    fun liberarAoVivo(tocarAtual: Boolean = false) {
         endShift()
         limparVod()
         libraryOpen = false
+        // TV ao vivo (igual à UniTV): ao entrar já toca na prévia o canal que está marcado (o último assistido).
+        if (tocarAtual && zarkVencida.value == null) _current.value?.let { if (!player.tocando) player.play(StreamSpecs.from(it)) }
     }
 
     /**
