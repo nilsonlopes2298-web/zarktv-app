@@ -15,15 +15,12 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Rect;
-import android.graphics.RenderEffect;
-import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -109,7 +106,7 @@ public class MainActivity extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService fundo = Executors.newSingleThreadExecutor();
     private final ExecutorService rede = Executors.newSingleThreadExecutor();
-    private final ExecutorService testes = Executors.newFixedThreadPool(6);
+    private final ExecutorService testes = Executors.newFixedThreadPool(3);
 
     private SharedPreferences prefs;
     private PackageManager pm;
@@ -252,10 +249,7 @@ public class MainActivity extends Activity {
         // Vitrine (top shelf): imagem grande e desfocada do app em foco
         vitrineImagem = new ImageView(this);
         vitrineImagem.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        vitrineImagem.setAlpha(0.5f);
-        if (Build.VERSION.SDK_INT >= 31) {
-            vitrineImagem.setRenderEffect(RenderEffect.createBlurEffect(28f, 28f, Shader.TileMode.CLAMP));
-        }
+        vitrineImagem.setAlpha(0.28f);
         raiz.addView(vitrineImagem, new FrameLayout.LayoutParams(-1, alturaVitrine));
 
         View degradeBaixo = new View(this);
@@ -376,10 +370,10 @@ public class MainActivity extends Activity {
         caixa.setClickable(true);
         caixa.setOnFocusChangeListener((v, foco) -> {
             float e = foco ? 1.14f : 1f;
-            cartao.animate().scaleX(e).scaleY(e).translationY(foco ? -dp(6) : 0).setDuration(180).start();
-            cartao.setElevation(foco ? dp(24) : dp(2));
-            brilho.animate().alpha(foco ? 1f : 0f).setDuration(180).start();
-            rotulo.animate().alpha(foco ? 1f : 0f).translationY(foco ? dp(4) : 0).setDuration(180).start();
+            cartao.animate().scaleX(e).scaleY(e).translationY(foco ? -dp(6) : 0).setDuration(130).start();
+            cartao.setElevation(foco ? dp(16) : 0);
+            brilho.animate().alpha(foco ? 1f : 0f).setDuration(130).start();
+            rotulo.animate().alpha(foco ? 1f : 0f).translationY(foco ? dp(4) : 0).setDuration(130).start();
             if (foco) {
                 v.requestRectangleOnScreen(new Rect(0, -dp(40), v.getWidth(), v.getHeight() + dp(40)));
                 if (aoFocar != null) aoFocar.run();
@@ -1196,13 +1190,15 @@ public class MainActivity extends Activity {
                     }
                 }
                 String urlM = comChave(urlMetricas);
-                String m = (ms >= 0 && urlM != null) ? baixar(urlM) : null;
+                boolean aberto = painel.getVisibility() == View.VISIBLE;
+                String m = (ms >= 0 && urlM != null && aberto) ? baixar(urlM) : null;
                 ui.post(() -> {
                     if (m != null) mostrarMetricas(m);
                     testarSistemas(ms >= 0);
                 });
             });
-            ui.postDelayed(this, 30_000);
+            boolean painelAberto = painel.getVisibility() == View.VISIBLE || detalhe.getVisibility() == View.VISIBLE;
+            ui.postDelayed(this, painelAberto ? 30_000 : 120_000);
         }
     };
 
