@@ -514,3 +514,48 @@ fun VerificandoAtualizacao(vm: TvViewModel, versao: String, onFechar: () -> Unit
         }
     }
 }
+
+/**
+ * TV, TV Box e ZarkPlay: o mesmo procedimento do celular. Mostra a animação enquanto procura; se tiver versão
+ * nova, fecha e o aviso "Nova versão — quer atualizar?" aparece; se não tiver, diz que já está na mais recente.
+ */
+@Composable
+fun VerificandoAtualizacaoTv(vm: TvViewModel, versao: String, onFechar: () -> Unit) {
+    val estado by vm.update.collectAsStateWithLifecycle()
+    androidx.activity.compose.BackHandler { onFechar() }
+    when (val e = estado) {
+        is TvViewModel.UpdateState.Checking -> Box(
+            Modifier.fillMaxSize().background(Color(0x99000000)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                Modifier.width(420.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF1C1C1F)).padding(vertical = 26.dp, horizontal = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                val gira = rememberInfiniteTransition(label = "verificaTv")
+                val ang by gira.animateFloat(0f, 360f, infiniteRepeatable(tween(900, easing = LinearEasing)), label = "angTv")
+                androidx.compose.foundation.Canvas(Modifier.size(56.dp)) {
+                    drawCircle(Color(0x22FFFFFF), style = androidx.compose.ui.graphics.drawscope.Stroke(5.dp.toPx()))
+                    drawArc(Color(0xFFE50914), ang, 90f, false, style = androidx.compose.ui.graphics.drawscope.Stroke(5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                }
+                Text("Verificando atualizações…", color = Color(0xFFEDEDED), fontSize = 18.sp, modifier = Modifier.padding(top = 14.dp))
+                Text("Versão instalada: $versao", color = Color(0xFF85858B), fontSize = 14.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+        is TvViewModel.UpdateState.UpToDate -> ActionDialog(
+            title = "Você está na versão mais recente",
+            subtitle = "Versão $versao",
+            actions = listOf(DialogAction("OK") { onFechar() }),
+        )
+        is TvViewModel.UpdateState.Failed -> ActionDialog(
+            title = "Não deu para verificar agora",
+            subtitle = "Confira a internet e tente de novo.",
+            actions = listOf(
+                DialogAction("Tentar de novo") { vm.checkForUpdates(manual = true) },
+                DialogAction("Fechar") { onFechar() },
+            ),
+        )
+        // Tem versão nova (o aviso "quer atualizar?" assume) ou já está baixando (progresso no canto).
+        else -> LaunchedEffect(Unit) { onFechar() }
+    }
+}

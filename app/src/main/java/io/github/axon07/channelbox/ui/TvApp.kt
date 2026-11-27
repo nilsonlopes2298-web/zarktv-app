@@ -2864,6 +2864,7 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 }
             }
             if (verificandoCel) VerificandoAtualizacao(vm, vm.appVersion) { verificandoCel = false }
+            if (vm.verificacaoTv.collectAsStateWithLifecycle().value) VerificandoAtualizacaoTv(vm, vm.appVersion) { vm.verificacaoTv.value = false }
             vm.zarkManutencao.collectAsStateWithLifecycle().value?.let { texto ->
                 if (mode != Mode.SETUP) AvisoManutencao(texto) { vm.zarkManutencao.value = null }
             }

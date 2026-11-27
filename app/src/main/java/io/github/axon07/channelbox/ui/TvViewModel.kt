@@ -663,6 +663,9 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
     private val _update = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val update: StateFlow<UpdateState> = _update.asStateFlow()
 
+    /** TV: cartão de verificação de atualização aberto (pedido pelo cliente). */
+    val verificacaoTv = MutableStateFlow(false)
+
     /** True when the update dialog should be on screen. */
     private val _updatePrompt = MutableStateFlow(false)
     val updatePrompt: StateFlow<Boolean> = _updatePrompt.asStateFlow()
@@ -672,11 +675,16 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
      * Automatic checks stay silent unless there's a new version they haven't skipped.
      */
     fun checkForUpdates(manual: Boolean, avisoSeparado: Boolean = true) {
+        // TV, TV Box e ZarkPlay: o cliente pediu → abre o mesmo cartão "Verificando atualizações…" do celular.
+        if (manual && !io.github.axon07.channelbox.system.Aparelho.soCelular) verificacaoTv.value = true
         if (_update.value is UpdateState.Checking || _update.value is UpdateState.Downloading) return
         viewModelScope.launch {
             _update.value = UpdateState.Checking
+            val inicio = System.currentTimeMillis()
             runCatching { updater.limparBaixados() }
             val result = runCatching { updater.latest() }
+            // Pedido pelo cliente: a animação de "verificando" fica pelo menos 1,2 s na tela (dá tempo de ver).
+            if (manual) kotlinx.coroutines.delay((1_200 - (System.currentTimeMillis() - inicio)).coerceAtLeast(0))
             val release = result.getOrNull()
             _update.value = when {
                 result.isFailure -> UpdateState.Failed(result.exceptionOrNull()?.message ?: "Couldn't reach GitHub")
