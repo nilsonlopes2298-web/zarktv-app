@@ -1,126 +1,153 @@
 {
-  "_leia": "Lista dos sistemas da VPS Roxinha que a tela inicial ZarkTV testa a cada 30 s. Edite no ramo 'launcher' (a TV pega sozinha). {CHAVE} é trocado pela chave do monitor guardada só na TV (nunca coloque a chave aqui: o repositório é público).",
+  "_leia": "Lista dos sistemas da VPS Roxinha que a tela inicial ZarkTV testa a cada 30 s. Edite no ramo 'launcher' (a TV pega sozinha). {CHAVE} é trocado pela chave do monitor guardada só na TV (nunca coloque a chave aqui: o repositório é público). 'fotos' = fotos que passam no topo da tela inicial (pode trocar pelos links que quiser).",
   "sistemas": [
-    {
-      "grupo": "ZarkTV",
-      "nome": "Web Play",
-      "url": "http://tv.zarktvqx.cfd",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-caddy"
-    },
-    {
-      "grupo": "ZarkTV",
-      "nome": "Painel ZarkTV Cloud",
-      "url": "https://painel.zarktvqx.cfd",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zarkplay-painel,zarkplay-sincronia"
-    },
-    {
-      "grupo": "ZarkTV",
-      "nome": "Checkout Pix",
-      "url": "https://painel.zarktvqx.cfd/checkout",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zarktv-checkout"
-    },
-    {
-      "grupo": "ZarkTV",
-      "nome": "Lojinha de apps",
-      "url": "https://loja.zarktvqx.cfd",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-caddy"
-    },
-    {
-      "grupo": "ZarkTV",
-      "nome": "ZarkPlay",
-      "url": "https://zarkplay.zarktvqx.cfd",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zarkplay-painel"
-    },
-    {
-      "grupo": "ZarkTV",
-      "nome": "Downloads dos apps",
-      "url": "https://zark.zarktvqx.cfd",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-caddy"
-    },
-    {
-      "grupo": "ZarkTV",
-      "nome": "Zplay",
-      "url": "https://zplay.rstvquix.com",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zplay-app,zplay-supa-db,zplay-agendador"
-    },
-    {
-      "grupo": "ZarkTV",
-      "nome": "Pix",
-      "url": "https://pix.rstvquix.com",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=verificador-pix"
-    },
-    {
-      "grupo": "Disparos",
-      "nome": "DisparaBit (ofertas)",
-      "url": "https://ofertas.zarktvqx.cfd",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=primeofertas,status-grupos,mlconector,primebyte-postador"
-    },
-    {
-      "grupo": "Disparos",
-      "nome": "Achadinhos",
-      "url": "https://achadinhos.rstvquix.com",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=bot-achadinhos"
-    },
-    {
-      "grupo": "Disparos",
-      "nome": "Bot de ativação",
-      "url": "https://botativacao.rstvquix.com",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=primebyte-ativacoes"
-    },
-    {
-      "grupo": "WhatsApp",
-      "nome": "Evolution API (principal)",
-      "url": "https://api.rstvquix.com",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-evolution,evolution-api-postgres,evolution-api-redis,wa85,wa88"
-    },
-    {
-      "grupo": "WhatsApp",
-      "nome": "WA-AKG (reserva)",
-      "url": "https://wakg.rstvquix.com",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=wa-akg"
-    },
-    {
-      "grupo": "WhatsApp",
-      "nome": "OpenWA (reserva)",
-      "url": "https://wa2.rstvquix.com",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=openwa"
-    },
     {
       "grupo": "Negócios",
       "nome": "Point do Açaí",
       "url": "https://pointdoacaiquixeramobim.tech",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=pointdoacai-site,supabase-db,supabase-auth,acai-backup"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=pointdoacai-site,supabase-db,supabase-auth,acai-backup",
+      "icone": "acai"
     },
     {
       "grupo": "Negócios",
       "nome": "Anotado",
       "url": "https://anotado.zarktvqx.cfd",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=anotador51,anotador-nfce,anotador-backup,n8n-financas"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=anotador51,anotador-nfce,anotador-backup,n8n-financas",
+      "icone": "anotado"
     },
     {
       "grupo": "Negócios",
       "nome": "QuixMídia",
       "url": "https://quixmidia.187-41-105-104.sslip.io/painel/",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=quixmidia"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=quixmidia",
+      "icone": "webplay"
     },
     {
       "grupo": "Negócios",
       "nome": "PulseGym",
       "url": "https://dev-academia.primebytecloud.com.br",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=opengym-dev"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=opengym-dev",
+      "icone": "pulsegym"
     },
     {
       "grupo": "Negócios",
       "nome": "Livros de colorir",
       "url": "https://livros.rstvquix.com",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=colorbook-hml"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=colorbook-hml",
+      "icone": "livros"
     },
     {
       "grupo": "Negócios",
       "nome": "Figurinha com som",
       "url": "https://figurinha.rstvquix.com",
-      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=figurinha-bot"
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=figurinha-bot",
+      "icone": "figurinha"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Web Play",
+      "url": "http://tv.zarktvqx.cfd",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-caddy",
+      "icone": "webplay"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Painel ZarkTV Cloud",
+      "url": "https://painel.zarktvqx.cfd",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zarkplay-painel,zarkplay-sincronia",
+      "icone": "painel"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Checkout Pix",
+      "url": "https://painel.zarktvqx.cfd/checkout",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zarktv-checkout",
+      "icone": "checkout"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Lojinha de apps",
+      "url": "https://loja.zarktvqx.cfd",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-caddy",
+      "icone": "lojinha"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "ZarkPlay",
+      "url": "https://zarkplay.zarktvqx.cfd",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zarkplay-painel",
+      "icone": "zarkplay"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Downloads dos apps",
+      "url": "https://zark.zarktvqx.cfd",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-caddy",
+      "icone": "lojinha"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Zplay",
+      "url": "https://zplay.rstvquix.com",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=zplay-app,zplay-supa-db,zplay-agendador",
+      "icone": "zarkplay"
+    },
+    {
+      "grupo": "ZarkTV",
+      "nome": "Pix",
+      "url": "https://pix.rstvquix.com",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=verificador-pix",
+      "icone": "checkout"
+    },
+    {
+      "grupo": "Disparos",
+      "nome": "DisparaBit (ofertas)",
+      "url": "https://ofertas.zarktvqx.cfd",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=primeofertas,status-grupos,mlconector,primebyte-postador",
+      "icone": "disparabit"
+    },
+    {
+      "grupo": "Disparos",
+      "nome": "Achadinhos",
+      "url": "https://achadinhos.rstvquix.com",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=bot-achadinhos",
+      "icone": "achadinhos"
+    },
+    {
+      "grupo": "Disparos",
+      "nome": "Bot de ativação",
+      "url": "https://botativacao.rstvquix.com",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=primebyte-ativacoes",
+      "icone": "disparabit"
+    },
+    {
+      "grupo": "WhatsApp",
+      "nome": "Evolution API (principal)",
+      "url": "https://api.rstvquix.com",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=evolution-api-evolution,evolution-api-postgres,evolution-api-redis,wa85,wa88",
+      "icone": "evolution"
+    },
+    {
+      "grupo": "WhatsApp",
+      "nome": "WA-AKG (reserva)",
+      "url": "https://wakg.rstvquix.com",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=wa-akg",
+      "icone": "wakg"
+    },
+    {
+      "grupo": "WhatsApp",
+      "nome": "OpenWA (reserva)",
+      "url": "https://wa2.rstvquix.com",
+      "detalhes": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/detalhes?busca=openwa",
+      "icone": "openwa"
     }
   ],
-  "metricas": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/metricas"
+  "metricas": "https://tvmonitor.187-41-105-104.sslip.io/k/{CHAVE}/metricas",
+  "fotos": [
+    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1280&h=720&q=70",
+    "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?auto=format&fit=crop&w=1280&h=720&q=70",
+    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1280&h=720&q=70",
+    "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1280&h=720&q=70",
+    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1280&h=720&q=70"
+  ]
 }

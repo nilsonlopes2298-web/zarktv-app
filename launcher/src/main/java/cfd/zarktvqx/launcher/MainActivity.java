@@ -12,6 +12,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
@@ -114,7 +115,18 @@ public class MainActivity extends Activity {
     private PackageManager pm;
 
     // Tela inicial
-    private ImageView vitrineImagem;
+    private ImageView fotoA, fotoB;
+    private boolean fotoNoA = true;
+    private final List<String> fotos = new ArrayList<>();
+    private int fotoAtual = -1;
+    private LinearLayout pontosFotos;
+    private TextView creditoFoto;
+    private FrameLayout marcaFundo;
+    private ImageView marcaGlyph;
+    private TextView marcaPilula, marcaInfo;
+    private boolean marcaVisivel = false;
+    private String resumoVps = "";
+    private FrameLayout detalheIcone;
     private TextView vitrineTitulo, vitrineSub, relogio;
     private LinearLayout dock;
     private GridLayout grade;
@@ -152,7 +164,7 @@ public class MainActivity extends Activity {
     }
 
     static class Sistema {
-        String grupo, nome, url, detalhes;
+        String grupo, nome, url, detalhes, icone;
         TextView status;
         View linhaView;
         GradientDrawable fundoCartao;
@@ -189,6 +201,8 @@ public class MainActivity extends Activity {
         ui.post(tique);
         ui.removeCallbacks(verificar);
         ui.post(verificar);
+        ui.removeCallbacks(trocaFoto);
+        ui.postDelayed(trocaFoto, fotoAtual < 0 ? 300 : 8000);
     }
 
     @Override
@@ -196,6 +210,7 @@ public class MainActivity extends Activity {
         super.onPause();
         ui.removeCallbacks(tique);
         ui.removeCallbacks(verificar);
+        ui.removeCallbacks(trocaFoto);
     }
 
     @Override
@@ -253,30 +268,97 @@ public class MainActivity extends Activity {
         FrameLayout raiz = new FrameLayout(this);
         raiz.setBackgroundColor(FUNDO);
 
-        // Vitrine (top shelf): imagem grande e desfocada do app em foco
-        vitrineImagem = new ImageView(this);
-        vitrineImagem.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        vitrineImagem.setAlpha(0.28f);
-        raiz.addView(vitrineImagem, new FrameLayout.LayoutParams(-1, alturaVitrine));
+        // Vitrine (top shelf): fotos grandes passando sozinhas (estilo Fire TV / Apple TV)
+        fotoA = new ImageView(this);
+        fotoA.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        fotoA.setAlpha(0f);
+        raiz.addView(fotoA, new FrameLayout.LayoutParams(-1, alturaVitrine));
+        fotoB = new ImageView(this);
+        fotoB.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        fotoB.setAlpha(0f);
+        raiz.addView(fotoB, new FrameLayout.LayoutParams(-1, alturaVitrine));
+
+        // Fundo das marcas próprias (ZarkTV, ZarkPlay, Meu Servidor)
+        marcaFundo = new FrameLayout(this);
+        marcaFundo.setAlpha(0f);
+        marcaFundo.setVisibility(View.GONE);
+        marcaGlyph = new ImageView(this);
+        marcaGlyph.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        marcaGlyph.setAlpha(0.9f);
+        FrameLayout.LayoutParams lpGlyph = new FrameLayout.LayoutParams((int) (largura * 0.42f), (int) (alturaVitrine * 0.8f), Gravity.END | Gravity.CENTER_VERTICAL);
+        lpGlyph.rightMargin = dp(40);
+        marcaFundo.addView(marcaGlyph, lpGlyph);
+        LinearLayout marcaTextos = new LinearLayout(this);
+        marcaTextos.setOrientation(LinearLayout.VERTICAL);
+        marcaTextos.setGravity(Gravity.END);
+        marcaPilula = new TextView(this);
+        marcaPilula.setTextColor(VERDE);
+        marcaPilula.setTextSize(24);
+        marcaPilula.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        marcaPilula.setPadding(dp(22), dp(10), dp(24), dp(10));
+        GradientDrawable fp = new GradientDrawable();
+        fp.setColor(Color.parseColor("#2630D158"));
+        fp.setCornerRadius(dp(30));
+        marcaPilula.setBackground(fp);
+        marcaTextos.addView(marcaPilula);
+        marcaInfo = new TextView(this);
+        marcaInfo.setTextColor(Color.parseColor("#C7C7CC"));
+        marcaInfo.setTextSize(16);
+        marcaInfo.setGravity(Gravity.END);
+        marcaTextos.addView(marcaInfo, margem(-2, -2, 0, dp(12), 0, 0));
+        FrameLayout.LayoutParams lpMt = new FrameLayout.LayoutParams(-2, -2, Gravity.END | Gravity.TOP);
+        lpMt.setMargins(0, (int) (alturaVitrine * 0.30f), margemLado, 0);
+        marcaFundo.addView(marcaTextos, lpMt);
+        raiz.addView(marcaFundo, new FrameLayout.LayoutParams(-1, alturaVitrine));
 
         View degradeBaixo = new View(this);
         degradeBaixo.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.parseColor("#400B0B0D"), Color.parseColor("#990B0B0D"), FUNDO}));
+                new int[]{Color.parseColor("#550B0B0D"), Color.parseColor("#000B0B0D"), Color.parseColor("#B30B0B0D"), FUNDO}));
         raiz.addView(degradeBaixo, new FrameLayout.LayoutParams(-1, alturaVitrine));
 
         View degradeLado = new View(this);
         degradeLado.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.parseColor("#D90B0B0D"), Color.parseColor("#400B0B0D"), Color.parseColor("#000B0B0D")}));
+                new int[]{Color.parseColor("#CC0B0B0D"), Color.parseColor("#330B0B0D"), Color.parseColor("#000B0B0D")}));
         raiz.addView(degradeLado, new FrameLayout.LayoutParams(-1, alturaVitrine));
 
         // Relógio discreto no canto
         relogio = new TextView(this);
         relogio.setTextColor(BRANCO);
-        relogio.setTextSize(20);
+        relogio.setTextSize(17);
         relogio.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         FrameLayout.LayoutParams lpRel = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
         lpRel.setMargins(0, dp(30), margemLado, 0);
         raiz.addView(relogio, lpRel);
+
+        LinearLayout logo = new LinearLayout(this);
+        logo.setOrientation(LinearLayout.HORIZONTAL);
+        logo.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView logoIc = new ImageView(this);
+        logoIc.setImageResource(R.drawable.ic_sis_zarktv);
+        logo.addView(logoIc, new LinearLayout.LayoutParams(dp(34), dp(34)));
+        TextView logoTx = new TextView(this);
+        SpannableString ls = new SpannableString("ZarkTV");
+        ls.setSpan(new ForegroundColorSpan(Color.parseColor("#E50914")), 4, 6, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        logoTx.setText(ls);
+        logoTx.setTextColor(BRANCO);
+        logoTx.setTextSize(21);
+        logoTx.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        logo.addView(logoTx, margem(-2, -2, dp(6), 0, 0, 0));
+        FrameLayout.LayoutParams lpLogo = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START);
+        lpLogo.setMargins(margemLado - dp(6), dp(26), 0, 0);
+        raiz.addView(logo, lpLogo);
+
+        creditoFoto = new TextView(this);
+        creditoFoto.setTextColor(Color.parseColor("#99FFFFFF"));
+        creditoFoto.setTextSize(11);
+        FrameLayout.LayoutParams lpCred = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
+        lpCred.setMargins(0, (int) (altura * 0.43f), margemLado, 0);
+        raiz.addView(creditoFoto, lpCred);
+        pontosFotos = new LinearLayout(this);
+        pontosFotos.setOrientation(LinearLayout.HORIZONTAL);
+        FrameLayout.LayoutParams lpPts = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
+        lpPts.setMargins(0, (int) (altura * 0.43f) - dp(14), margemLado, 0);
+        raiz.addView(pontosFotos, lpPts);
 
         // Conteúdo rolável
         ScrollView rolagem = new ScrollView(this);
@@ -419,7 +501,18 @@ public class MainActivity extends Activity {
     private View iconeApp(App a) {
         View conteudo;
         Drawable fundoIcone;
-        if (a.banner != null) {
+        String marca = marcaDoPacote(a.pacote);
+        if (marca != null) {
+            FrameLayout f = new FrameLayout(this);
+            ImageView img = new ImageView(this);
+            img.setImageResource("zarkplay".equals(marca) ? R.drawable.ic_sis_zarkplay : R.drawable.ic_sis_zarktv);
+            img.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            f.addView(img, new FrameLayout.LayoutParams(alturaIcone, alturaIcone, Gravity.CENTER));
+            conteudo = f;
+            fundoIcone = "zarkplay".equals(marca)
+                    ? fundoArredondado(new int[]{Color.parseColor("#3A2E18"), Color.parseColor("#0B0B0D")})
+                    : fundoArredondado(new int[]{Color.parseColor("#2C2C30"), Color.parseColor("#0B0B0D")});
+        } else if (a.banner != null) {
             ImageView img = new ImageView(this);
             img.setImageDrawable(a.banner);
             img.setScaleType(ImageView.ScaleType.CENTER_CROP);
@@ -469,7 +562,7 @@ public class MainActivity extends Activity {
                 fundoArredondado(new int[]{Color.parseColor("#636366"), Color.parseColor("#2C2C2E")}),
                 "Ajustes",
                 () -> {
-                    vitrineImagem.setImageDrawable(null);
+                    esconderMarca();
                     vitrineTitulo.setText("Ajustes");
                     vitrineSub.setText("Configurações da TV e apps ocultos");
                 },
@@ -477,7 +570,9 @@ public class MainActivity extends Activity {
     }
 
     private void mostrarNaVitrine(App a) {
-        vitrineImagem.setImageDrawable(a.banner != null ? a.banner : a.icone);
+        String marca = marcaDoPacote(a.pacote);
+        if (marca != null) mostrarMarca(marca);
+        else esconderMarca();
         vitrineTitulo.setText(a.nome);
         boolean abre = intencaoAbrir(a.pacote) != null;
         vitrineSub.setText(abre
@@ -486,9 +581,187 @@ public class MainActivity extends Activity {
     }
 
     private void mostrarServidorNaVitrine() {
-        vitrineImagem.setImageDrawable(null);
+        mostrarMarca("servidor");
         vitrineTitulo.setText(NOME_SERVIDOR);
         vitrineSub.setText(resumoGeral());
+    }
+
+    // ================================================================ fotos e fundos de marca
+
+    private final Runnable trocaFoto = new Runnable() {
+        @Override
+        public void run() {
+            boolean ocupado = marcaVisivel || painel.getVisibility() == View.VISIBLE || detalhe.getVisibility() == View.VISIBLE;
+            if (!ocupado) proximaFoto();
+            ui.postDelayed(this, 8000);
+        }
+    };
+
+    private void proximaFoto() {
+        if (fotos.isEmpty()) return;
+        final int indice = (fotoAtual + 1) % fotos.size();
+        final String url = fotos.get(indice);
+        fundo.execute(() -> {
+            Bitmap b = baixarImagem(url);
+            if (b == null) return;
+            ui.post(() -> {
+                fotoAtual = indice;
+                ImageView entra = fotoNoA ? fotoB : fotoA;
+                ImageView sai = fotoNoA ? fotoA : fotoB;
+                fotoNoA = !fotoNoA;
+                entra.setImageBitmap(b);
+                entra.setScaleX(1f);
+                entra.setScaleY(1f);
+                entra.animate().alpha(marcaVisivel ? 0f : 1f).setDuration(1400).start();
+                entra.animate().scaleX(1.08f).scaleY(1.08f).setDuration(9500)
+                        .setInterpolator(new android.view.animation.LinearInterpolator()).start();
+                sai.animate().alpha(0f).setDuration(1400).withEndAction(() -> sai.setImageDrawable(null)).start();
+                creditoFoto.setText("Foto: Unsplash");
+                desenharPontos();
+            });
+        });
+    }
+
+    private Bitmap baixarImagem(String endereco) {
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL(endereco).openConnection();
+            c.setConnectTimeout(8000);
+            c.setReadTimeout(15000);
+            if (c.getResponseCode() != 200) return null;
+            byte[] dados = lerBytes(c.getInputStream());
+            BitmapFactory.Options op = new BitmapFactory.Options();
+            op.inJustDecodeBounds = true;
+            BitmapFactory.decodeByteArray(dados, 0, dados.length, op);
+            int alvo = getResources().getDisplayMetrics().widthPixels;
+            int amostra = 1;
+            while (op.outWidth / (amostra * 2) >= alvo) amostra *= 2;
+            BitmapFactory.Options op2 = new BitmapFactory.Options();
+            op2.inSampleSize = amostra;
+            op2.inPreferredConfig = Bitmap.Config.RGB_565;
+            return BitmapFactory.decodeByteArray(dados, 0, dados.length, op2);
+        } catch (Throwable e) {
+            return null;
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
+
+    private void desenharPontos() {
+        if (pontosFotos == null) return;
+        pontosFotos.removeAllViews();
+        for (int k = 0; k < fotos.size(); k++) {
+            View v = new View(this);
+            GradientDrawable g = new GradientDrawable();
+            g.setCornerRadius(dp(4));
+            g.setColor(k == fotoAtual ? BRANCO : Color.parseColor("#66FFFFFF"));
+            v.setBackground(g);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(k == fotoAtual ? dp(22) : dp(7), dp(7));
+            lp.leftMargin = dp(6);
+            pontosFotos.addView(v, lp);
+        }
+        boolean mostra = !marcaVisivel;
+        pontosFotos.setVisibility(mostra ? View.VISIBLE : View.INVISIBLE);
+        creditoFoto.setVisibility(mostra && fotoAtual >= 0 ? View.VISIBLE : View.INVISIBLE);
+    }
+
+    private String marcaDoPacote(String pacote) {
+        if ("cfd.zarktvqx.zarkplay".equals(pacote)) return "zarkplay";
+        if ("cfd.zarktvqx.tv".equals(pacote) || "com.zark.play.tv".equals(pacote)) return "zarktv";
+        return null;
+    }
+
+    /** Troca a foto pelo fundo da marca (ZarkTV, ZarkPlay ou Meu Servidor). */
+    private void mostrarMarca(String tipo) {
+        int[] cores;
+        if ("servidor".equals(tipo)) {
+            cores = new int[]{Color.parseColor("#7A0612"), Color.parseColor("#2A0307"), FUNDO};
+            marcaGlyph.setImageResource(R.drawable.servidor);
+            marcaGlyph.setAlpha(0.18f);
+            int total = sistemas.size(), ok = 0, fora = 0;
+            for (Sistema s : sistemas) {
+                if (s.estado == 1 || s.estado == 2) ok++;
+                if (s.estado == 3) fora++;
+            }
+            marcaPilula.setVisibility(total > 0 ? View.VISIBLE : View.GONE);
+            marcaPilula.setText("●  " + ok + " de " + total + " sistemas no ar");
+            marcaPilula.setTextColor(fora == 0 ? VERDE : AMARELO);
+            ((GradientDrawable) marcaPilula.getBackground()).setColor(fora == 0 ? Color.parseColor("#2630D158") : Color.parseColor("#26FFD60A"));
+            String info = resumoVps.isEmpty() ? "VPS Hostinger  ·  4 núcleos  ·  16 GB" : resumoVps;
+            if (fora > 0) info += "  ·  " + fora + " fora do ar";
+            marcaInfo.setText(info);
+            marcaInfo.setVisibility(View.VISIBLE);
+        } else {
+            boolean play = "zarkplay".equals(tipo);
+            cores = play
+                    ? new int[]{Color.parseColor("#3A2A10"), Color.parseColor("#120D05"), FUNDO}
+                    : new int[]{Color.parseColor("#3A0A0E"), Color.parseColor("#140406"), FUNDO};
+            marcaGlyph.setImageResource(play ? R.drawable.ic_sis_zarkplay : R.drawable.ic_sis_zarktv);
+            marcaGlyph.setAlpha(0.95f);
+            marcaPilula.setVisibility(View.GONE);
+            marcaInfo.setVisibility(View.GONE);
+        }
+        marcaFundo.setBackground(new GradientDrawable(GradientDrawable.Orientation.TR_BL, cores));
+        if (!marcaVisivel) {
+            marcaVisivel = true;
+            marcaFundo.setVisibility(View.VISIBLE);
+            marcaFundo.animate().alpha(1f).setDuration(350).start();
+            fotoA.animate().alpha(0f).setDuration(350).start();
+            fotoB.animate().alpha(0f).setDuration(350).start();
+            desenharPontos();
+        }
+    }
+
+    private void esconderMarca() {
+        if (!marcaVisivel) return;
+        marcaVisivel = false;
+        marcaFundo.animate().alpha(0f).setDuration(350).withEndAction(() -> {
+            if (!marcaVisivel) marcaFundo.setVisibility(View.GONE);
+        }).start();
+        ImageView atual = fotoNoA ? fotoA : fotoB;
+        atual.animate().alpha(1f).setDuration(350).start();
+        desenharPontos();
+    }
+
+    /** Ícone quadrado arredondado de um sistema (fundo em degradê + desenho). */
+    private View iconeSistema(String id, int tamanho) {
+        int[] cores;
+        switch (id == null ? "" : id) {
+            case "acai": cores = new int[]{0xFF6B2A85, 0xFF2E0C3B}; break;
+            case "anotado": cores = new int[]{0xFF9A7BE0, 0xFF4B2D99}; break;
+            case "checkout": cores = new int[]{0xFF2FD3B5, 0xFF0A6E63}; break;
+            case "webplay": case "painel": cores = new int[]{0xFF3A3A3C, 0xFF111113}; break;
+            case "lojinha": cores = new int[]{0xFFFF6FA0, 0xFFB0245A}; break;
+            case "disparabit": cores = new int[]{0xFFFF9F0A, 0xFFC2410C}; break;
+            case "achadinhos": cores = new int[]{0xFFFFD60A, 0xFFE08A00}; break;
+            case "evolution": cores = new int[]{0xFF30D158, 0xFF0B6B2C}; break;
+            case "wakg": cores = new int[]{0xFF0FB5A0, 0xFF065A55}; break;
+            case "openwa": cores = new int[]{0xFFA4E86A, 0xFF2E7D1E}; break;
+            case "pulsegym": cores = new int[]{0xFF1C1C1E, 0xFF000000}; break;
+            case "livros": cores = new int[]{0xFF5AC8FA, 0xFF1E5FB8}; break;
+            case "figurinha": cores = new int[]{0xFFFF375F, 0xFF8A1BB0}; break;
+            case "zarkplay": cores = new int[]{0xFF3A2E18, 0xFF0B0B0D}; break;
+            case "zarktv": cores = new int[]{0xFF2C2C2E, 0xFF0B0B0D}; break;
+            default: cores = new int[]{0xFF3A3A3C, 0xFF1C1C1E};
+        }
+        FrameLayout f = new FrameLayout(this);
+        GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR, cores);
+        g.setCornerRadius(tamanho * 0.24f);
+        f.setBackground(g);
+        f.setClipToOutline(true);
+        // brilho de cima
+        View brilho = new View(this);
+        GradientDrawable gb = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0x2EFFFFFF, 0x00FFFFFF});
+        gb.setCornerRadius(tamanho * 0.24f);
+        brilho.setBackground(gb);
+        f.addView(brilho, new FrameLayout.LayoutParams(-1, tamanho / 2));
+        int res = id == null || id.isEmpty() ? 0 : getResources().getIdentifier("ic_sis_" + id, "drawable", getPackageName());
+        ImageView img = new ImageView(this);
+        if (res != 0) img.setImageResource(res);
+        else img.setImageResource(R.drawable.servidor);
+        img.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        f.addView(img, new FrameLayout.LayoutParams(-1, -1));
+        return f;
     }
 
     // ================================================================ apps
@@ -947,6 +1220,17 @@ public class MainActivity extends Activity {
         s.fundoCartao.setColor(CINZA_1);
         k.setBackground(s.fundoCartao);
 
+        LinearLayout topoCartao = new LinearLayout(this);
+        topoCartao.setOrientation(LinearLayout.HORIZONTAL);
+        topoCartao.setGravity(Gravity.CENTER_VERTICAL);
+        topoCartao.addView(iconeSistema(s.icone, dp(46)), new LinearLayout.LayoutParams(dp(46), dp(46)));
+        LinearLayout textosCartao = new LinearLayout(this);
+        textosCartao.setOrientation(LinearLayout.VERTICAL);
+        textosCartao.setPadding(dp(12), 0, 0, 0);
+        topoCartao.addView(textosCartao, new LinearLayout.LayoutParams(0, -2, 1));
+        k.addView(topoCartao);
+        LinearLayout k0 = k;
+        k = textosCartao;
         s.grupoV = new TextView(this);
         s.grupoV.setText(s.grupo.toUpperCase(PT_BR));
         s.grupoV.setTextColor(TEXTO_3);
@@ -961,7 +1245,7 @@ public class MainActivity extends Activity {
         s.nomeV.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         s.nomeV.setSingleLine(true);
         s.nomeV.setEllipsize(TextUtils.TruncateAt.END);
-        k.addView(s.nomeV, margem(-1, -2, 0, dp(2), 0, 0));
+        k.addView(s.nomeV, margem(-1, -2, 0, dp(1), 0, 0));
 
         s.hostV = new TextView(this);
         s.hostV.setText(Uri.parse(s.url).getHost());
@@ -970,6 +1254,7 @@ public class MainActivity extends Activity {
         s.hostV.setSingleLine(true);
         s.hostV.setEllipsize(TextUtils.TruncateAt.END);
         k.addView(s.hostV);
+        k = k0;
 
         s.status = new TextView(this);
         s.status.setTextSize(12);
@@ -1107,15 +1392,9 @@ public class MainActivity extends Activity {
         esq.setGravity(Gravity.CENTER);
         esq.setPadding(dp(48), dp(40), dp(24), dp(40));
 
-        FrameLayout grande = new FrameLayout(this);
-        GradientDrawable fg = fundoArredondado(new int[]{Color.parseColor("#3A3A3C"), Color.parseColor("#1C1C1E")});
-        fg.setCornerRadius(dp(22));
-        grande.setBackground(fg);
-        grande.setElevation(dp(16));
-        ImageView sv = new ImageView(this);
-        sv.setImageResource(R.drawable.servidor);
-        grande.addView(sv, new FrameLayout.LayoutParams(dp(72), dp(72), Gravity.CENTER));
-        esq.addView(grande, new LinearLayout.LayoutParams(dp(250), dp(150)));
+        detalheIcone = new FrameLayout(this);
+        detalheIcone.setElevation(dp(16));
+        esq.addView(detalheIcone, new LinearLayout.LayoutParams(dp(150), dp(150)));
 
         dGrupo = new TextView(this);
         dGrupo.setTextColor(TEXTO_2);
@@ -1152,6 +1431,8 @@ public class MainActivity extends Activity {
 
     private void abrirDetalhe(Sistema s) {
         sistemaAberto = s;
+        detalheIcone.removeAllViews();
+        detalheIcone.addView(iconeSistema(s.icone, dp(150)), new FrameLayout.LayoutParams(-1, -1));
         dGrupo.setText(s.grupo.toUpperCase(PT_BR));
         dTitulo.setText(s.nome);
         dLista.removeAllViews();
@@ -1320,6 +1601,7 @@ public class MainActivity extends Activity {
                 s.grupo = o.optString("grupo", "Outros");
                 s.nome = o.optString("nome", "Sistema");
                 s.url = o.optString("url", "");
+                s.icone = o.optString("icone", "");
                 s.detalhes = o.optString("detalhes", "");
                 if (s.detalhes.isEmpty()) s.detalhes = null;
                 if (!s.url.isEmpty()) novos.add(s);
@@ -1328,6 +1610,20 @@ public class MainActivity extends Activity {
             return;
         }
         urlMetricas = metricas.isEmpty() ? null : metricas;
+        try {
+            JSONArray fs = new JSONObject(json).optJSONArray("fotos");
+            if (fs != null && fs.length() > 0) {
+                List<String> nov = new ArrayList<>();
+                for (int k = 0; k < fs.length(); k++) nov.add(fs.getString(k));
+                if (!nov.equals(fotos)) {
+                    fotos.clear();
+                    fotos.addAll(nov);
+                    desenharPontos();
+                    if (fotoAtual < 0) proximaFoto();
+                }
+            }
+        } catch (Exception ignorado) {
+        }
         sistemas.clear();
         sistemas.addAll(novos);
 
@@ -1441,6 +1737,7 @@ public class MainActivity extends Activity {
             }
             String ligada = o.optString("ligada", "");
             if (!ligada.isEmpty()) pVpsLigada.setText(ligada);
+            if (cpu >= 0 && mt > 0) resumoVps = String.format(PT_BR, "Processador %.0f%%  ·  Memória %.1f de %.0f GB", cpu, mu, mt);
         } catch (Exception ignorado) {
         }
     }
@@ -1480,7 +1777,10 @@ public class MainActivity extends Activity {
             ((GradientDrawable) pontoServidor.getBackground()).setColor(cor);
         }
         View p = dock == null ? null : dock.findViewWithTag(SERVIDOR);
-        if (p != null && p.hasFocus()) vitrineSub.setText(resumoGeral());
+        if (p != null && p.hasFocus()) {
+            vitrineSub.setText(resumoGeral());
+            if (marcaVisivel) mostrarMarca("servidor");
+        }
     }
 
     private String resumoGeral() {
@@ -1548,7 +1848,9 @@ public class MainActivity extends Activity {
     private final Runnable tique = new Runnable() {
         @Override
         public void run() {
-            relogio.setText(new SimpleDateFormat("HH:mm", PT_BR).format(new Date()));
+            Date agora = new Date();
+            String d = new SimpleDateFormat("EEE, d MMM", PT_BR).format(agora).replace(".", "");
+            relogio.setText(d.substring(0, 1).toUpperCase(PT_BR) + d.substring(1) + "  ·  " + new SimpleDateFormat("HH:mm", PT_BR).format(agora));
             ui.postDelayed(this, 10_000);
         }
     };
@@ -1593,6 +1895,15 @@ public class MainActivity extends Activity {
         } finally {
             if (c != null) c.disconnect();
         }
+    }
+
+    private static byte[] lerBytes(InputStream in) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buf = new byte[16384];
+        int n;
+        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        in.close();
+        return out.toByteArray();
     }
 
     private static String ler(InputStream in) throws IOException {
