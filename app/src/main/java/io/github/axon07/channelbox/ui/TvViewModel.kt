@@ -692,7 +692,12 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
                 else -> UpdateState.UpToDate
             }
             val state = _update.value
-            if (state is UpdateState.Available) {
+            if (state is UpdateState.Available && manual) {
+                // O cliente pediu para atualizar: achou versão nova → já baixa a mais recente e abre a instalação
+                // (o progresso aparece no cartão do celular ou no cantinho da TV).
+                _updatePrompt.value = false
+                startUpdate()
+            } else if (state is UpdateState.Available) {
                 val skipped = c.settings.current().skippedVersion
                 if (manual) _updatePrompt.value = false
                 // Celular: o próprio cartão da verificação mostra o resultado e o botão Atualizar.

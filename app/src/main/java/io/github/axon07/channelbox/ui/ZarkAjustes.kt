@@ -555,7 +555,7 @@ fun VerificandoAtualizacaoTv(vm: TvViewModel, versao: String, onFechar: () -> Un
                 DialogAction("Fechar") { onFechar() },
             ),
         )
-        // Tem versão nova (o aviso "quer atualizar?" assume) ou já está baixando (progresso no canto).
+        // Achou versão nova: já começou a baixar sozinha (o progresso aparece no cantinho da tela).
         else -> LaunchedEffect(Unit) { onFechar() }
     }
 }
