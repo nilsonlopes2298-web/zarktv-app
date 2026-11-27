@@ -1699,7 +1699,7 @@ class TvViewModel(app: Application) : AndroidViewModel(app) {
         val live = StreamSpecs.from(ch)
         val url = Catchup.buildUrl(ch.streamUrl, ch.catchupType, ch.catchupSource, start, end)
         if (url == null) {
-            showToast("Catch-up isn't available for this channel")
+            showToast("Este canal não tem programas para rever")
             goLive()
             return
         }
