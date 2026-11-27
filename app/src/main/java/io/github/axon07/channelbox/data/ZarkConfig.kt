@@ -303,7 +303,10 @@ object ZarkConfig {
     }
 
     // Player de filmes e séries: interno (padrão) ou externo (VLC, MX Player…).
-    fun playerExterno(context: Context): Boolean =
+    // Só o ZarkTV Mobile tem player externo (junto com o transmitir). TV, TV Box e ZarkPlay usam só o player do app.
+    val externoPermitido: Boolean get() = io.github.axon07.channelbox.system.Aparelho.soCelular
+
+    fun playerExterno(context: Context): Boolean = externoPermitido &&
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("player_externo", false)
 
     fun setPlayerExterno(context: Context, on: Boolean) =

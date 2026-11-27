@@ -1911,7 +1911,14 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                 // ZarkTV: vídeo num formato que o aparelho não abre (só toca o som) → oferece o player externo.
                 val semVideo by vm.player.videoSemSuporte.collectAsStateWithLifecycle()
                 val url = vodUrlAtual
-                if (semVideo != null) {
+                if (semVideo != null && !io.github.axon07.channelbox.data.ZarkConfig.externoPermitido) {
+                    // TV, TV Box e ZarkPlay: só o player do app (sem player externo).
+                    ActionDialog(
+                        title = "Este vídeo não abre neste aparelho",
+                        subtitle = "O formato deste vídeo ($semVideo) não é aceito por este aparelho. Escolha outro filme ou fale com o suporte.",
+                        actions = listOf(DialogAction("Voltar") { leavePlayback() }),
+                    )
+                } else if (semVideo != null) {
                     ActionDialog(
                         title = "Este vídeo não abre no player interno",
                         subtitle = "O formato do vídeo ($semVideo) não é suportado por este aparelho. Abra num player externo como VLC ou MX Player.",

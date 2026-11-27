@@ -329,10 +329,10 @@ private val PASSOS = listOf(
     ),
     PassoTutorial(
         "2", "FILMES E SÉRIES",
-        listOf(
+        listOfNotNull(
             "Escolha pela capa, pelos blocos coloridos (Gênero, Lançamentos, Todos…) ou pela busca 🔍.",
             "Na ficha você vê a sinopse, o elenco e o botão Assistir.",
-            "Se algum vídeo não abrir, use \"Player externo\" (VLC, MX Player).",
+            if (io.github.axon07.channelbox.data.ZarkConfig.externoPermitido) "Se algum vídeo não abrir, use \"Player externo\" (VLC, MX Player)." else null,
         ),
     ),
     PassoTutorial(

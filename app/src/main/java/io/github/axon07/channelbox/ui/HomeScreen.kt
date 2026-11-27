@@ -314,7 +314,7 @@ fun ProfileScreen(
                 LinhaPerfil(AppIcons.Captions, "Áudio, legenda e player", null, onPlayer)
                 LinhaPerfil(AppIcons.Info, "Ajuda e suporte", "WhatsApp", onSupport)
                 LinhaPerfil(AppIcons.Grid, "Tema do app", temaNome, onTema)
-                LinhaPerfil(AppIcons.Film, "Player de filmes e séries", playerFilmes, onPlayerFilmes)
+                if (io.github.axon07.channelbox.data.ZarkConfig.externoPermitido) LinhaPerfil(AppIcons.Film, "Player de filmes e séries", playerFilmes, onPlayerFilmes)
                 LinhaPerfil(AppIcons.Settings, "Configurações", null, onSettings)
                 LinhaPerfil(AppIcons.Globe, "Compartilhar o app", null, onShare)
             }

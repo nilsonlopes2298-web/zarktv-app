@@ -588,7 +588,7 @@ private fun ShowScreen(
                     }
                 }
                 BotoesExtras(vm, show, serie = true, episodios = episodes?.size ?: 0)
-                BotaoFicha("Player externo", false, icone = AppIcons.Externo) { alvo?.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, show.title) } }
+                if (io.github.axon07.channelbox.data.ZarkConfig.externoPermitido) BotaoFicha("Player externo", false, icone = AppIcons.Externo) { alvo?.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, show.title) } }
                 BotaoFicha("Voltar", false, icone = AppIcons.Voltar) {
                     b.closeShow()
                     b.voltarInicio?.invoke()
@@ -779,7 +779,7 @@ private fun MovieDetail(
                     }
                 }
                 BotoesExtras(vm, movie, serie = false, episodios = 0)
-                BotaoFicha("Player externo", false, icone = AppIcons.Externo) { movie.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, movie.title) } }
+                if (io.github.axon07.channelbox.data.ZarkConfig.externoPermitido) BotaoFicha("Player externo", false, icone = AppIcons.Externo) { movie.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, movie.title) } }
                 BotaoFicha("Voltar", false, icone = AppIcons.Voltar) {
                     b.movie = null
                     b.focusToken++
