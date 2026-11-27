@@ -1,5 +1,7 @@
 package io.github.axon07.channelbox.ui
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
