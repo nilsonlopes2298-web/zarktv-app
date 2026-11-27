@@ -285,8 +285,11 @@ class TvPlayer(
             addListener(object : Player.Listener {
                 override fun onTracksChanged(tracks: Tracks) {
                     val videos = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
+                    // Igual ao XCIPTV: se o aparelho tem o decodificador, tenta tocar mesmo quando o vídeo passa um pouco
+                    // do que ele "promete" (ex.: HEVC 4K num tablet Full HD) — quase sempre toca. O aviso do player
+                    // externo só aparece quando o aparelho não tem mesmo como abrir esse formato.
                     videoSemSuporte.value =
-                        if (videos.isNotEmpty() && videos.none { g -> (0 until g.length).any { g.isTrackSupported(it) } })
+                        if (videos.isNotEmpty() && videos.none { g -> (0 until g.length).any { g.isTrackSupported(it, true) } })
                             videos.first().getTrackFormat(0).let { it.sampleMimeType ?: it.codecs ?: "desconhecido" }
                         else null
                 }
