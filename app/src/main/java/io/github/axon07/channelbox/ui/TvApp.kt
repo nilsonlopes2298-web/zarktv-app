@@ -2030,8 +2030,20 @@ private fun TvAppContent(vm: TvViewModel, settings: AppSettings) {
                         vm.player.stop()
                         vodBrowser.previewId = null
                         vodPreviewItem = null
-                    } else if (vodBrowser.previewId != null && vodPreviewItem?.let { it.id == vodBrowser.movie?.id || vodPreviewShow?.id == vodBrowser.show?.id } != true) {
-                        vodBrowser.previewId = null
+                    } else if (vodBrowser.previewId != null) {
+                        // Abriu a ficha de OUTRO filme/série: a miniatura antiga tem que parar (antes, filme → filme
+                        // passava como "o mesmo", porque os dois não são série, e o vídeo anterior continuava tocando).
+                        val mesmaFicha = vodPreviewItem?.let { item ->
+                            (vodBrowser.movie != null && item.id == vodBrowser.movie?.id) ||
+                                (vodBrowser.show != null && vodPreviewShow?.id == vodBrowser.show?.id)
+                        } == true
+                        if (!mesmaFicha) {
+                            vm.stopVod() // guarda onde parou no vídeo anterior
+                            vm.player.stop()
+                            vodBrowser.previewId = null
+                            vodPreviewItem = null
+                            vodPreviewShow = null
+                        }
                     }
                 }
                 VodScreen(vodBrowser, vm, onPlay = { item, show -> playVod(item, show) })
