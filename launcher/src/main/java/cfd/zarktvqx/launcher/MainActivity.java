@@ -368,7 +368,7 @@ public class MainActivity extends Activity {
         rotulo.setSingleLine(true);
         rotulo.setEllipsize(TextUtils.TruncateAt.END);
         rotulo.setAlpha(0f);
-        LinearLayout.LayoutParams lpRotulo = new LinearLayout.LayoutParams(larguraIcone + dp(20), -2);
+        LinearLayout.LayoutParams lpRotulo = new LinearLayout.LayoutParams(larguraIcone, -2);
         lpRotulo.topMargin = dp(16);
         caixa.addView(rotulo, lpRotulo);
 
