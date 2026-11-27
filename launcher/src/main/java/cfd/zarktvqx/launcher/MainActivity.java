@@ -808,7 +808,7 @@ public class MainActivity extends Activity {
         c.addView(cab);
 
         // Medidores da VPS
-        c.addView(tituloBloco("VPS Roxinha"), margem(-1, -2, 0, dp(26), 0, dp(12)));
+        c.addView(tituloBloco("VPS Hostinger"), margem(-1, -2, 0, dp(26), 0, dp(12)));
         LinearLayout medidores = new LinearLayout(this);
         medidores.setOrientation(LinearLayout.HORIZONTAL);
         Object[] m1 = cartaoMedidor(medidores, "Processador", quarto, false);
@@ -1486,7 +1486,7 @@ public class MainActivity extends Activity {
     private String resumoGeral() {
         int total = sistemas.size(), ok = 0;
         for (Sistema s : sistemas) if (s.estado == 1 || s.estado == 2) ok++;
-        return "VPS Roxinha · " + ok + " de " + total + " sistemas no ar";
+        return "VPS Hostinger · " + ok + " de " + total + " sistemas no ar";
     }
 
     // ================================================================ esta TV
