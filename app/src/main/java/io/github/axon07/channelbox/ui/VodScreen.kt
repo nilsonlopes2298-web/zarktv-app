@@ -567,15 +567,25 @@ private fun ShowScreen(
                 }
                 if (!retratoS) {
                     Spacer(Modifier.width(24.dp))
-                    MiniPlay(b, ficha?.fundo ?: show.poster, show.title, Modifier.weight(1f), tocarSerie)
+                    MiniPlay(b, ficha?.fundo ?: show.poster, show.title, Modifier.weight(1f)) {
+                        // 1º toque: começa aqui na janelinha; o 2º (já tocando) vai para a tela cheia.
+                        val ep = ultimo ?: inSeason.firstOrNull()
+                        if (ep != null && b.acaoPreview != null) { b.focusId = ep.id; b.acaoPreview?.invoke(ep, show) } else tocarSerie()
+                    }
                 }
             }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
                 val alvo = ultimo ?: inSeason.firstOrNull()
-                BotaoFicha(if (ultimo != null) "Tela cheia · T${ultimo.season}E${ultimo.episode}" else "Tela cheia", true, Modifier.focusRequester(primeiro), icone = AppIcons.TelaCheia) {
-                    if (b.previewId != null && b.acaoTelaCheia != null) b.acaoTelaCheia?.invoke()
-                    else alvo?.let { b.focusId = it.id; onPlay(it, show) }
+                // 1º OK: começa na janelinha ao lado; 2º OK (já tocando): tela cheia. Em pé (sem janelinha): direto na tela cheia.
+                val tocandoS = b.previewId != null && b.acaoTelaCheia != null
+                val epTxt = ultimo?.let { " · T${it.season}E${it.episode}" }.orEmpty()
+                BotaoFicha(if (tocandoS || retratoS) "Tela cheia$epTxt" else (if (ultimo != null) "Continuar$epTxt" else "Assistir"), true, Modifier.focusRequester(primeiro), icone = if (tocandoS || retratoS) AppIcons.TelaCheia else AppIcons.Play) {
+                    when {
+                        tocandoS -> b.acaoTelaCheia?.invoke()
+                        !retratoS && b.acaoPreview != null -> alvo?.let { b.focusId = it.id; b.acaoPreview?.invoke(it, show) }
+                        else -> alvo?.let { b.focusId = it.id; onPlay(it, show) }
+                    }
                 }
                 BotoesExtras(vm, show, serie = true, episodios = episodes?.size ?: 0)
                 BotaoFicha("Player externo", false, icone = AppIcons.Externo) { alvo?.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, show.title) } }
@@ -750,13 +760,23 @@ private fun MovieDetail(
                 }
                 if (!retrato) {
                     Spacer(Modifier.width(24.dp))
-                    MiniPlay(b, ficha?.fundo ?: movie.poster, movie.title, Modifier.weight(1f), assistir)
+                    MiniPlay(b, ficha?.fundo ?: movie.poster, movie.title, Modifier.weight(1f)) {
+                        // 1º toque: começa aqui na janelinha; o 2º (já tocando) vai para a tela cheia.
+                        if (b.acaoPreview != null) b.acaoPreview?.invoke(movie, null) else assistir()
+                    }
                 }
             }
             Spacer(Modifier.height(18.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
-                BotaoFicha(if (progress != null && progress.position > 0) "Continuar" else "Tela cheia", true, Modifier.focusRequester(play), icone = AppIcons.TelaCheia) {
-                    if (b.previewId == movie.id && b.acaoTelaCheia != null) b.acaoTelaCheia?.invoke() else assistir()
+                // 1º OK: começa na janelinha ao lado; 2º OK (já tocando): tela cheia. Em pé (sem janelinha): direto na tela cheia.
+                val tocandoF = b.previewId == movie.id && b.acaoTelaCheia != null
+                val continua = progress != null && progress.position > 0
+                BotaoFicha(if (tocandoF || retrato) "Tela cheia" else if (continua) "Continuar" else "Assistir", true, Modifier.focusRequester(play), icone = if (tocandoF || retrato) AppIcons.TelaCheia else AppIcons.Play) {
+                    when {
+                        tocandoF -> b.acaoTelaCheia?.invoke()
+                        !retrato && b.acaoPreview != null -> b.acaoPreview?.invoke(movie, null)
+                        else -> assistir()
+                    }
                 }
                 BotoesExtras(vm, movie, serie = false, episodios = 0)
                 BotaoFicha("Player externo", false, icone = AppIcons.Externo) { movie.url?.let { io.github.axon07.channelbox.data.ZarkConfig.abrirExterno(ctx, it, movie.title) } }
