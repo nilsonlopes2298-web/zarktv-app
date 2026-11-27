@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícone ZarkTV: fundo preto, play vermelho com "Z" branco -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#0B0B0B" android:pathData="M24,0h60a24,24 0,0 1,24 24v60a24,24 0,0 1,-24 24h-60a24,24 0,0 1,-24 -24v-60a24,24 0,0 1,24 -24z" />
+    <path android:fillColor="#E50914" android:pathData="M30,20 L88,54 L30,88 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M38,40 h26 v6 l-17,17 h17 v6 h-26 v-6 l17,-17 h-17 z" />
+</vector>

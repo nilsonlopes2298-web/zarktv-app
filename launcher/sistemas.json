@@ -1,0 +1,28 @@
+{
+  "_leia": "Lista dos sistemas da VPS Roxinha que a tela inicial ZarkTV testa a cada 30 s. Para adicionar ou tirar um sistema, edite este arquivo no ramo 'launcher' (a TV pega a lista nova sozinha, sem reinstalar).",
+  "sistemas": [
+    { "grupo": "ZarkTV", "nome": "Web Play", "url": "https://tv.zarktvqx.cfd" },
+    { "grupo": "ZarkTV", "nome": "Painel ZarkTV Cloud", "url": "https://painel.zarktvqx.cfd" },
+    { "grupo": "ZarkTV", "nome": "Checkout Pix", "url": "https://painel.zarktvqx.cfd/checkout" },
+    { "grupo": "ZarkTV", "nome": "Lojinha de apps", "url": "https://loja.zarktvqx.cfd" },
+    { "grupo": "ZarkTV", "nome": "ZarkPlay", "url": "https://zarkplay.zarktvqx.cfd" },
+    { "grupo": "ZarkTV", "nome": "Downloads dos apps", "url": "https://zark.zarktvqx.cfd" },
+    { "grupo": "ZarkTV", "nome": "Zplay", "url": "https://zplay.rstvquix.com" },
+    { "grupo": "ZarkTV", "nome": "Pix", "url": "https://pix.rstvquix.com" },
+
+    { "grupo": "Disparos", "nome": "DisparaBit (ofertas)", "url": "https://ofertas.zarktvqx.cfd" },
+    { "grupo": "Disparos", "nome": "Achadinhos", "url": "https://achadinhos.rstvquix.com" },
+    { "grupo": "Disparos", "nome": "Bot de ativação", "url": "https://botativacao.rstvquix.com" },
+
+    { "grupo": "WhatsApp", "nome": "Evolution API (principal)", "url": "https://api.rstvquix.com" },
+    { "grupo": "WhatsApp", "nome": "WA-AKG (reserva)", "url": "https://wakg.rstvquix.com" },
+    { "grupo": "WhatsApp", "nome": "OpenWA (reserva)", "url": "https://wa2.rstvquix.com" },
+
+    { "grupo": "Negócios", "nome": "Point do Açaí", "url": "https://pointdoacaiquixeramobim.tech" },
+    { "grupo": "Negócios", "nome": "Anotado", "url": "https://anotado.zarktvqx.cfd" },
+    { "grupo": "Negócios", "nome": "QuixMídia", "url": "https://quixmidia.187-41-105-104.sslip.io/painel/" },
+    { "grupo": "Negócios", "nome": "PulseGym", "url": "https://dev-academia.primebytecloud.com.br" },
+    { "grupo": "Negócios", "nome": "Livros de colorir", "url": "https://livros.rstvquix.com" },
+    { "grupo": "Negócios", "nome": "Figurinha com som", "url": "https://figurinha.rstvquix.com" }
+  ]
+}

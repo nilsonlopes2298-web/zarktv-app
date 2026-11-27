@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Banner 320x180 para a lista de apps da TV -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path android:fillColor="#0B0B0B" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#E50914" android:pathData="M125,45 L215,90 L125,135 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M137,72 h34 v8 l-22,22 h22 v8 h-34 v-8 l22,-22 h-22 z" />
+</vector>
