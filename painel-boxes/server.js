@@ -343,6 +343,20 @@ function novoCodigo() {
   }
 }
 
+// Banner no ar: ligado e dentro do período pago (início/fim). Fim conta o dia inteiro.
+function bannersNoAr(cfg) {
+  const hoje = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const dia = hoje.toISOString().slice(0, 10);
+  return cfg.banners.filter((b) => b.ativo !== false && (!b.inicio || b.inicio <= dia) && (!b.fim || b.fim >= dia));
+}
+function situacaoBanner(b) {
+  const dia = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString().slice(0, 10);
+  if (b.ativo === false) return '<span class="off">pausado</span>';
+  if (b.inicio && b.inicio > dia) return '<span class="off">começa ' + esc(b.inicio.split('-').reverse().join('/')) + '</span>';
+  if (b.fim && b.fim < dia) return '<span class="ver">venceu ' + esc(b.fim.split('-').reverse().join('/')) + '</span>';
+  return '<span class="on">● no ar</span>' + (b.fim ? '<div class="dica">até ' + esc(b.fim.split('-').reverse().join('/')) + '</div>' : '');
+}
+
 function respostaPing(box) {
   const cfg = config();
   const dias = diasParaVencer(box);
@@ -358,7 +372,7 @@ function respostaPing(box) {
     checkout_url: checkout,
     controle_total: ehMinha(box),
     bloquear_fora: ehMinha(box) && !!cfg.bloquearFora,
-    banners: cfg.banners.filter((b) => b.ativo !== false).map((b) => ({ selo: b.selo, titulo: b.titulo, sub: b.sub, imagem: b.imagem })),
+    banners: bannersNoAr(cfg).map((b) => ({ selo: b.selo, titulo: b.titulo, sub: b.sub, imagem: b.imagem, link: b.link || '', link_texto: b.linkTexto || '' })),
     aviso: cfg.aviso && cfg.aviso.ativo ? { id: cfg.aviso.id, titulo: cfg.aviso.titulo, texto: cfg.aviso.texto, imagem: cfg.aviso.imagem } : null,
     loja: cfg.loja,
     iniciais: cfg.iniciais,
@@ -604,15 +618,28 @@ ${comChave ? `<div><label>Cartão da tela inicial</label><select name="chave"><o
 function paginaTela(msg) {
   const cfg = config();
   const banners = cfg.banners.map((b, i) => `<tr><td>${b.imagem ? `<img src="${esc(b.imagem)}" style="width:150px;height:60px;object-fit:cover;border-radius:8px">` : '<span class="dica">sem imagem</span>'}</td>
-<td><span class="tag">${esc(b.selo)}</span> <b>${esc(b.titulo)}</b><div class="dica">${esc(b.sub)}</div></td>
-<td><form class="inline" method="post" action="/boxes/admin/tela/remover"><input type="hidden" name="grupo" value="banners"><input type="hidden" name="i" value="${i}"><button class="cinza pequeno">Tirar</button></form></td></tr>`).join('');
+<td>${b.selo ? `<span class="tag">${esc(b.selo)}</span> ` : ''}<b>${esc(b.titulo)}</b><div class="dica">${esc(b.sub)}</div>
+${b.anunciante ? `<div class="dica">Anunciante: <b>${esc(b.anunciante)}</b>${b.valor ? ' · ' + esc(b.valor) : ''}${b.contato ? ' · ' + esc(b.contato) : ''}</div>` : '<div class="dica">Banner do ZarkTV</div>'}
+${b.link ? `<div class="dica">QR na tela: ${esc(b.link)}</div>` : ''}</td>
+<td>${situacaoBanner(b)}</td>
+<td style="white-space:nowrap"><form class="inline" method="post" action="/boxes/admin/tela/banner/pausar"><input type="hidden" name="i" value="${i}"><button class="cinza pequeno">${b.ativo === false ? 'Ligar' : 'Pausar'}</button></form>
+<form class="inline" method="post" action="/boxes/admin/tela/remover"><input type="hidden" name="grupo" value="banners"><input type="hidden" name="i" value="${i}"><button class="cinza pequeno" onclick="return confirm('Tirar este banner?')">Tirar</button></form></td></tr>`).join('');
+  const noAr = bannersNoAr(cfg).length;
+  const totalBoxes = Object.keys(BOXES).length;
   const av = cfg.aviso || {};
   return pagina('Tela da box', `${msg ? `<div class="msg">${esc(msg)}</div>` : ''}
-<div class="card"><h1>Banners (anúncios na tela inicial)</h1><p class="dica">Trocam a cada 8 segundos. Imagem deitada, ideal 1920×600.</p>
+<div class="card"><h1>Banners e anúncios</h1><p class="dica">${noAr} no ar agora, aparecendo em ${totalBoxes} boxes. Trocam a cada 8 segundos.
+Para anúncio pago (ex.: promoção do Point do Açaí ou de outra loja de Quixeramobim), preencha o anunciante e o período: o banner entra e sai do ar sozinho nas datas.</p>
 ${banners ? `<table>${banners}</table>` : ''}
-<form method="post" action="/boxes/admin/tela/banner" style="margin-top:14px" onsubmit="return mandarImg(this)"><div class="linha">
-<div><label>Selo</label><input name="selo" placeholder="Promoção, Jogo hoje…"></div><div><label>Título</label><input name="titulo" required></div></div>
-<label>Texto menor</label><input name="sub"><label>Imagem (arquivo)</label><input type="file" accept="image/*" data-img="1"><input type="hidden" name="imagem">
+<form method="post" action="/boxes/admin/tela/banner" style="margin-top:18px" onsubmit="return mandarImg(this)"><h2>Novo banner</h2>
+<label>Imagem deitada (ideal 1920×600). Se a arte já tiver os textos, deixe título e texto em branco.</label><input type="file" accept="image/*" data-img="1"><input type="hidden" name="imagem">
+<div class="linha"><div><label>Selo</label><input name="selo" placeholder="Promoção, Jogo hoje, Patrocinado…"></div><div><label>Título</label><input name="titulo" placeholder="Açaí 500 ml por R$ 15"></div></div>
+<label>Texto menor</label><input name="sub" placeholder="Só hoje no Point do Açaí · Quixeramobim">
+<div class="linha"><div><label>QR Code na tela (link do WhatsApp, cardápio ou Instagram)</label><input name="link" placeholder="https://wa.me/5588..."></div>
+<div><label>Texto do QR</label><input name="linkTexto" placeholder="Peça pelo WhatsApp"></div></div>
+<h2 style="margin-top:8px">Anúncio pago (opcional)</h2>
+<div class="linha"><div><label>Anunciante</label><input name="anunciante" placeholder="Point do Açaí"></div><div><label>Contato do anunciante</label><input name="contato" placeholder="(88) 9...."></div><div><label>Valor combinado</label><input name="valor" placeholder="R$ 50/mês"></div></div>
+<div class="linha"><div><label>Começa em</label><input type="date" name="inicio"></div><div><label>Termina em</label><input type="date" name="fim"></div></div>
 <button>Adicionar banner</button></form></div>
 
 <form class="card" method="post" action="/boxes/admin/tela/aviso" onsubmit="return mandarImg(this)"><h1>Aviso em tela cheia</h1><p class="dica">Aparece uma vez em cada box (até o cliente apertar "OK, entendi"). Mudou o texto, aparece de novo.</p>
@@ -773,9 +800,24 @@ async function admin(req, res, rota, url) {
   if (req.method === 'POST' && rota === '/boxes/admin/tela/banner') {
     const c = await lerCorpo(req);
     const cfg = config();
-    cfg.banners.push({ id: id(4), selo: String(c.selo || '').slice(0, 30), titulo: String(c.titulo || '').slice(0, 80), sub: String(c.sub || '').slice(0, 140), imagem: String(c.imagem || '').slice(0, 300), ativo: true });
+    const dataOk = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(String(d || '')) ? String(d) : '');
+    const link = /^https?:\/\//.test(String(c.link || '')) ? String(c.link).slice(0, 300) : '';
+    if (!c.imagem && !c.titulo) return voltar(res, '/boxes/admin/tela?ok=' + encodeURIComponent('Coloque uma imagem ou um título.'));
+    cfg.banners.push({
+      id: id(4), selo: String(c.selo || '').slice(0, 30), titulo: String(c.titulo || '').slice(0, 80), sub: String(c.sub || '').slice(0, 140),
+      imagem: String(c.imagem || '').slice(0, 300), link, linkTexto: String(c.linkTexto || '').slice(0, 40),
+      anunciante: String(c.anunciante || '').slice(0, 60), contato: String(c.contato || '').slice(0, 40), valor: String(c.valor || '').slice(0, 30),
+      inicio: dataOk(c.inicio), fim: dataOk(c.fim), ativo: true, criado: agora(),
+    });
     salvarConfig(cfg);
     return voltar(res, '/boxes/admin/tela?ok=Banner+adicionado.');
+  }
+  if (req.method === 'POST' && rota === '/boxes/admin/tela/banner/pausar') {
+    const c = await lerCorpo(req);
+    const cfg = config();
+    const b = cfg.banners[Number(c.i)];
+    if (b) { b.ativo = b.ativo === false; salvarConfig(cfg); }
+    return voltar(res, '/boxes/admin/tela?ok=Banner+atualizado.');
   }
   if (req.method === 'POST' && rota === '/boxes/admin/tela/aviso') {
     const c = await lerCorpo(req);

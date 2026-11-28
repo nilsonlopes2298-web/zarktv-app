@@ -41,7 +41,10 @@ public class HomeActivity extends Activity {
     private TextView hora, data, rodape, chip;
     private SinalView sinal;
     private ImageView bannerImg;
-    private TextView bannerSelo, bannerTitulo, bannerSub;
+    private TextView bannerSelo, bannerTitulo, bannerSub, bannerQrTexto;
+    private ImageView bannerQr;
+    private LinearLayout bannerQrCaixa;
+    private View bannerSombra;
     private LinearLayout bolinhas, fileira;
     private View telaPorCima;
     private JSONArray banners = new JSONArray();
@@ -143,7 +146,7 @@ public class HomeActivity extends Activity {
         bannerImg = new ImageView(this);
         bannerImg.setScaleType(ImageView.ScaleType.CENTER_CROP);
         banner.addView(bannerImg, new FrameLayout.LayoutParams(-1, -1));
-        View sombra = new View(this);
+        View sombra = bannerSombra = new View(this);
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
                 new int[]{0xE6000000, 0x40000000, 0x00000000});
         sombra.setBackgroundDrawable(g);
@@ -166,6 +169,22 @@ public class HomeActivity extends Activity {
         ltx.leftMargin = Ui.px(64);
         ltx.bottomMargin = Ui.px(80);
         banner.addView(textos, ltx);
+        // QR Code do anunciante (WhatsApp, cardápio, Instagram)
+        bannerQrCaixa = new LinearLayout(this);
+        bannerQrCaixa.setOrientation(LinearLayout.VERTICAL);
+        bannerQrCaixa.setGravity(Gravity.CENTER_HORIZONTAL);
+        bannerQrCaixa.setPadding(Ui.px(16), Ui.px(16), Ui.px(16), Ui.px(12));
+        bannerQrCaixa.setBackgroundDrawable(Ui.caixa(Ui.BRANCO, 20));
+        bannerQr = new ImageView(this);
+        bannerQrCaixa.addView(bannerQr, new LinearLayout.LayoutParams(Ui.px(220), Ui.px(220)));
+        bannerQrTexto = Ui.texto(this, "", 20, 0xFF111111, true);
+        LinearLayout.LayoutParams lqt = new LinearLayout.LayoutParams(-2, -2);
+        lqt.topMargin = Ui.px(8);
+        bannerQrCaixa.addView(bannerQrTexto, lqt);
+        FrameLayout.LayoutParams lq = new FrameLayout.LayoutParams(-2, -2, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        lq.rightMargin = Ui.px(56);
+        banner.addView(bannerQrCaixa, lq);
+        bannerQrCaixa.setVisibility(View.GONE);
         bolinhas = new LinearLayout(this);
         FrameLayout.LayoutParams lb = new FrameLayout.LayoutParams(-2, -2, Gravity.LEFT | Gravity.BOTTOM);
         lb.leftMargin = Ui.px(64);
@@ -361,6 +380,19 @@ public class HomeActivity extends Activity {
         bannerSelo.setVisibility(b.optString("selo").length() > 0 ? View.VISIBLE : View.GONE);
         bannerTitulo.setText(b.optString("titulo"));
         bannerSub.setText(b.optString("sub"));
+        // arte pronta (só imagem): tira o escurecido
+        bannerSombra.setVisibility(b.optString("titulo").length() > 0 || b.optString("imagem").length() == 0 ? View.VISIBLE : View.GONE);
+        String link = b.optString("link");
+        android.graphics.Bitmap qr = link.length() > 0 ? Ui.qr(link, Ui.px(220)) : null;
+        if (qr != null) {
+            bannerQr.setImageBitmap(qr);
+            String tx = b.optString("link_texto");
+            bannerQrTexto.setText(tx);
+            bannerQrTexto.setVisibility(tx.length() > 0 ? View.VISIBLE : View.GONE);
+            bannerQrCaixa.setVisibility(View.VISIBLE);
+        } else {
+            bannerQrCaixa.setVisibility(View.GONE);
+        }
         String img = b.optString("imagem");
         bannerImg.setImageBitmap(null);
         if (img.length() > 0) Ui.imagem(this, img, bannerImg, Ui.px(1776));
