@@ -487,27 +487,38 @@ async function apiBox(req, res, rota) {
 
 // ---------- páginas do admin --------------------------------------------------------------
 
-const CSS = `*{box-sizing:border-box}body{margin:0;background:#0b0b0d;color:#f5f5f7;font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-a{color:#ff4d57}.wrap{max-width:1180px;margin:0 auto;padding:22px 16px 60px}
-.topo{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:18px}.logo{font-size:24px;font-weight:800}.logo b{color:#e50914}
-nav a{color:#b0b0b8;text-decoration:none;margin-right:14px;font-weight:600}nav a.ativo{color:#fff;border-bottom:2px solid #e50914}
-.card{background:#16161a;border:1px solid #26262c;border-radius:16px;padding:18px;margin-bottom:16px}
-h1{font-size:22px;margin:0 0 12px}h2{font-size:17px;margin:0 0 10px}
-.resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-.num{background:#16161a;border:1px solid #26262c;border-radius:14px;padding:14px}.num b{display:block;font-size:26px}.num span{color:#9a9aa2;font-size:13px}
-table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid #222228;vertical-align:top}th{color:#9a9aa2;font-weight:600;font-size:13px}
-tr.lnk{cursor:pointer}tr.lnk:hover{background:#1c1c21}
-.on{color:#3ddc84}.off{color:#8a8a92}.ver{color:#ff4d57}
-.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:700;background:#26262c}
-.tag.dona{background:#0f3d24;color:#3ddc84}.tag.root{background:#3d2f0f;color:#ffb020}.tag.simples{background:#26262c;color:#b0b0b8}
-.tag.bloq{background:#4a0d10;color:#ff6b72}
-input,select,textarea{width:100%;background:#0f0f12;color:#fff;border:1px solid #33333a;border-radius:10px;padding:10px;font:inherit;margin:4px 0 10px}
-label{font-size:13px;color:#b0b0b8}.linha{display:flex;gap:10px;flex-wrap:wrap}.linha>*{flex:1;min-width:160px}
-button,.btn{display:inline-block;background:#e50914;color:#fff;border:0;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer;text-decoration:none;font:inherit;font-weight:700}
-button.cinza,.btn.cinza{background:#2a2a30}button.pequeno{padding:5px 10px;font-size:13px}form.inline{display:inline}
-.msg{background:#0f3d24;color:#3ddc84;padding:10px 14px;border-radius:10px;margin-bottom:14px}.erro{background:#4a0d10;color:#ff6b72}
-.dica{color:#8a8a92;font-size:13px}.chk{display:flex;align-items:center;gap:8px;margin:6px 0}.chk input{width:auto;margin:0}
-.apps td{padding:6px 8px;font-size:14px}`;
+const CSS = `:root{--fundo:#0f1013;--painel:#17181c;--cartao:#1f2026;--linha:#2a2c33;--texto:#f2f2f4;--fraco:#9a9ca6;--verm:#e53935;--verde:#43a047}
+*{box-sizing:border-box}body{margin:0;background:var(--fundo);color:var(--texto);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:#ff8a80;text-decoration:none}.wrap{max-width:1180px;margin:0 auto;padding:14px 12px 60px}
+.topo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+nav{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}nav::-webkit-scrollbar{display:none}
+nav a{flex:0 0 auto;background:var(--cartao);border:1px solid var(--linha);color:var(--texto);border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px}
+nav a.ativo{background:var(--verm);border-color:var(--verm);color:#fff}
+.card{background:var(--painel);border:1px solid var(--linha);border-radius:16px;padding:16px;margin-bottom:14px}
+h1{font-size:17px;margin:0 0 6px}h2{font-size:15px;margin:0 0 8px}
+.resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.num{background:var(--painel);border:1px solid var(--linha);border-radius:14px;padding:12px 14px}.num b{display:block;font-size:24px;line-height:1.2}.num span{color:var(--fraco);font-size:12px}
+.lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
+.box{display:block;background:var(--cartao);border:1px solid var(--linha);border-radius:14px;padding:12px 14px;color:var(--texto);transition:border-color .15s}
+.box:hover{border-color:var(--verm)}.box .cab{display:flex;align-items:center;gap:8px;margin-bottom:6px}.box .cab b{font-size:16px}
+.box .lin{font-size:13px;color:var(--fraco);margin-top:2px}.box .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.ponto{width:9px;height:9px;border-radius:50%;background:#555;display:inline-block}.ponto.on{background:#66bb6a;box-shadow:0 0 0 3px rgba(102,187,106,.2)}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--linha);vertical-align:top}th{color:var(--fraco);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+.rolar{overflow-x:auto}
+.on{color:#81c784}.off{color:var(--fraco)}.ver{color:#ff8a80}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;background:#2a2c33;color:#cfd0d6;white-space:nowrap}
+.tag.dona{background:rgba(67,160,71,.18);color:#81c784}.tag.root{background:rgba(255,176,32,.15);color:#ffc163}.tag.simples{background:#2a2c33;color:#b0b0b8}
+.tag.bloq{background:rgba(229,57,53,.18);color:#ff8a80}.tag.minha{background:rgba(229,57,53,.9);color:#fff}
+label{display:block;font-size:12px;color:var(--fraco);margin:10px 0 5px;text-transform:uppercase;letter-spacing:.5px}
+input,select,textarea{width:100%;background:var(--cartao);color:var(--texto);border:1px solid var(--linha);border-radius:10px;padding:10px 12px;font:inherit;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--verm)}
+.linha{display:flex;gap:10px;flex-wrap:wrap}.linha>*{flex:1;min-width:170px}
+button,.btn{display:inline-block;border:1px solid var(--verm);background:var(--verm);color:#fff;border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;margin-top:10px}
+button.cinza,.btn.cinza{background:var(--cartao);border-color:var(--linha);color:var(--texto)}button.pequeno{padding:6px 10px;font-size:13px;margin-top:0}
+form.inline{display:inline}.acoes{display:flex;gap:6px;flex-wrap:wrap}
+.msg{background:rgba(67,160,71,.15);color:#81c784;border:1px solid rgba(67,160,71,.3);padding:10px 14px;border-radius:12px;margin-bottom:14px}.erro{background:rgba(229,57,53,.15);color:#ff8a80}
+.dica{color:var(--fraco);font-size:13px}.chk{display:flex;align-items:center;gap:8px;margin:10px 0 0;text-transform:none;letter-spacing:0;font-size:14px;color:var(--texto)}.chk input{width:auto;margin:0}
+.apps td{padding:7px 8px;font-size:14px}.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}`;
 
 function pagina(titulo, corpo, aba = '') {
   const nav = [['/boxes/admin', 'Boxes', 'boxes'], ['/boxes/admin/apks', 'APKs', 'apks'], ['/boxes/admin/tela', 'Tela da box', 'tela']]
@@ -538,14 +549,14 @@ function paginaBoxes(msg) {
     const cli = b.cliente || {};
     const dias = diasParaVencer(b);
     const desatualizada = ult && Number(f.launcher_codigo || 0) < ult;
-    return `<tr class="lnk" onclick="location='/boxes/admin/box?t=${esc(b.token)}'">
-<td><b>${esc(b.codigo)}</b> ${ehMinha(b) ? '<span class="tag dona">minha</span>' : '<span class="tag">do cliente</span>'}${estaBloqueada(b, cfg) ? ' <span class="tag bloq">bloqueada</span>' : ''}</td>
-<td>${cli.usuario ? `${esc(cli.usuario)}<div class="dica">${esc(cli.servidor || '')}${cli.vence ? ' · vence ' + new Date(cli.vence).toLocaleDateString('pt-BR') + (dias <= 5 ? ` <span class="ver">(${dias < 0 ? 'vencido' : dias + ' dias'})</span>` : '') : ''}</div>` : '<span class="off">sem cliente</span>'}</td>
-<td>${esc(f.fabricante || '')} ${esc(f.modelo || '')}<div class="dica">${esc(f.processador || '')} · ${f.memoria_mb ? Math.round(f.memoria_mb / 100) / 10 + ' GB' : ''}</div></td>
-<td>Android ${esc(f.android || '?')}<div class="dica">API ${esc(f.sdk || '?')}</div></td>
-<td><span class="tag ${esc(f.modo || 'simples')}">${esc(f.modo || '?')}</span></td>
-<td>${esc(f.launcher_versao || '?')}${desatualizada ? ' <span class="ver">↑</span>' : ''}</td>
-<td class="${online(b) ? 'on' : 'off'}">${online(b) ? '● online' : '○ ' + quando(b.visto)}<div class="dica">${esc(f.rede === 'wifi' ? 'Wi-Fi ' + (f.sinal ?? '') + '/4' : f.rede === 'cabo' ? 'cabo' : '')}</div></td></tr>`;
+    return `<a class="box" href="/boxes/admin/box?t=${esc(b.token)}">
+<div class="cab"><span class="ponto ${online(b) ? 'on' : ''}"></span><b>${esc(b.codigo)}</b>
+${ehMinha(b) ? '<span class="tag minha">minha</span>' : '<span class="tag">do cliente</span>'}${estaBloqueada(b, cfg) ? ' <span class="tag bloq">bloqueada</span>' : ''}
+<span class="dica" style="margin-left:auto">${online(b) ? 'online' : quando(b.visto)}</span></div>
+<div>${cli.usuario ? `👤 ${esc(cli.usuario)} <span class="dica">· ${esc(cli.servidor || '')}${cli.vence ? ' · vence ' + new Date(cli.vence).toLocaleDateString('pt-BR') : ''}</span>${dias <= 5 ? ` <span class="ver">${dias < 0 ? 'vencido' : dias + ' dias'}</span>` : ''}` : '<span class="dica">sem cliente ainda</span>'}</div>
+<div class="lin">📺 ${esc(f.fabricante || '')} ${esc(f.modelo || '')} · ${f.memoria_mb ? Math.round(f.memoria_mb / 100) / 10 + ' GB' : ''}</div>
+<div class="chips"><span class="tag ${esc(f.modo || 'simples')}">${esc(f.modo || '?')}</span><span class="tag">Android ${esc(f.android || '?')}</span>
+<span class="tag">launcher ${esc(f.launcher_versao || '?')}${desatualizada ? ' ↑' : ''}</span>${f.rede ? `<span class="tag">${f.rede === 'wifi' ? 'Wi-Fi ' + (f.sinal ?? '') + '/4' : f.rede === 'cabo' ? 'cabo' : 'sem internet'}</span>` : ''}</div></a>`;
   }).join('');
   return pagina('Boxes', `${msg ? `<div class="msg">${esc(msg)}</div>` : ''}
 <div class="resumo"><div class="num"><b>${lista.length}</b><span>boxes com a launcher</span></div>
@@ -556,7 +567,7 @@ function paginaBoxes(msg) {
 <div class="num"><b>${modos.simples}</b><span>modo simples</span></div>
 <div class="num"><b>${ultimaLauncher ? esc(ultimaLauncher.version) : '—'}</b><span>launcher mais nova (GitHub)</span></div></div>
 <div class="card"><h1>Boxes</h1>
-${lista.length ? `<table><tr><th>Box</th><th>Cliente</th><th>Aparelho</th><th>Sistema</th><th>Modo</th><th>Launcher</th><th>Situação</th></tr>${linhas}</table>`
+${lista.length ? `<div class="lista">${linhas}</div>`
     : '<p class="dica">Nenhuma box ainda. Assim que você instalar a ZarkTV Launcher numa box com internet, ela aparece aqui sozinha.</p>'}</div>
 <div class="card"><h2>Box minha × box do cliente</h2><p class="dica">Toda box nova entra como <b>do cliente</b> (livre: nada é bloqueado e o aviso de vencimento aparece só dentro do app).
 Abra a box e marque <b>minha</b> quando a box for sua: aí a launcher não sai, só entra o que você mandar e, se quiser, bloqueia quando vencer.</p></div>
@@ -585,10 +596,10 @@ ${lixo.has(a.p) ? '' : `<button class="cinza pequeno" name="tipo" value="lixo" t
   const bloq = estaBloqueada(box, cfg);
   return pagina('Box ' + box.codigo, `${msg ? `<div class="msg">${esc(msg)}</div>` : ''}
 <div class="card"><h1>Box ${esc(box.codigo)} ${bloq ? '<span class="tag bloq">bloqueada</span>' : ''} <span class="${online(box) ? 'on' : 'off'}" style="font-size:15px">${online(box) ? '● online' : '○ visto ' + quando(box.visto)}</span></h1>
-<div class="linha"><div><label>Aparelho</label><div>${esc(f.fabricante || '')} ${esc(f.modelo || '')}<div class="dica">${esc(f.processador || '')} · placa ${esc(f.placa || '')}</div></div></div>
+<div class="info"><div><label>Aparelho</label><div>${esc(f.fabricante || '')} ${esc(f.modelo || '')}<div class="dica">${esc(f.processador || '')}</div></div></div>
 <div><label>Sistema</label><div>Android ${esc(f.android || '?')} (API ${esc(f.sdk || '?')})<div class="dica">${f.memoria_mb ? Math.round(f.memoria_mb) + ' MB de memória' : ''}</div></div></div>
 <div><label>Modo</label><div><span class="tag ${esc(f.modo || 'simples')}">${esc(f.modo || '?')}</span><div class="dica">${f.tela_inicial ? 'é a tela inicial' : 'ainda não é a tela inicial'}</div></div></div>
-<div><label>Launcher</label><div>${esc(f.launcher_versao || '?')}<div class="dica">${esc(f.rede === 'wifi' ? 'Wi-Fi ' + (f.sinal ?? '') + '/4' : f.rede || '')} · IP ${esc(box.ip || '')}</div></div></div></div></div>
+<div><label>Launcher</label><div>${esc(f.launcher_versao || '?')}<div class="dica">${esc(f.rede === 'wifi' ? 'Wi-Fi ' + (f.sinal ?? '') + '/4' : f.rede === 'cabo' ? 'cabo' : f.rede || '')}</div></div></div></div></div>
 
 <form class="card" method="post" action="/boxes/admin/box/acao"><input type="hidden" name="t" value="${esc(box.token)}"><h2>De quem é esta box?</h2>
 ${ehMinha(box) ? `<p><span class="tag dona">Box minha · controle total</span> A launcher fica fixa e não sai, só instala o que vem do painel, esconde o lixo${cfg.bloquearVencidos ? ' e bloqueia com o Pix quando o cliente vencer' : ''}.</p><button class="cinza" name="acao" value="dono_cliente">Mudar para box do cliente (liberar)</button>`
@@ -608,8 +619,8 @@ ${lib.length ? `<form method="post" action="/boxes/admin/box/instalar"><input ty
     : '<p class="dica">Suba um APK na aba <a href="/boxes/admin/apks">APKs</a> primeiro.</p>'}</div>
 
 <div class="card"><h2>Histórico de comandos</h2>${cmds ? `<table>${cmds}</table>` : '<p class="dica">Nenhum comando ainda.</p>'}</div>
-<div class="card"><h2>Apps desta box (${apps.length})</h2><p class="dica">"Esconder" e "Desinstalar" só funcionam sozinhos nos modos dona e root. "Lixo nas minhas" esconde o app em todas as boxes marcadas como suas.</p>
-<table class="apps">${linhasApps}</table></div>`, 'boxes');
+<div class="card"><h2>🛠️ Suporte remoto · apps desta box (${apps.length})</h2><p class="dica">"Esconder" e "Desinstalar" só funcionam sozinhos nos modos dona e root. "Lixo nas minhas" esconde o app em todas as boxes marcadas como suas.</p>
+<div class="rolar"><table class="apps">${linhasApps}</table></div></div>`, 'boxes');
 }
 
 function paginaApks(msg) {
