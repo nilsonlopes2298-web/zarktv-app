@@ -608,7 +608,7 @@ function linhaApp(a, i, grupo, comChave) {
 function formApp(grupo, comChave) {
   const lib = apks();
   return `<form method="post" action="/boxes/admin/tela/app"><input type="hidden" name="grupo" value="${grupo}"><div class="linha">
-${comChave ? `<div><label>Cartão da tela inicial</label><select name="chave"><option value="youtube">YouTube</option><option value="zarkplay">ZarkPlay</option><option value="outro">Nenhum (só instalar)</option></select></div>` : ''}
+${comChave ? `<div><label>Cartão da tela inicial</label><select name="chave"><option value="youtube">YouTube</option><option value="zarkplay">ZarkPlay</option><option value="outro">Ícone próprio na tela inicial (ex.: UniTV)</option></select></div>` : ''}
 <div><label>Nome</label><input name="nome" required></div>
 <div><label>APK da biblioteca</label><select name="apk"><option value="">— usar o endereço abaixo —</option>${lib.map((a) => `<option value="${esc(a.id)}">${esc(a.nome)} · ${esc(a.pacote)}</option>`).join('')}</select></div></div>
 <div class="linha"><div><label>ou endereço https do APK</label><input name="url" placeholder="https://..."></div><div><label>Pacote (se usar endereço)</label><input name="pacote" placeholder="com.exemplo.app"></div></div>

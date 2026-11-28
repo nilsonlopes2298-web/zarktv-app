@@ -242,6 +242,11 @@ public class HomeActivity extends Activity {
         java.util.List<String> fixados = fixados();
         sb.append('|');
         for (String p : fixados) sb.append(p).append(',');
+        org.json.JSONArray iniA = estado().optJSONArray("iniciais");
+        if (iniA != null) for (int i = 0; i < iniA.length(); i++) {
+            org.json.JSONObject x = iniA.optJSONObject(i);
+            if (x != null && Box.instalado(this, x.optString("pacote"))) sb.append(x.optString("pacote")).append(';');
+        }
         String nova = sb.toString();
         if (fileira.getChildCount() > 0 && nova.equals(assinaturaCartoes)) return;
         assinaturaCartoes = nova;
@@ -254,6 +259,19 @@ public class HomeActivity extends Activity {
         if (temYoutube) cartao("YouTube", "youtube", YOUTUBE, 0xFFCC0000);
         cartao("ZarkPlay", "zarkplay", ZARKPLAY, Ui.VERMELHO);
         cartao("Lojinha ZarkTV", "lojinha", null, Ui.SUPERFICIE_3);
+        // Apps que toda box tem (do painel, ex.: UniTV) ganham ícone próprio
+        org.json.JSONArray ini = estado().optJSONArray("iniciais");
+        java.util.Set<String> jaTem = new java.util.HashSet<>(fixados);
+        if (ini != null) {
+            for (int i = 0; i < ini.length(); i++) {
+                org.json.JSONObject a = ini.optJSONObject(i);
+                if (a == null || !"outro".equals(a.optString("chave"))) continue;
+                String p = a.optString("pacote");
+                if (p.length() == 0 || jaTem.contains(p) || !Box.instalado(this, p)) continue;
+                jaTem.add(p);
+                cartao(a.optString("nome", p), "fixado:" + p, new String[]{p}, Ui.SUPERFICIE_2);
+            }
+        }
         // Apps que o cliente fixou com o "+"
         for (String p : fixados) {
             if (!Box.instalado(this, p)) continue;
