@@ -198,8 +198,16 @@ public class HomeActivity extends Activity {
         fileira = new LinearLayout(this);
         fileira.setClipChildren(false);
         fileira.setClipToPadding(false);
+        fileira.setPadding(Ui.px(20), Ui.px(16), Ui.px(20), Ui.px(8));
         raiz.setClipChildren(false);
-        raiz.addView(fileira, pos(Ui.px(72), Ui.px(690), -2, -2));
+        // rola para o lado quando tiver muitos apps fixados
+        android.widget.HorizontalScrollView rolar = new android.widget.HorizontalScrollView(this);
+        rolar.setHorizontalScrollBarEnabled(false);
+        rolar.setClipChildren(false);
+        rolar.setClipToPadding(false);
+        rolar.setFillViewport(false);
+        rolar.addView(fileira);
+        raiz.addView(rolar, pos(Ui.px(52), Ui.px(674), Ui.px(1816), -2));
         montarCartoes();
 
         // Aviso de vencimento e rodapé
@@ -231,18 +239,66 @@ public class HomeActivity extends Activity {
         StringBuilder sb = new StringBuilder();
         for (String p : YOUTUBE) if (Box.instalado(this, p)) sb.append(p).append(',');
         for (String p : ZARKPLAY) if (Box.instalado(this, p)) sb.append(p).append(',');
+        java.util.List<String> fixados = fixados();
+        sb.append('|');
+        for (String p : fixados) sb.append(p).append(',');
         String nova = sb.toString();
         if (fileira.getChildCount() > 0 && nova.equals(assinaturaCartoes)) return;
         assinaturaCartoes = nova;
         int focado = -1;
         for (int i = 0; i < fileira.getChildCount(); i++) if (fileira.getChildAt(i).hasFocus()) focado = i;
         fileira.removeAllViews();
-        cartao("YouTube", "youtube", YOUTUBE, 0xFFCC0000);
+        // YouTube: usa o que já vem na box (só aparece se estiver instalado)
+        boolean temYoutube = false;
+        for (String p : YOUTUBE) if (Box.instalado(this, p)) { temYoutube = true; break; }
+        if (temYoutube) cartao("YouTube", "youtube", YOUTUBE, 0xFFCC0000);
         cartao("ZarkPlay", "zarkplay", ZARKPLAY, Ui.VERMELHO);
         cartao("Lojinha ZarkTV", "lojinha", null, Ui.SUPERFICIE_3);
+        // Apps que o cliente fixou com o "+"
+        for (String p : fixados) {
+            if (!Box.instalado(this, p)) continue;
+            String nome = p;
+            try { nome = String.valueOf(getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(p, 0))); } catch (Exception ignored) {}
+            cartao(nome, "fixado:" + p, new String[]{p}, Ui.SUPERFICIE_2);
+        }
         cartao("Configurações", "config", null, Ui.SUPERFICIE_3);
         cartao("Todos os apps", "todos", null, Ui.SUPERFICIE_2);
-        fileira.getChildAt(focado >= 0 ? focado : 1).requestFocus();
+        cartao("Adicionar", "mais", null, Ui.SUPERFICIE_1);
+        int alvo = focado >= 0 ? Math.min(focado, fileira.getChildCount() - 1) : (temYoutube ? 1 : 0);
+        fileira.getChildAt(alvo).requestFocus();
+    }
+
+    // ---------- apps fixados na tela inicial ----------
+
+    static java.util.List<String> fixados(android.content.Context c) {
+        java.util.List<String> l = new java.util.ArrayList<>();
+        for (String p : Box.prefs(c).getString("fixados", "").split(",")) if (p.length() > 0 && !l.contains(p)) l.add(p);
+        return l;
+    }
+
+    private java.util.List<String> fixados() { return fixados(this); }
+
+    static void fixar(android.content.Context c, String pacote, boolean colocar) {
+        java.util.List<String> l = fixados(c);
+        l.remove(pacote);
+        if (colocar) l.add(pacote);
+        StringBuilder sb = new StringBuilder();
+        for (String p : l) sb.append(p).append(',');
+        Box.prefs(c).edit().putString("fixados", sb.toString()).apply();
+    }
+
+    private void perguntarTirar(final String pacote, String nome) {
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(nome)
+                .setMessage("Tirar este app da tela inicial? (ele continua instalado)")
+                .setPositiveButton("Tirar", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) {
+                        fixar(HomeActivity.this, pacote, false);
+                        aplicarEstado();
+                    }
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
     }
 
     private void cartao(String nome, final String chave, final String[] pacotes, int cor) {
@@ -274,6 +330,16 @@ public class HomeActivity extends Activity {
         quadro.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { abrir(chave, pacotes); }
         });
+        if (chave.startsWith("fixado:")) {
+            final String nomeApp = nome;
+            // segurar o OK do controle: tirar da tela inicial
+            quadro.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override public boolean onLongClick(View v) {
+                    perguntarTirar(chave.substring(7), nomeApp);
+                    return true;
+                }
+            });
+        }
 
         LinearLayout.LayoutParams l = new LinearLayout.LayoutParams(-2, -2);
         l.rightMargin = Ui.px(42);
@@ -297,6 +363,7 @@ public class HomeActivity extends Activity {
             case "youtube": case "zarkplay": tipo = "play"; break;
             case "lojinha": tipo = "loja"; break;
             case "config": tipo = "config"; break;
+            case "mais": tipo = "mais"; break;
             default: tipo = "todos";
         }
         return new IconeView(this, tipo);
@@ -310,6 +377,9 @@ public class HomeActivity extends Activity {
                 return;
             case "todos":
                 startActivity(new Intent(this, AppsActivity.class));
+                return;
+            case "mais":
+                startActivity(new Intent(this, AppsActivity.class).putExtra("escolher", true));
                 return;
             case "config":
                 try { startActivity(new Intent(Settings.ACTION_SETTINGS)); } catch (Exception ignored) {}

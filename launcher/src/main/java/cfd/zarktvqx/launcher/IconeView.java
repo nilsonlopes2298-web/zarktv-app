@@ -57,6 +57,13 @@ public class IconeView extends View {
                 }
                 break;
             }
+            case "mais": {
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(m * 0.09f);
+                c.drawLine(cx - m * 0.28f, cy, cx + m * 0.28f, cy, p);
+                c.drawLine(cx, cy - m * 0.28f, cx, cy + m * 0.28f, p);
+                break;
+            }
             default: { // todos os apps: grade 3x3
                 p.setStyle(Paint.Style.FILL);
                 float t = m * 0.16f, g = m * 0.1f, ini = cx - (t * 3 + g * 2) / 2;
