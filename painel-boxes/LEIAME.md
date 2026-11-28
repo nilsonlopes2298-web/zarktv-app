@@ -4,7 +4,8 @@ Aqui você vê todas as boxes que estão com a **ZarkTV Launcher**: de quem é c
 Android, modo (dona / root / simples), versão da launcher, se está online e o sinal do Wi-Fi.
 Também manda APK (para uma box ou para todas), banners, aviso em tela cheia e a lojinha da box.
 
-- Painel: `https://painel.zarktvqx.cfd/boxes/admin`
+- Painel: aba **📺 Boxes** dentro do ZarkTV Cloud (`https://zark.zarktvqx.cfd/admin/`), com o mesmo login.
+  O Caddy repassa `/admin/boxes/*` para este servidor com o cabeçalho `X-Zark-Chave` (variável `ZARK_CHAVE`).
 - A launcher conversa com: `https://painel.zarktvqx.cfd/boxes/api/...`
 
 ## Box minha × box do cliente

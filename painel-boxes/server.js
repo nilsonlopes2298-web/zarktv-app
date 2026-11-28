@@ -31,6 +31,10 @@ const ARQ_CONFIG = path.join(DADOS, 'config.json');
 const ARQ_APKS = path.join(DADOS, 'apks.json');
 const SEGREDO_SESSAO = crypto.createHash('sha256').update('zarktv-boxes:' + ADMIN_SENHA).digest();
 const ONLINE_MS = 20 * 60 * 1000; // conversou nos últimos 20 min = online
+// Aba "Boxes" dentro do painel ZarkTV Cloud (zark.zarktvqx.cfd/admin): o Caddy só deixa passar quem já
+// entrou no painel e manda esta chave. Assim não existe senha nem endereço separado.
+const ZARK_CHAVE = process.env.ZARK_CHAVE || '';
+const PAINEL_ZARK = 'https://zark.zarktvqx.cfd/admin/';
 
 if (!ADMIN_SENHA) {
   console.error('ERRO: defina a variável ADMIN_SENHA (senha do painel das boxes).');
@@ -145,7 +149,12 @@ function criarSessao() {
   const exp = agora() + 12 * 3600 * 1000;
   return `${exp}.${crypto.createHmac('sha256', SEGREDO_SESSAO).update(String(exp)).digest('hex')}`;
 }
+function viaPainelZark(req) {
+  const h = String(req.headers['x-zark-chave'] || '');
+  return !!ZARK_CHAVE && h.length === ZARK_CHAVE.length && crypto.timingSafeEqual(Buffer.from(h), Buffer.from(ZARK_CHAVE));
+}
 function sessaoValida(req) {
+  if (viaPainelZark(req)) return true;
   const m = /(?:^|;\s*)zk_box=([^;]+)/.exec(req.headers.cookie || '');
   if (!m) return false;
   const [exp, sig] = m[1].split('.');
@@ -499,8 +508,7 @@ function pagina(titulo, corpo, aba = '') {
     .map(([h, n, k]) => `<a href="${h}" class="${aba === k ? 'ativo' : ''}">${n}</a>`).join('');
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(titulo)} · ZarkTV Cloud</title><style>${CSS}</style></head><body><div class="wrap">
-<div class="topo"><div class="logo">▶ Zark<b>TV</b> · Boxes</div><nav>${nav}</nav>
-<form method="post" action="/boxes/admin/sair" style="margin-left:auto"><button class="cinza pequeno">Sair</button></form></div>${corpo}</div></body></html>`;
+<div class="topo"><nav>${nav}</nav></div>${corpo}</div></body></html>`;
 }
 
 function paginaLogin(erro) {
@@ -719,6 +727,14 @@ function receberArquivo(req, destino, limite) {
 // ---------- rotas do admin ----------------------------------------------------------------
 
 async function admin(req, res, rota, url) {
+  // Fora do painel ZarkTV Cloud não tem admin: manda para a aba Boxes de lá
+  if (ZARK_CHAVE && !viaPainelZark(req)) return voltar(res, PAINEL_ZARK);
+  if (viaPainelZark(req)) {
+    // links e redirecionamentos passam a apontar para dentro do painel (zark.zarktvqx.cfd/admin/boxes/...)
+    const wh = res.writeHead.bind(res), fim = res.end.bind(res);
+    res.writeHead = (st, cab = {}) => { if (cab.Location && cab.Location.startsWith('/boxes/')) cab.Location = '/admin' + cab.Location; return wh(st, cab); };
+    res.end = (corpo) => fim(typeof corpo === 'string' ? corpo.split('/boxes/admin').join('/admin/boxes/admin') : corpo);
+  }
   if (rota === '/boxes/admin/login' && req.method === 'POST') {
     const c = await lerCorpo(req);
     const certo = crypto.createHash('sha256').update(ADMIN_SENHA).digest();
