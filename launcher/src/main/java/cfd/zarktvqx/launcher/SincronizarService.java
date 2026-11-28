@@ -122,6 +122,9 @@ public class SincronizarService extends Service {
                 .apply();
         avisarTela(c);
 
+        // 2b) Box minha com root: tenta virar "dona" sozinha (controle total sem o PC)
+        if (r.optBoolean("controle_total")) Controle.virarDonaComRoot(c);
+
         // 3) Box minha: tela inicial fixa, nada de instalar por fora, sem atualização do fabricante.
         //    Box do cliente: libera tudo.
         Controle.proteger(c, r.optBoolean("controle_total"), r.optBoolean("bloquear_fora"));
@@ -158,6 +161,26 @@ public class SincronizarService extends Service {
                 JSONObject cmd = cmds.optJSONObject(i);
                 if (cmd != null) executar(c, cmd);
             }
+        }
+
+        // 6b) Box minha com limpeza ligada: só fica o que você quer (nossos apps, YouTube, permitidos)
+        if (r.optBoolean("controle_total") && r.optBoolean("limpeza") && Controle.silencioso(c)) {
+            java.util.Set<String> manter = new java.util.HashSet<>();
+            manter.add(c.getPackageName());
+            for (String p : HomeActivity.YOUTUBE) manter.add(p);
+            for (String p : HomeActivity.ZARKPLAY) manter.add(p);
+            manter.addAll(HomeActivity.fixados(c));
+            String[] listas = {"iniciais", "loja"};
+            for (String nome : listas) {
+                JSONArray l = r.optJSONArray(nome);
+                if (l != null) for (int i = 0; i < l.length(); i++) {
+                    JSONObject a = l.optJSONObject(i);
+                    if (a != null && a.optString("pacote").length() > 0) manter.add(a.optString("pacote"));
+                }
+            }
+            JSONArray perm = r.optJSONArray("permitidos");
+            if (perm != null) for (int i = 0; i < perm.length(); i++) manter.add(perm.optString(i));
+            Controle.limpar(c, manter);
         }
 
         // 7) Alivia a memória

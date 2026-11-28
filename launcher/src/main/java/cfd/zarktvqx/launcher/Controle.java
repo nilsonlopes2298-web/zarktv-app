@@ -274,6 +274,72 @@ public final class Controle {
         }
     }
 
+    // ---------- Limpeza da box (só box "minha", modos dona/root) ----------
+
+    /** Partes do sistema que nunca são mexidas (a box precisa delas para funcionar). */
+    static boolean essencial(String p) {
+        if (p.equals("android") || p.startsWith("com.android.")) return true;
+        if (p.startsWith("com.google.android.gms") || p.startsWith("com.google.android.gsf")
+                || p.startsWith("com.google.android.ext") || p.startsWith("com.google.android.webview")
+                || p.startsWith("com.google.android.inputmethod") || p.startsWith("com.google.android.tts")) return true;
+        String l = p.toLowerCase(java.util.Locale.ROOT);
+        String[] partes = {"provider", "service", "input", "keyboard", "ime", "wifi", "bluetooth", "setting", "systemui",
+                "media", "hdmi", "cec", "audio", "display", "remote", "framework", "webview", "permission", "shell",
+                "telephony", "network", "certinstaller", "packageinstaller", "keychain", "wallpaper", "sound",
+                "camera", "location", "nfc", "power", "boot", "tvinput", "tv.settings", "overlay", "ota_disabled"};
+        for (String x : partes) if (l.contains(x)) return true;
+        return false;
+    }
+
+    /** Apps do sistema que só instalam coisas por fora ou atualizam a box sem você mandar. */
+    static boolean instaladorDeFabrica(String p) {
+        String l = p.toLowerCase(java.util.Locale.ROOT);
+        return l.contains("ota") || l.contains("update") || l.contains("upgrade") || l.contains("market")
+                || l.contains("appstore") || l.contains("app.store") || l.contains("appinstaller")
+                || l.contains("pushservice") || l.contains("push.service") || l.contains("adservice");
+    }
+
+    /**
+     * Deixa na box só o que você quer: apaga os apps instalados por fora e esconde os apps de fábrica
+     * que aparecem na tela (navegador da fábrica, lojas, instaladores, atualizador). Partes essenciais ficam.
+     * @return quantos apps foram tirados
+     */
+    public static int limpar(Context c, java.util.Set<String> manter) {
+        if (!silencioso(c)) return 0;
+        PackageManager pm = c.getPackageManager();
+        // telas iniciais da fábrica ficam (reserva caso a nossa dê problema)
+        java.util.Set<String> telas = new java.util.HashSet<>();
+        Intent home = new Intent(Intent.ACTION_MAIN);
+        home.addCategory(Intent.CATEGORY_HOME);
+        for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(home, 0)) telas.add(ri.activityInfo.packageName);
+        int n = 0;
+        for (ApplicationInfo ai : pm.getInstalledApplications(0)) {
+            String p = ai.packageName;
+            if (manter.contains(p) || protegido(c, p) || !ai.enabled) continue;
+            boolean sistema = (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+            if (!sistema) {
+                if (desinstalar(c, p) == null) n++;
+                continue;
+            }
+            if (essencial(p) || telas.contains(p)) continue;
+            boolean temIcone = pm.getLaunchIntentForPackage(p) != null
+                    || (Build.VERSION.SDK_INT >= 21 && pm.getLeanbackLaunchIntentForPackage(p) != null);
+            if (temIcone || instaladorDeFabrica(p)) {
+                if (esconder(c, p, true) == null) n++;
+            }
+        }
+        return n;
+    }
+
+    /** Box com root: vira "dona" sozinha (sem precisar do PC). Só dá certo se a box não tiver conta cadastrada. */
+    public static boolean virarDonaComRoot(Context c) {
+        if (Build.VERSION.SDK_INT < 21 || Box.ehDona(c) || !Root.tem()) return Box.ehDona(c);
+        if (Box.prefs(c).getBoolean("tentou_dona", false)) return false;
+        Box.prefs(c).edit().putBoolean("tentou_dona", true).apply();
+        Root.rodar("dpm set-device-owner " + c.getPackageName() + "/.Admin");
+        return Box.ehDona(c);
+    }
+
     /** Fecha o que está rodando escondido (ajuda muito a box de 1 GB). */
     public static void aliviar(Context c, java.util.Set<String> manter) {
         try {

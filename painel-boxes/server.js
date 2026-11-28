@@ -60,6 +60,8 @@ const CONFIG_PADRAO = {
   // Box do cliente fica livre: ele instala o que quiser e nada é bloqueado.
   bloquearFora: true, // não deixa instalar nada que não venha da launcher (modo dona)
   bloquearVencidos: false, // box minha com cliente vencido mostra a tela de bloqueio com o Pix
+  limpeza: true, // box minha: apaga/esconde tudo que não é nosso nem permitido (deixa a box leve)
+  permitidos: [], // pacotes extras que podem ficar nas boxes minhas
   launcherAuto: true, // atualiza a launcher sozinha quando sair versão nova no GitHub
   suporte: '(85) 8789-0473',
   checkout: 'https://painel.zarktvqx.cfd/checkout',
@@ -377,6 +379,8 @@ function respostaPing(box) {
     loja: cfg.loja,
     iniciais: cfg.iniciais,
     lixo: ehMinha(box) ? cfg.lixo : [],
+    limpeza: ehMinha(box) && !!cfg.limpeza,
+    permitidos: ehMinha(box) ? cfg.permitidos : [],
     comandos: comandosParaEnviar(box),
   };
   return resp;
@@ -657,6 +661,8 @@ Para o YouTube em box antiga (Android 4.4 a 7), use um APK compatível com TV Bo
 <p class="dica">Estas duas regras valem só para as boxes marcadas como <b>minha</b>. Box do cliente fica sempre livre.</p>
 <label class="chk"><input type="checkbox" name="bloquearFora" value="1" ${cfg.bloquearFora ? 'checked' : ''}> Não deixar instalar nada que não venha da launcher (modo dona)</label>
 <label class="chk"><input type="checkbox" name="bloquearVencidos" value="1" ${cfg.bloquearVencidos ? 'checked' : ''}> Bloquear a box quando o cliente vencer (mostra o Pix)</label>
+<label class="chk"><input type="checkbox" name="limpeza" value="1" ${cfg.limpeza ? 'checked' : ''}> Limpeza total: deixar só os nossos apps, o YouTube e os permitidos (apaga o resto e esconde os apps de fábrica)</label>
+<label>Apps permitidos nas boxes minhas, além dos nossos (um pacote por linha)</label><textarea name="permitidos" rows="3">${esc((cfg.permitidos || []).join('\n'))}</textarea>
 <label class="chk"><input type="checkbox" name="launcherAuto" value="1" ${cfg.launcherAuto ? 'checked' : ''}> Atualizar a launcher sozinha quando sair versão nova no GitHub</label>
 <div class="linha"><div><label>WhatsApp de suporte (aparece no bloqueio)</label><input name="suporte" value="${esc(cfg.suporte)}"></div>
 <div><label>Link do checkout Pix</label><input name="checkout" value="${esc(cfg.checkout)}"></div></div>
@@ -857,6 +863,8 @@ async function admin(req, res, rota, url) {
     cfg.bloquearFora = c.bloquearFora === '1';
     cfg.bloquearVencidos = c.bloquearVencidos === '1';
     cfg.launcherAuto = c.launcherAuto === '1';
+    cfg.limpeza = c.limpeza === '1';
+    cfg.permitidos = String(c.permitidos || '').split(/\s+/).filter(pacoteValido);
     cfg.suporte = String(c.suporte || '').slice(0, 40);
     cfg.checkout = String(c.checkout || '').slice(0, 200);
     cfg.lixo = String(c.lixo || '').split(/\s+/).filter(pacoteValido);
