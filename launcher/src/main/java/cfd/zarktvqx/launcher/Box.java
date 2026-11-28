@@ -149,6 +149,7 @@ public final class Box {
             JSONObject a = new JSONObject();
             a.put("p", pi.packageName);
             a.put("v", pi.versionName == null ? "" : pi.versionName);
+            a.put("c", pi.versionCode);
             a.put("s", (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0);
             a.put("on", ai.enabled);
             try {

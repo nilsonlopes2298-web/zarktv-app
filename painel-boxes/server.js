@@ -334,7 +334,7 @@ function fichaLimpa(f) {
 }
 function appsLimpos(lista) {
   if (!Array.isArray(lista)) return [];
-  return lista.slice(0, 600).map((a) => ({ p: String(a.p || '').slice(0, 150), n: String(a.n || '').slice(0, 80), v: String(a.v || '').slice(0, 40), s: !!a.s, on: a.on !== false }));
+  return lista.slice(0, 600).map((a) => ({ p: String(a.p || '').slice(0, 150), n: String(a.n || '').slice(0, 80), v: String(a.v || '').slice(0, 40), c: Number(a.c || 0), s: !!a.s, on: a.on !== false }));
 }
 
 function novoCodigo() {
@@ -357,6 +357,23 @@ function situacaoBanner(b) {
   if (b.inicio && b.inicio > dia) return '<span class="off">começa ' + esc(b.inicio.split('-').reverse().join('/')) + '</span>';
   if (b.fim && b.fim < dia) return '<span class="ver">venceu ' + esc(b.fim.split('-').reverse().join('/')) + '</span>';
   return '<span class="on">● no ar</span>' + (b.fim ? '<div class="dica">até ' + esc(b.fim.split('-').reverse().join('/')) + '</div>' : '');
+}
+
+// Atualização automática: o APK mais novo de cada pacote marcado "automático" vai para toda box
+// que tem esse app numa versão mais velha (ex.: subiu o UniTV novo -> todas as boxes com UniTV atualizam).
+function autoAtualizar(box) {
+  const maisNovo = {};
+  for (const a of apks()) {
+    if (a.auto === false || !a.codigo) continue;
+    if (!maisNovo[a.pacote] || a.codigo > maisNovo[a.pacote].codigo) maisNovo[a.pacote] = a;
+  }
+  for (const app of box.apps || []) {
+    const a = maisNovo[app.p];
+    if (a && app.c && app.c < a.codigo) {
+      const ja = (box.comandos || []).find((c) => c.apk === a.id && ['pendente', 'enviado', 'ok'].includes(c.status));
+      if (!ja) novoComando(box, { ...comandoInstalarApk(a, true), auto: true });
+    }
+  }
 }
 
 function respostaPing(box) {
@@ -420,6 +437,7 @@ async function apiBox(req, res, rota) {
     if (cfg.launcherAuto && ultimaLauncher && ultimaLauncher.codigo > Number(box.ficha.launcher_codigo || 0)) {
       novoComando(box, { tipo: 'instalar', pacote: PACOTE_LAUNCHER, nome: 'ZarkTV Launcher ' + ultimaLauncher.version, url: ultimaLauncher.url, sha256: ultimaLauncher.sha256, obrigatoria: true, auto: true });
     }
+    autoAtualizar(box);
     if (box.cliente && box.cliente.senha && agora() - (box.cliente.conferido || 0) > 6 * 3600 * 1000) reconferirCliente(box);
     const r = respostaPing(box);
     salvarBoxes();
@@ -582,7 +600,10 @@ ${lib.length ? `<form method="post" action="/boxes/admin/box/instalar"><input ty
 
 function paginaApks(msg) {
   const lib = apks();
-  const linhas = lib.map((a) => `<tr><td><b>${esc(a.nome)}</b><div class="dica">${esc(a.pacote)} · versão ${esc(a.versao)} (${esc(a.codigo)})</div></td>
+  const linhas = lib.map((a) => `<tr><td><b>${esc(a.nome)}</b><div class="dica">${esc(a.pacote)} · versão ${esc(a.versao)} (${esc(a.codigo)})</div>
+<div class="dica">${Object.values(BOXES).filter((b) => (b.apps || []).some((x) => x.p === a.pacote)).length} boxes têm este app</div>
+<form class="inline" method="post" action="/boxes/admin/apks/auto"><input type="hidden" name="apk" value="${esc(a.id)}">
+${a.auto === false ? '<button class="cinza pequeno">Ligar atualização automática</button>' : '<span class="tag dona">atualiza sozinho</span> <button class="cinza pequeno">Desligar</button>'}</form></td>
 <td>${(a.tamanho / 1048576).toFixed(1)} MB<div class="dica">${data(a.criado)}</div></td>
 <td style="white-space:nowrap"><form class="inline" method="post" action="/boxes/admin/apks/todas"><input type="hidden" name="apk" value="${esc(a.id)}">
 <label class="chk" style="display:inline-flex"><input type="checkbox" name="obrigatoria" value="1" checked> obrigatória</label>
@@ -590,7 +611,8 @@ function paginaApks(msg) {
 <form class="inline" method="post" action="/boxes/admin/apks/apagar"><input type="hidden" name="apk" value="${esc(a.id)}"><button class="cinza pequeno" onclick="return confirm('Apagar este APK?')">Apagar</button></form>
 <div class="dica"><a href="${esc(URL_PUBLICA)}/boxes/arquivos/${esc(a.id)}.apk">link do APK</a></div></td></tr>`).join('');
   return pagina('APKs', `${msg ? `<div class="msg">${esc(msg)}</div>` : ''}
-<div class="card"><h1>Subir APK</h1><p class="dica">Escolha o arquivo .apk. O painel lê sozinho o nome do pacote e a versão. Depois é só mandar para uma box ou para todas.
+<div class="card"><h1>Subir APK</h1><p class="dica">Escolha o arquivo .apk. O painel lê sozinho o nome do pacote e a versão.
+<b>Atualização automática:</b> subiu a versão nova (ex.: UniTV), toda box que tem esse app numa versão mais velha atualiza sozinha, sem o cliente fazer nada (no modo simples aparece "Atualizar agora").
 Para atualizar a própria launcher, suba o APK dela aqui (ou deixe ligada a atualização automática pelo GitHub na aba "Tela da box").</p>
 <label>Nome que aparece</label><input id="nome" placeholder="Ex.: ZarkPlay">
 <input type="file" id="arq" accept=".apk"><button id="subir" onclick="subir()">Subir APK</button> <span id="st" class="dica"></span></div>
@@ -769,7 +791,7 @@ async function admin(req, res, rota, url) {
       const m = lerManifestoApk(destino);
       if (!pacoteValido(m.pacote)) throw new Error('não consegui ler o pacote do APK');
       const lib = apks();
-      const apk = { id: novoId, nome: String(url.searchParams.get('nome') || m.pacote).replace(/\.apk$/i, '').slice(0, 60), pacote: m.pacote, versao: m.versao, codigo: m.codigo, tamanho: r.tamanho, sha256: r.sha256, criado: agora() };
+      const apk = { id: novoId, nome: String(url.searchParams.get('nome') || m.pacote).replace(/\.apk$/i, '').slice(0, 60), pacote: m.pacote, versao: m.versao, codigo: m.codigo, tamanho: r.tamanho, sha256: r.sha256, criado: agora(), auto: true };
       lib.unshift(apk);
       gravar(ARQ_APKS, lib);
       return json(res, 200, apk);
@@ -785,6 +807,13 @@ async function admin(req, res, rota, url) {
     let n = 0;
     for (const box of Object.values(BOXES)) { novoComando(box, comandoInstalarApk(apk, c.obrigatoria === '1')); n++; }
     return voltar(res, `/boxes/admin/apks?ok=${encodeURIComponent(`${apk.nome} enviado para ${n} boxes.`)}`);
+  }
+  if (req.method === 'POST' && rota === '/boxes/admin/apks/auto') {
+    const c = await lerCorpo(req);
+    const lib = apks();
+    const a = lib.find((x) => x.id === c.apk);
+    if (a) { a.auto = a.auto === false; gravar(ARQ_APKS, lib); }
+    return voltar(res, '/boxes/admin/apks?ok=' + encodeURIComponent(a && a.auto ? 'Atualização automática ligada.' : 'Atualização automática desligada.'));
   }
   if (req.method === 'POST' && rota === '/boxes/admin/apks/apagar') {
     const c = await lerCorpo(req);
