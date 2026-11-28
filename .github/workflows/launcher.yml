@@ -1,0 +1,81 @@
+name: ZarkTV Launcher (TV Box)
+
+# Só roda quando muda algo na pasta launcher/ (não mexe nos APKs do ZarkTV).
+# Publica sempre no mesmo link fixo:
+#   https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/launcher/zarktv-launcher.apk
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'launcher/**'
+      - '.github/workflows/launcher.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+      SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+      SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+      SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Chave de assinatura (a mesma do ZarkTV)
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Sem chave de assinatura: o APK sai com chave de teste."
+          fi
+
+      - name: Versao
+        run: |
+          echo "VERSAO=1.0.${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "CODIGO=${{ github.run_number }}" >> "$GITHUB_ENV"
+
+      - name: Compilar
+        run: ./gradlew --no-daemon -p launcher assembleRelease -PappVersionName="$VERSAO" -PappVersionCode="$CODIGO"
+
+      - name: Preparar arquivos
+        run: |
+          APK=$(find launcher/build/outputs/apk/release -name '*.apk' | head -1)
+          cp "$APK" zarktv-launcher.apk
+          SHA=$(sha256sum zarktv-launcher.apk | cut -d' ' -f1)
+          cat > version-launcher.json <<JSON
+          {
+            "pacote": "cfd.zarktvqx.launcher",
+            "version": "$VERSAO",
+            "codigo": $CODIGO,
+            "url": "https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/launcher/zarktv-launcher.apk",
+            "sha256": "$SHA",
+            "tamanho": $(stat -c %s zarktv-launcher.apk)
+          }
+          JSON
+          cat version-launcher.json
+
+      - name: Publicar
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: launcher
+          target_commitish: ${{ github.sha }}
+          name: ZarkTV Launcher (TV Box)
+          prerelease: true
+          files: |
+            zarktv-launcher.apk
+            version-launcher.json
+          body: |
+            ZarkTV Launcher para TV Box (Android 4.4 até as mais novas, um APK só).
+            Link fixo: https://github.com/nilsonlopes2298-web/zarktv-app/releases/download/launcher/zarktv-launcher.apk

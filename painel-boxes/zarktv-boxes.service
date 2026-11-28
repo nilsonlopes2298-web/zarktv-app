@@ -1,0 +1,13 @@
+[Unit]
+Description=ZarkTV Cloud - Painel das Boxes (ZarkTV Launcher)
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/zarktv-boxes
+ExecStart=/usr/bin/node /opt/zarktv-boxes/server.js
+EnvironmentFile=/opt/zarktv-boxes/.env
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target

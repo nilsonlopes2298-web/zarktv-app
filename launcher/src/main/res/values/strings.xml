@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ZarkTV</string>
+    <string name="admin_desc">Permite que a ZarkTV Launcher mantenha a box atualizada e protegida.</string>
+</resources>
