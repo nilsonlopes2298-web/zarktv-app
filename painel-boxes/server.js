@@ -360,6 +360,12 @@ function bannersNoAr(cfg) {
   const dia = hoje.toISOString().slice(0, 10);
   return cfg.banners.filter((b) => b.ativo !== false && (!b.inicio || b.inicio <= dia) && (!b.fim || b.fim >= dia));
 }
+function avisoNoAr(cfg) {
+  const a = cfg.aviso;
+  if (!a || !a.ativo) return false;
+  const dia = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString().slice(0, 10);
+  return (!a.inicio || a.inicio <= dia) && (!a.fim || a.fim >= dia);
+}
 function situacaoBanner(b) {
   const dia = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString().slice(0, 10);
   if (b.ativo === false) return '<span class="off">pausado</span>';
@@ -401,7 +407,7 @@ function respostaPing(box) {
     controle_total: ehMinha(box),
     bloquear_fora: ehMinha(box) && !!cfg.bloquearFora,
     banners: bannersNoAr(cfg).map((b) => ({ selo: b.selo, titulo: b.titulo, sub: b.sub, imagem: b.imagem, link: b.link || '', link_texto: b.linkTexto || '' })),
-    aviso: cfg.aviso && cfg.aviso.ativo ? { id: cfg.aviso.id, titulo: cfg.aviso.titulo, texto: cfg.aviso.texto, imagem: cfg.aviso.imagem } : null,
+    aviso: avisoNoAr(cfg) ? { id: cfg.aviso.id, titulo: cfg.aviso.titulo, texto: cfg.aviso.texto, imagem: cfg.aviso.imagem } : null,
     loja: cfg.loja,
     iniciais: cfg.iniciais,
     lixo: ehMinha(box) ? cfg.lixo : [],
@@ -676,10 +682,13 @@ ${banners ? `<table>${banners}</table>` : ''}
 <div class="linha"><div><label>Começa em</label><input type="date" name="inicio"></div><div><label>Termina em</label><input type="date" name="fim"></div></div>
 <button>Adicionar banner</button></form></div>
 
-<form class="card" method="post" action="/boxes/admin/tela/aviso" onsubmit="return mandarImg(this)"><h1>Aviso em tela cheia</h1><p class="dica">Aparece uma vez em cada box (até o cliente apertar "OK, entendi"). Mudou o texto, aparece de novo.</p>
+<form class="card" method="post" action="/boxes/admin/tela/aviso" onsubmit="return mandarImg(this)"><h1>Aviso em tela cheia (ex.: Feliz Natal, Feliz Ano Novo)</h1><p class="dica">Aparece em todas as boxes quando o cliente liga ou volta para o início, uma vez em cada box (até apertar "OK, entendi"). Mudou o texto, aparece de novo.
+Com as datas, entra e sai do ar sozinho (ex.: 24/12 a 26/12). Agora: ${avisoNoAr(cfg) ? '<span class="on">● no ar</span>' : '<span class="off">fora do ar</span>'}</p>
 <label class="chk"><input type="checkbox" name="ativo" value="1" ${av.ativo ? 'checked' : ''}> Aviso ligado</label>
 <label>Título</label><input name="titulo" value="${esc(av.titulo)}"><label>Texto</label><textarea name="texto" rows="3">${esc(av.texto)}</textarea>
-<label>Imagem (opcional)</label><input type="file" accept="image/*" data-img="1"><input type="hidden" name="imagem" value="${esc(av.imagem)}"><button>Salvar aviso</button></form>
+<label>Imagem (opcional)</label><input type="file" accept="image/*" data-img="1"><input type="hidden" name="imagem" value="${esc(av.imagem)}">
+<div class="linha"><div><label>Aparece a partir de</label><input type="date" name="inicio" value="${esc(av.inicio || '')}"></div><div><label>Até</label><input type="date" name="fim" value="${esc(av.fim || '')}"></div></div>
+<button>Salvar aviso</button></form>
 
 <div class="card"><h1>Apps que toda box tem</h1><p class="dica">A launcher instala sozinha (modos dona e root). No modo simples, instala quando o cliente abrir o cartão.
 Para o YouTube em box antiga (Android 4.4 a 7), use um APK compatível com TV Box, porque o YouTube oficial não instala nelas.</p>
@@ -875,7 +884,8 @@ async function admin(req, res, rota, url) {
     const cfg = config();
     const titulo = String(c.titulo || '').slice(0, 100), texto = String(c.texto || '').slice(0, 600), imagem = String(c.imagem || '').slice(0, 300);
     const mudou = titulo !== cfg.aviso.titulo || texto !== cfg.aviso.texto || imagem !== cfg.aviso.imagem;
-    cfg.aviso = { id: mudou || !cfg.aviso.id ? id(4) : cfg.aviso.id, titulo, texto, imagem, ativo: c.ativo === '1' };
+    const dt = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(String(d || '')) ? String(d) : '');
+    cfg.aviso = { id: mudou || !cfg.aviso.id ? id(4) : cfg.aviso.id, titulo, texto, imagem, ativo: c.ativo === '1', inicio: dt(c.inicio), fim: dt(c.fim) };
     salvarConfig(cfg);
     return voltar(res, '/boxes/admin/tela?ok=Aviso+salvo.');
   }
